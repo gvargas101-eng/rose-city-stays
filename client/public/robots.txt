@@ -1,0 +1,31 @@
+# Rose City Stays - robots.txt
+# SEO optimization for search engines
+
+User-agent: *
+Allow: /
+Allow: /blog
+Allow: /property
+Allow: /sitemap.xml
+
+Disallow: /admin
+Disallow: /*.json$
+Disallow: /api
+
+# Specific rules for major search engines
+User-agent: Googlebot
+Allow: /
+Allow: /blog
+Allow: /property
+Allow: /sitemap.xml
+
+User-agent: Bingbot
+Allow: /
+Allow: /blog
+Allow: /property
+Allow: /sitemap.xml
+
+# Sitemap location
+Sitemap: https://rosecitystays.com/sitemap.xml
+
+# Crawl delay (in seconds)
+Crawl-delay: 1

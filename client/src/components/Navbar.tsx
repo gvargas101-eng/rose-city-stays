@@ -22,6 +22,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/#properties", label: "Properties" },
+    { href: "/blog", label: "Blog" },
     { href: "/#about", label: "About" },
     { href: "/#why-direct", label: "Why Book Direct" },
     { href: "/#contact", label: "Contact" },

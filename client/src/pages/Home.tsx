@@ -24,6 +24,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PropertyCard from "@/components/PropertyCard";
 import { properties } from "@/lib/properties";
+import { getAllBlogArticles } from "@/lib/blog";
+import { Link } from "wouter";
 
 // Generated hero image
 const HERO_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hero-bg-LqnfwrhC2qVqFjZe7cn5TS.webp";
@@ -100,7 +102,10 @@ export default function Home() {
   const whyDirectSection = useInView();
   const aboutSection = useInView();
   const testimonialsSection = useInView();
+  const blogSection = useInView();
   const contactSection = useInView();
+
+  const blogArticles = getAllBlogArticles().slice(0, 3);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -451,6 +456,79 @@ export default function Home() {
           <p className="text-lg text-white/70 leading-relaxed" style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}>
             Tyler, Texas is home to the world's largest rose garden, a vibrant arts and music scene, outstanding dining, and warm Southern hospitality. Let Rose City Stays be your base to explore it all.
           </p>
+        </div>
+      </section>
+
+      {/* ── BLOG PREVIEW ── */}
+      <section className="py-24 bg-background">
+        <div
+          ref={blogSection.ref}
+          className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
+        >
+          <div className={`mb-14 transition-all duration-700 ${blogSection.inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+            <span
+              className="block text-xs tracking-[0.2em] uppercase text-primary mb-3"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Rose City Insights
+            </span>
+            <h2
+              className="text-4xl lg:text-5xl font-light text-foreground mb-4"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Discover Tyler
+              <br />
+              <em className="italic text-muted-foreground">Through Our Blog</em>
+            </h2>
+            <div className="w-16 h-px bg-primary mt-6" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            {blogArticles.map((article, i) => (
+              <Link key={article.id} href={`/blog/${article.slug}`}>
+                <div
+                  className={`group cursor-pointer transition-all duration-700 ${blogSection.inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+                  style={{ transitionDelay: `${i * 100}ms` }}
+                >
+                  <div className="relative rounded-lg overflow-hidden aspect-video mb-5 bg-muted">
+                    <img
+                      src={article.featuredImage}
+                      alt={article.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="text-xs tracking-[0.1em] uppercase text-primary mb-2" style={{ fontFamily: "var(--font-body)" }}>
+                    {article.category}
+                  </div>
+                  <h3
+                    className="text-lg font-medium text-foreground mb-2 group-hover:text-primary transition-colors"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {article.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-4" style={{ fontFamily: "var(--font-body)" }}>
+                    {article.excerpt}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
+                    <span>{article.readTime} min read</span>
+                    <span className="text-primary group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <a href="/blog">
+              <Button
+                size="lg"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-10 py-6 text-base font-medium tracking-wide"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                Read All Articles <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </a>
+          </div>
         </div>
       </section>
 
