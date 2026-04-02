@@ -4,6 +4,7 @@ import { notifyOwner } from "./_core/notification";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
+import { getPropertyCalendar, getListingBasePrice, PROPERTY_TO_HOSTAWAY_ID } from "./hostaway";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -17,6 +18,41 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+  }),
+
+  hostaway: router({
+    // Get availability calendar for a property (next N days)
+    calendar: publicProcedure
+      .input(
+        z.object({
+          propertyId: z.string(),
+          startDate: z.string(), // YYYY-MM-DD
+          endDate: z.string(),   // YYYY-MM-DD
+        })
+      )
+      .query(async ({ input }) => {
+        const days = await getPropertyCalendar(
+          input.propertyId,
+          input.startDate,
+          input.endDate
+        );
+        return { days };
+      }),
+
+    // Get starting price for a property
+    basePrice: publicProcedure
+      .input(z.object({ propertyId: z.string() }))
+      .query(async ({ input }) => {
+        const price = await getListingBasePrice(input.propertyId);
+        return { price };
+      }),
+
+    // Check if Hostaway is configured for a property
+    isSupported: publicProcedure
+      .input(z.object({ propertyId: z.string() }))
+      .query(({ input }) => {
+        return { supported: input.propertyId in PROPERTY_TO_HOSTAWAY_ID };
+      }),
   }),
 
   inquiry: router({

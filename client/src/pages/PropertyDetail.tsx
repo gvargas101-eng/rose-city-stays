@@ -26,6 +26,8 @@ import Footer from "@/components/Footer";
 import { getPropertyById, properties } from "@/lib/properties";
 import PropertyCard from "@/components/PropertyCard";
 import PhotoLightbox from "@/components/PhotoLightbox";
+import AvailabilityCalendar from "@/components/AvailabilityCalendar";
+import { trpc } from "@/lib/trpc";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -68,15 +70,36 @@ export default function PropertyDetail() {
     );
   }
 
+  const submitInquiry = trpc.inquiry.submit.useMutation({
+    onSuccess: () => {
+      toast.success("Inquiry sent for " + property!.shortName + "!", {
+        description: "We'll confirm availability and get back to you within 24 hours.",
+      });
+      setInquiryForm({ name: "", email: "", dates: "", guests: "2", message: "" });
+      setSubmitting(false);
+    },
+    onError: () => {
+      toast.error("Failed to send inquiry. Please email us directly.");
+      setSubmitting(false);
+    },
+  });
+
+  const { data: priceData } = trpc.hostaway.basePrice.useQuery(
+    { propertyId: property?.id || "" },
+    { enabled: !!property?.id, staleTime: 10 * 60 * 1000 }
+  );
+
   const handleInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setSubmitting(false);
-    toast.success("Inquiry sent for " + property.shortName + "!", {
-      description: "We'll confirm availability and get back to you within 24 hours.",
+    submitInquiry.mutate({
+      name: inquiryForm.name,
+      email: inquiryForm.email,
+      dates: inquiryForm.dates,
+      guests: inquiryForm.guests,
+      property: property!.shortName,
+      message: inquiryForm.message,
     });
-    setInquiryForm({ name: "", email: "", dates: "", guests: "2", message: "" });
   };
 
   const relatedProperties = properties
@@ -249,6 +272,13 @@ export default function PropertyDetail() {
 
             <div className="rule-thin mb-8" />
 
+            {/* Availability Calendar */}
+            <div className="mb-10">
+              <AvailabilityCalendar propertyId={property.id} />
+            </div>
+
+            <div className="rule-thin mb-8" />
+
             {/* House Rules */}
             <div className="mb-10">
               <h2 className="text-2xl font-light text-foreground mb-5" style={{ fontFamily: "var(--font-display)" }}>
@@ -287,6 +317,16 @@ export default function PropertyDetail() {
                   <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1" style={{ fontFamily: "var(--font-body)" }}>
                     Book This Property
                   </p>
+                  {priceData?.price && (
+                    <div className="mb-2">
+                      <span className="text-2xl font-light text-foreground" style={{ fontFamily: "var(--font-display)" }}>
+                        ${priceData.price}
+                      </span>
+                      <span className="text-sm text-muted-foreground ml-1" style={{ fontFamily: "var(--font-body)" }}>
+                        / night
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                     <span className="text-lg font-medium text-foreground" style={{ fontFamily: "var(--font-display)" }}>
