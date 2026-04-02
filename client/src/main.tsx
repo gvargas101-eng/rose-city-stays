@@ -52,6 +52,14 @@ const trpcClient = trpc.createClient({
   ],
 });
 
+// Keep the server warm with a periodic ping to prevent hibernation timeouts
+setInterval(() => {
+  fetch("/api/trpc/auth.me?batch=1", {
+    method: "GET",
+    credentials: "include",
+  }).catch(() => {}); // Silently ignore errors
+}, 60000); // Ping every 60 seconds
+
 createRoot(document.getElementById("root")!).render(
   <trpc.Provider client={trpcClient} queryClient={queryClient}>
     <QueryClientProvider client={queryClient}>
