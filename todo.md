@@ -49,3 +49,12 @@
 - [ ] Date range picker in inquiry form (check-in / check-out date selection)
 - [ ] Custom domain setup (rosecitystays.com)
 - [ ] Final end-to-end testing before replacing owner's existing site
+
+## New Requests (Apr 2)
+
+- [x] Show nightly pricing on each available date cell in the availability calendar
+- [x] Fix "Book on Hostaway" link to go to the correct Hostaway listing page for each property
+- [ ] Upload real photos for Legacy House (pending user upload)
+- [ ] Upload real photos for The Alamo House (pending user upload)
+- [ ] Upload real photos for Briar Cote (pending user upload)
+- [ ] Upload real photos for Green Acres (pending user upload)

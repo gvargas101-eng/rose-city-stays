@@ -82,7 +82,7 @@ export default function AvailabilityCalendar({ propertyId }: AvailabilityCalenda
       cells.push(<div key={`empty-${i}`} />);
     }
 
-    // Day cells
+    // Day cells — taller to accommodate price display
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = formatDate(year, month, day);
       const isPast = dateStr < todayStr;
@@ -103,14 +103,26 @@ export default function AvailabilityCalendar({ propertyId }: AvailabilityCalenda
               : ""
           }
           className={`
-            relative flex items-center justify-center rounded-md text-sm h-9 w-full
+            relative flex flex-col items-center justify-center rounded-md text-xs h-12 w-full
             ${isPast ? "text-muted-foreground/30 cursor-default" : ""}
-            ${isAvailable ? "bg-emerald-50 text-emerald-800 font-medium cursor-default border border-emerald-200" : ""}
-            ${isUnavailable ? "bg-red-50 text-red-400 cursor-default line-through" : ""}
+            ${isAvailable ? "bg-emerald-50 text-emerald-800 cursor-default border border-emerald-200 hover:bg-emerald-100 transition-colors" : ""}
+            ${isUnavailable ? "bg-red-50 text-red-400 cursor-default" : ""}
             ${!isPast && !info ? "text-muted-foreground" : ""}
           `}
         >
-          {day}
+          <span className={`font-semibold leading-tight ${isAvailable ? "text-emerald-900" : ""} ${isUnavailable ? "line-through text-red-300" : ""}`}>
+            {day}
+          </span>
+          {isAvailable && info.price > 0 && (
+            <span className="text-[9px] leading-tight text-emerald-700 font-medium mt-0.5">
+              ${info.price}
+            </span>
+          )}
+          {isUnavailable && (
+            <span className="text-[9px] leading-tight text-red-300 mt-0.5">
+              Booked
+            </span>
+          )}
         </div>
       );
     }
@@ -138,11 +150,11 @@ export default function AvailabilityCalendar({ propertyId }: AvailabilityCalenda
         <div className="flex items-center gap-4">
           {/* Legend */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-emerald-100 border border-emerald-200 inline-block" />
               Available
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-red-50 border border-red-200 inline-block" />
               Booked
             </span>
@@ -233,7 +245,7 @@ export default function AvailabilityCalendar({ propertyId }: AvailabilityCalenda
         className="text-xs text-muted-foreground mt-4 text-center"
         style={{ fontFamily: "var(--font-body)" }}
       >
-        Hover over available dates to see nightly rates. Synced with Hostaway in real time.
+        Nightly rates shown on available dates. Synced with Hostaway in real time.
       </p>
     </div>
   );

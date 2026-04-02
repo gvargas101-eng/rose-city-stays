@@ -60,7 +60,7 @@ export const properties: Property[] = [
     neighborhood: "East Tyler",
     image: PROPERTY_IMAGES.briar,
     images: [PROPERTY_IMAGES.briar, PROPERTY_IMAGES.hospital, PROPERTY_IMAGES.hollytree_golf],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329641",
     priceNote: "Contact for pricing",
   },
   {
@@ -83,7 +83,7 @@ export const properties: Property[] = [
     neighborhood: "Hospital District",
     image: PROPERTY_IMAGES.hospital,
     images: [PROPERTY_IMAGES.hospital, PROPERTY_IMAGES.briar, PROPERTY_IMAGES.alamo],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329642",
     priceNote: "Contact for pricing",
   },
   {
@@ -142,7 +142,7 @@ export const properties: Property[] = [
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hollytree-golf-photo-34_acb13446.jpg",
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hollytree-golf-photo-35_e0726188.jpg"
     ],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329643",
     priceNote: "Contact for pricing",
   },
   {
@@ -165,7 +165,7 @@ export const properties: Property[] = [
     neighborhood: "South Tyler",
     image: PROPERTY_IMAGES.alamo,
     images: [PROPERTY_IMAGES.alamo, PROPERTY_IMAGES.legacy, PROPERTY_IMAGES.green_acres],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329644",
     priceNote: "Contact for pricing",
   },
   {
@@ -188,7 +188,7 @@ export const properties: Property[] = [
     neighborhood: "Green Acres District",
     image: PROPERTY_IMAGES.green_acres,
     images: [PROPERTY_IMAGES.green_acres, PROPERTY_IMAGES.alamo, PROPERTY_IMAGES.briar],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329645",
     priceNote: "Contact for pricing",
   },
   {
@@ -245,7 +245,7 @@ export const properties: Property[] = [
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-32_0ef521e6.jpg",
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-33_c4e75fdd.jpg"
     ],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329646",
     priceNote: "Contact for pricing",
   },
   {
@@ -300,7 +300,7 @@ export const properties: Property[] = [
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-35-ac_97db1dd4.jpg",
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-36-ac_a48d037a.jpg"
     ],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329647",
     priceNote: "Contact for pricing",
   },
   {
@@ -357,7 +357,7 @@ export const properties: Property[] = [
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/noir-hollytree-photo-32_07c537a6.jpg",
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/noir-hollytree-photo-33_77112b33.jpg"
     ],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329648",
     priceNote: "Contact for pricing",
   },
   {
@@ -410,7 +410,7 @@ export const properties: Property[] = [
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-28_078c6d4a.jpg",
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-29_1bdfa09a.jpg"
     ],
-    hostaway_url: "https://www.rosecitystays.com/listings/",
+    hostaway_url: "https://www.rosecitystays.com/listings/329649",
     priceNote: "Contact for pricing",
   },
   {
