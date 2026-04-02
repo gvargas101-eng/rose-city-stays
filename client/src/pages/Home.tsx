@@ -3,6 +3,7 @@
 // Sections: Hero, Stats, Properties, Why Book Direct, About, Testimonials, Contact, Footer
 
 import { useState, useEffect, useRef } from "react";
+import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,11 +20,14 @@ import {
   MapPin,
   CheckCircle2,
   ArrowRight,
+  Users,
+  BedDouble,
+  Home as HomeIcon,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PropertyCard from "@/components/PropertyCard";
-import { properties } from "@/lib/properties";
+import { properties, type Property } from "@/lib/properties";
 import { getAllBlogArticles } from "@/lib/blog";
 import { Link } from "wouter";
 
@@ -86,6 +90,20 @@ const testimonials = [
 ];
 
 export default function Home() {
+  // Filter state
+  const [filterGuests, setFilterGuests] = useState("any");
+  const [filterBedrooms, setFilterBedrooms] = useState("any");
+  const [filterType, setFilterType] = useState("any");
+
+  const filteredProperties = properties.filter((p: Property) => {
+    if (filterGuests !== "any" && p.guests < parseInt(filterGuests)) return false;
+    if (filterBedrooms !== "any" && p.bedrooms < parseInt(filterBedrooms)) return false;
+    if (filterType !== "any" && p.type !== filterType) return false;
+    return true;
+  });
+
+  const propertyTypes = Array.from(new Set(properties.map((p: Property) => p.type)));
+
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
@@ -107,16 +125,32 @@ export default function Home() {
 
   const blogArticles = getAllBlogArticles().slice(0, 3);
 
+  const submitInquiry = trpc.inquiry.submit.useMutation({
+    onSuccess: () => {
+      toast.success("Message sent! We'll be in touch within 24 hours.", {
+        description: "Thank you for your inquiry, " + contactForm.name + ".",
+      });
+      setContactForm({ name: "", email: "", phone: "", dates: "", guests: "", property: "", message: "" });
+      setSubmitting(false);
+    },
+    onError: () => {
+      toast.error("Something went wrong. Please email us directly at gustavo@rosecitystays.com");
+      setSubmitting(false);
+    },
+  });
+
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    // Simulate form submission
-    await new Promise((r) => setTimeout(r, 1200));
-    setSubmitting(false);
-    toast.success("Message sent! We'll be in touch within 24 hours.", {
-      description: "Thank you for your inquiry, " + contactForm.name + ".",
+    submitInquiry.mutate({
+      name: contactForm.name,
+      email: contactForm.email,
+      phone: contactForm.phone || undefined,
+      dates: contactForm.dates || undefined,
+      guests: contactForm.guests || undefined,
+      property: contactForm.property || undefined,
+      message: contactForm.message || undefined,
     });
-    setContactForm({ name: "", email: "", phone: "", dates: "", guests: "", property: "", message: "" });
   };
 
   return (
@@ -252,12 +286,94 @@ export default function Home() {
             <div className="w-16 h-px bg-primary mt-6" />
           </div>
 
-          {/* Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            {properties.map((property, i) => (
-              <PropertyCard key={property.id} property={property} index={i} />
-            ))}
+          {/* Filter Bar */}
+          <div className={`mb-10 transition-all duration-700 delay-100 ${propertiesSection.inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Guests filter */}
+              <div className="flex items-center gap-2 bg-muted/60 border border-border rounded-full px-4 py-2">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <select
+                  value={filterGuests}
+                  onChange={(e) => setFilterGuests(e.target.value)}
+                  className="bg-transparent text-sm text-foreground focus:outline-none cursor-pointer"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  <option value="any">Any guests</option>
+                  <option value="2">2+ guests</option>
+                  <option value="4">4+ guests</option>
+                  <option value="6">6+ guests</option>
+                  <option value="8">8+ guests</option>
+                </select>
+              </div>
+
+              {/* Bedrooms filter */}
+              <div className="flex items-center gap-2 bg-muted/60 border border-border rounded-full px-4 py-2">
+                <BedDouble className="w-4 h-4 text-muted-foreground" />
+                <select
+                  value={filterBedrooms}
+                  onChange={(e) => setFilterBedrooms(e.target.value)}
+                  className="bg-transparent text-sm text-foreground focus:outline-none cursor-pointer"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  <option value="any">Any bedrooms</option>
+                  <option value="1">1+ bed</option>
+                  <option value="2">2+ beds</option>
+                  <option value="3">3+ beds</option>
+                  <option value="4">4+ beds</option>
+                </select>
+              </div>
+
+              {/* Type filter */}
+              <div className="flex items-center gap-2 bg-muted/60 border border-border rounded-full px-4 py-2">
+                <HomeIcon className="w-4 h-4 text-muted-foreground" />
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="bg-transparent text-sm text-foreground focus:outline-none cursor-pointer"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  <option value="any">All types</option>
+                  {propertyTypes.map((t: string) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Clear filters */}
+              {(filterGuests !== "any" || filterBedrooms !== "any" || filterType !== "any") && (
+                <button
+                  onClick={() => { setFilterGuests("any"); setFilterBedrooms("any"); setFilterType("any"); }}
+                  className="text-sm text-primary hover:text-primary/80 underline underline-offset-2 transition-colors"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  Clear filters
+                </button>
+              )}
+
+              {/* Result count */}
+              <span className="ml-auto text-sm text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
+                {filteredProperties.length} {filteredProperties.length === 1 ? "property" : "properties"}
+              </span>
+            </div>
           </div>
+
+          {/* Grid */}
+          {filteredProperties.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+              {filteredProperties.map((property: Property, i: number) => (
+                <PropertyCard key={property.id} property={property} index={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              <p className="text-2xl font-light text-muted-foreground mb-4" style={{ fontFamily: "var(--font-display)" }}>No properties match your filters</p>
+              <button
+                onClick={() => { setFilterGuests("any"); setFilterBedrooms("any"); setFilterType("any"); }}
+                className="text-primary hover:text-primary/80 underline underline-offset-2 text-sm"
+                style={{ fontFamily: "var(--font-body)" }}
+              >Clear all filters</button>
+            </div>
+          )}
 
           {/* CTA */}
           <div className="text-center mt-14">
