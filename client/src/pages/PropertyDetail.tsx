@@ -25,6 +25,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { getPropertyById, properties } from "@/lib/properties";
 import PropertyCard from "@/components/PropertyCard";
+import PhotoLightbox from "@/components/PhotoLightbox";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +33,11 @@ export default function PropertyDetail() {
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
   const [inquiryForm, setInquiryForm] = useState({
     name: "",
     email: "",
@@ -95,55 +101,59 @@ export default function PropertyDetail() {
 
       {/* Image Gallery */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 rounded-xl overflow-hidden">
-          <div
-            className="col-span-2 row-span-2 relative cursor-pointer group"
-            onClick={() => { setLightboxIndex(0); setLightboxOpen(true); }}
-          >
-            <img
-              src={property.images[0]}
-              alt={property.shortName}
-              className="w-full h-72 lg:h-96 object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-          </div>
-          {property.images.slice(1, 3).map((img, i) => (
+        <div className="relative">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 rounded-xl overflow-hidden">
             <div
-              key={i}
-              className="relative cursor-pointer group overflow-hidden"
-              onClick={() => { setLightboxIndex(i + 1); setLightboxOpen(true); }}
+              className="col-span-2 row-span-2 relative cursor-pointer group"
+              onClick={() => openLightbox(0)}
             >
               <img
-                src={img}
-                alt={`${property.shortName} ${i + 2}`}
-                className="w-full h-[calc(50%-6px)] lg:h-[calc(192px-6px)] object-cover transition-transform duration-500 group-hover:scale-105"
-                style={{ height: "calc(50% - 6px)" }}
+                src={property.images[0]}
+                alt={property.shortName}
+                className="w-full h-72 lg:h-96 object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
             </div>
-          ))}
+            {property.images.slice(1, 3).map((img, i) => (
+              <div
+                key={i}
+                className="relative cursor-pointer group overflow-hidden"
+                onClick={() => openLightbox(i + 1)}
+              >
+                <img
+                  src={img}
+                  alt={`${property.shortName} ${i + 2}`}
+                  className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  style={{ height: "calc(50% - 6px)", minHeight: "144px" }}
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+              </div>
+            ))}
+          </div>
+          {/* View all photos button */}
+          {property.images.length > 3 && (
+            <button
+              onClick={() => openLightbox(0)}
+              className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm text-foreground text-sm font-medium px-4 py-2 rounded-full shadow-md hover:bg-white transition-colors flex items-center gap-2"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              <span className="grid grid-cols-2 gap-0.5 w-4 h-4">
+                {[0,1,2,3].map(n => <span key={n} className="bg-foreground/70 rounded-sm" />)}
+              </span>
+              View all {property.images.length} photos
+            </button>
+          )}
         </div>
       </div>
 
       {/* Lightbox */}
       {lightboxOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setLightboxOpen(false)}
-        >
-          <button
-            className="absolute top-4 right-4 text-white/70 hover:text-white"
-            onClick={() => setLightboxOpen(false)}
-          >
-            <X className="w-8 h-8" />
-          </button>
-          <img
-            src={property.images[lightboxIndex]}
-            alt={property.shortName}
-            className="max-w-full max-h-full object-contain rounded-lg"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
+        <PhotoLightbox
+          images={property.images}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxOpen(false)}
+          onNavigate={setLightboxIndex}
+        />
       )}
 
       {/* Main Content */}
