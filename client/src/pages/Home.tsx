@@ -28,7 +28,7 @@ import { getAllBlogArticles } from "@/lib/blog";
 import { Link } from "wouter";
 
 // Generated hero image
-const HERO_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hero-bg-LqnfwrhC2qVqFjZe7cn5TS.webp";
+const HERO_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hollytree-golf-photo-01_29d8f2c8.jpg"; // 6127 Photo-3 wide-angle living room
 const TYLER_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/tyler-tx-GDKyBfxJZPpPZRX8xgdf9B.webp";
 const ABOUT_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/about-host-WnHa9oaZNQ9KzyBExpeQjQ.webp";
 
