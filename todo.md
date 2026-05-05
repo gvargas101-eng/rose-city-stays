@@ -42,9 +42,9 @@
 
 ## Pending Features
 
-- [ ] Upload real photos for The Briar (3 remaining properties)
-- [ ] Upload real photos for Wall Ave. Retreat
-- [ ] Upload real photos for The Alamo House
+- [x] Upload real photos for The Briar (sourced from Airbnb)
+- [x] Upload real photos for Wall Ave. Retreat (sourced from Airbnb)
+- [x] Upload real photos for The Alamo House (sourced from Airbnb)
 - [ ] Direct booking with payment processing (Stripe integration)
 - [ ] Date range picker in inquiry form (check-in / check-out date selection)
 - [ ] Custom domain setup (rosecitystays.com)
@@ -54,7 +54,16 @@
 
 - [x] Show nightly pricing on each available date cell in the availability calendar
 - [x] Fix "Book on Hostaway" link to go to the correct Hostaway listing page for each property
-- [ ] Upload real photos for Legacy House (pending user upload)
-- [ ] Upload real photos for The Alamo House (pending user upload)
-- [ ] Upload real photos for Briar Cote (pending user upload)
-- [ ] Upload real photos for Green Acres (pending user upload)
+- [x] Upload real photos for Legacy House (already had photos)
+- [x] Upload real photos for The Alamo House (sourced from Airbnb) (pending user upload)
+- [x] Upload real photos for Briar Cote / The Briar (sourced from Airbnb)
+- [x] Upload real photos for Green Acres (sourced from Airbnb)
+
+## Photo Import from Hostaway (Apr 2)
+
+- [x] Fetch photos from Hostaway API for The Alamo House (329644)
+- [x] Fetch photos from Hostaway API for Wall Ave. Retreat (329642)
+- [x] Fetch photos from Hostaway API for The Briar (329641)
+- [x] Fetch photos from Hostaway API for Green Acres (329645)
+- [x] Upload all fetched photos to CDN (using Airbnb CDN URLs directly)
+- [x] Update properties.ts with real CDN photo URLs for all 4 properties
