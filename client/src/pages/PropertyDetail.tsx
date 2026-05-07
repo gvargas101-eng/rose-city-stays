@@ -27,6 +27,8 @@ import { getPropertyById, properties } from "@/lib/properties";
 import PropertyCard from "@/components/PropertyCard";
 import PhotoLightbox from "@/components/PhotoLightbox";
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
+import ReviewsSection from "@/components/ReviewsSection";
+import { propertyReviews } from "@/lib/reviews";
 import { trpc } from "@/lib/trpc";
 
 export default function PropertyDetail() {
@@ -437,6 +439,19 @@ export default function PropertyDetail() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Guest Reviews */}
+      <div className="bg-background py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-light text-foreground mb-2" style={{ fontFamily: "var(--font-display)" }}>
+            Guest Reviews
+          </h2>
+          <ReviewsSection
+            reviews={propertyReviews[property.id] || []}
+            propertyName={property.name}
+          />
         </div>
       </div>
 

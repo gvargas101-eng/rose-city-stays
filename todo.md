@@ -67,3 +67,11 @@
 - [x] Fetch photos from Hostaway API for Green Acres (329645)
 - [x] Upload all fetched photos to CDN (using Airbnb CDN URLs directly)
 - [x] Update properties.ts with real CDN photo URLs for all 4 properties
+
+## Guest Reviews Section
+
+- [x] Fetch real guest reviews from Hostaway API for all 10 properties (645 reviews total)
+- [x] Store reviews in client/src/lib/reviews.ts (auto-generated from Hostaway API)
+- [x] Build ReviewsSection component with star ratings, reviewer name, date, and text
+- [x] Add ReviewsSection to PropertyDetail page below the House Rules section
+- [x] Show aggregate rating and review count in the section header
