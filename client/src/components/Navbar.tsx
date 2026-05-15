@@ -77,7 +77,7 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            <a href="https://www.rosecitystays.com" target="_blank" rel="noopener noreferrer">
+            <a href="/#properties">
               <Button
                 size="sm"
                 className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6 text-sm font-medium tracking-wide"
@@ -116,12 +116,12 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            <a href="https://www.rosecitystays.com" target="_blank" rel="noopener noreferrer">
+            <a href="/#properties" onClick={() => setMenuOpen(false)}>
               <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-medium"
                 style={{ fontFamily: "var(--font-body)" }}
               >
-                Book Now on Hostaway
+                Book Now
               </Button>
             </a>
           </div>

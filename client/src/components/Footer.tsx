@@ -60,18 +60,15 @@ export default function Footer() {
                 { label: "About Us", href: "/#about" },
                 { label: "Why Book Direct", href: "/#why-direct" },
                 { label: "Contact", href: "/#contact" },
-                { label: "Book on Hostaway", href: "https://www.rosecitystays.com", external: true },
+                { label: "Book Now", href: "/#properties" },
               ].map((link) => (
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    target={link.external ? "_blank" : undefined}
-                    rel={link.external ? "noopener noreferrer" : undefined}
                     className="text-sm text-background/60 hover:text-background transition-colors"
                     style={{ fontFamily: "var(--font-body)" }}
                   >
                     {link.label}
-                    {link.external && <span className="ml-1 text-xs">↗</span>}
                   </a>
                 </li>
               ))}

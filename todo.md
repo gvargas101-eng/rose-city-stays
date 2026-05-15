@@ -45,8 +45,8 @@
 - [x] Upload real photos for The Briar (sourced from Airbnb)
 - [x] Upload real photos for Wall Ave. Retreat (sourced from Airbnb)
 - [x] Upload real photos for The Alamo House (sourced from Airbnb)
-- [ ] Direct booking with payment processing (Stripe integration)
-- [ ] Date range picker in inquiry form (check-in / check-out date selection)
+- [x] Direct booking with payment processing (Stripe integration)
+- [x] Date range picker in inquiry form (check-in / check-out date selection)
 - [ ] Custom domain setup (rosecitystays.com)
 - [ ] Final end-to-end testing before replacing owner's existing site
 
@@ -78,15 +78,21 @@
 
 ## Direct Booking Flow (Stripe + Hostaway)
 
-- [ ] Set up Stripe integration (webdev_add_feature)
-- [ ] Add bookings table to DB schema (property, dates, guest info, amount, status, hostaway reservation ID)
-- [ ] Build date range picker on property detail page (check-in / check-out selection)
-- [ ] Build booking summary panel (nights, nightly rate, total, fees)
-- [ ] Build Stripe payment intent tRPC procedure
-- [ ] Build Stripe checkout UI (card element, billing info)
-- [ ] Build payment confirmation tRPC procedure (verify payment, create Hostaway reservation)
-- [ ] Create Hostaway reservation via API on successful payment
-- [ ] Send booking confirmation email to guest and owner notification
-- [ ] Build /booking/confirmation page showing reservation details
-- [ ] Replace "Book on Hostaway" button with native "Book Now" flow
-- [ ] Write unit tests for booking procedures
+- [x] Set up Stripe integration (webdev_add_feature)
+- [x] Add bookings table to DB schema (property, dates, guest info, amount, status, hostaway reservation ID)
+- [x] Build date range picker on property detail page (check-in / check-out selection)
+- [x] Build booking summary panel (nights, nightly rate, total, fees)
+- [x] Build Stripe payment intent tRPC procedure
+- [x] Build Stripe checkout UI (card element, billing info)
+- [x] Build payment confirmation tRPC procedure (verify payment, create Hostaway reservation)
+- [x] Create Hostaway reservation via API on successful payment
+- [x] Send booking confirmation email to guest and owner notification (owner notified via Manus notification)
+- [x] Build /booking/confirmation page showing reservation details
+- [x] Replace "Book on Hostaway" button with native "Book Now" flow
+- [ ] Write unit tests for booking procedures (Stripe mocking needed)
+
+## Booking Flow Fixes (Gaps)
+
+- [x] Fix checkout flow: collect guest info BEFORE creating PaymentIntent (not placeholder data)
+- [x] Replace remaining "Book on Hostaway" CTAs in Navbar and Footer with native booking links
+- [x] Update Navbar "Book Now" button to scroll to properties or link to booking flow
