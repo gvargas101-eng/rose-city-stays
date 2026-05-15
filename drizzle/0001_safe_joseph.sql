@@ -1,0 +1,23 @@
+CREATE TABLE `bookings` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`propertyId` varchar(64) NOT NULL,
+	`hostawayListingId` int NOT NULL,
+	`guestName` varchar(256) NOT NULL,
+	`guestEmail` varchar(320) NOT NULL,
+	`guestPhone` varchar(32),
+	`guestCount` int NOT NULL DEFAULT 1,
+	`checkIn` bigint NOT NULL,
+	`checkOut` bigint NOT NULL,
+	`nights` int NOT NULL,
+	`nightlyRate` decimal(10,2) NOT NULL,
+	`subtotal` decimal(10,2) NOT NULL,
+	`cleaningFee` decimal(10,2) NOT NULL DEFAULT '0',
+	`totalAmount` decimal(10,2) NOT NULL,
+	`stripePaymentIntentId` varchar(256),
+	`hostawayReservationId` varchar(64),
+	`status` enum('pending','paid','confirmed','cancelled','failed') NOT NULL DEFAULT 'pending',
+	`message` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `bookings_id` PRIMARY KEY(`id`)
+);

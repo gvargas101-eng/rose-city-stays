@@ -75,3 +75,18 @@
 - [x] Build ReviewsSection component with star ratings, reviewer name, date, and text
 - [x] Add ReviewsSection to PropertyDetail page below the House Rules section
 - [x] Show aggregate rating and review count in the section header
+
+## Direct Booking Flow (Stripe + Hostaway)
+
+- [ ] Set up Stripe integration (webdev_add_feature)
+- [ ] Add bookings table to DB schema (property, dates, guest info, amount, status, hostaway reservation ID)
+- [ ] Build date range picker on property detail page (check-in / check-out selection)
+- [ ] Build booking summary panel (nights, nightly rate, total, fees)
+- [ ] Build Stripe payment intent tRPC procedure
+- [ ] Build Stripe checkout UI (card element, billing info)
+- [ ] Build payment confirmation tRPC procedure (verify payment, create Hostaway reservation)
+- [ ] Create Hostaway reservation via API on successful payment
+- [ ] Send booking confirmation email to guest and owner notification
+- [ ] Build /booking/confirmation page showing reservation details
+- [ ] Replace "Book on Hostaway" button with native "Book Now" flow
+- [ ] Write unit tests for booking procedures

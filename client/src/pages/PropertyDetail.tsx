@@ -18,8 +18,6 @@ import {
   CheckCircle2,
   MapPin,
   Calendar,
-  ArrowRight,
-  X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -30,6 +28,8 @@ import AvailabilityCalendar from "@/components/AvailabilityCalendar";
 import ReviewsSection from "@/components/ReviewsSection";
 import { propertyReviews } from "@/lib/reviews";
 import { trpc } from "@/lib/trpc";
+import BookingPanel, { type BookingSelection } from "@/components/BookingPanel";
+import CheckoutModal from "@/components/CheckoutModal";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +37,8 @@ export default function PropertyDetail() {
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [checkoutBooking, setCheckoutBooking] = useState<BookingSelection | null>(null);
+  const [showInquiry, setShowInquiry] = useState(false);
 
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
@@ -89,6 +91,15 @@ export default function PropertyDetail() {
   const { data: priceData } = trpc.hostaway.basePrice.useQuery(
     { propertyId: property?.id || "" },
     { enabled: !!property?.id, staleTime: 10 * 60 * 1000 }
+  );
+
+  const { data: calendarData } = trpc.hostaway.calendar.useQuery(
+    {
+      propertyId: property?.id || "",
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+    },
+    { enabled: !!property?.id, staleTime: 5 * 60 * 1000 }
   );
 
   const handleInquiry = async (e: React.FormEvent) => {
@@ -312,135 +323,113 @@ export default function PropertyDetail() {
 
           {/* Right: Booking Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24">
-              {/* Book on Hostaway CTA */}
-              <div className="bg-card border border-border rounded-xl p-6 mb-6 shadow-sm">
-                <div className="text-center mb-5">
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1" style={{ fontFamily: "var(--font-body)" }}>
-                    Book This Property
-                  </p>
-                  {priceData?.price && (
-                    <div className="mb-2">
-                      <span className="text-2xl font-light text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-                        ${priceData.price}
-                      </span>
-                      <span className="text-sm text-muted-foreground ml-1" style={{ fontFamily: "var(--font-body)" }}>
-                        / night
-                      </span>
+            <div className="sticky top-24 space-y-6">
+              <BookingPanel
+                propertyId={property.id}
+                propertyName={property.name}
+                basePrice={priceData?.price || null}
+                rating={property.rating}
+                reviewCount={property.reviewCount}
+                calendarDays={calendarData?.days || []}
+                onBookNow={(booking) => setCheckoutBooking(booking)}
+                onInquiry={() => setShowInquiry(true)}
+              />
+
+              {/* Direct Inquiry Form (collapsible) */}
+              {showInquiry && (
+                <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                  <h3 className="text-xl font-light text-foreground mb-5" style={{ fontFamily: "var(--font-display)" }}>
+                    Send Direct Inquiry
+                  </h3>
+                  <form onSubmit={handleInquiry} className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Name *</label>
+                      <Input
+                        required
+                        value={inquiryForm.name}
+                        onChange={(e) => setInquiryForm({ ...inquiryForm, name: e.target.value })}
+                        placeholder="Your name"
+                        className="bg-background text-sm"
+                        style={{ fontFamily: "var(--font-body)" }}
+                      />
                     </div>
-                  )}
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    <span className="text-lg font-medium text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-                      {property.rating.toFixed(2)}
-                    </span>
-                    <span className="text-sm text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
-                      ({property.reviewCount} reviews)
-                    </span>
-                  </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Email *</label>
+                      <Input
+                        required
+                        type="email"
+                        value={inquiryForm.email}
+                        onChange={(e) => setInquiryForm({ ...inquiryForm, email: e.target.value })}
+                        placeholder="your@email.com"
+                        className="bg-background text-sm"
+                        style={{ fontFamily: "var(--font-body)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Dates</label>
+                      <Input
+                        value={inquiryForm.dates}
+                        onChange={(e) => setInquiryForm({ ...inquiryForm, dates: e.target.value })}
+                        placeholder="Apr 15 – Apr 20"
+                        className="bg-background text-sm"
+                        style={{ fontFamily: "var(--font-body)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Guests</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max={property.guests}
+                        value={inquiryForm.guests}
+                        onChange={(e) => setInquiryForm({ ...inquiryForm, guests: e.target.value })}
+                        className="bg-background text-sm"
+                        style={{ fontFamily: "var(--font-body)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Message</label>
+                      <Textarea
+                        value={inquiryForm.message}
+                        onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
+                        placeholder="Any questions or special requests?"
+                        rows={3}
+                        className="bg-background text-sm resize-none"
+                        style={{ fontFamily: "var(--font-body)" }}
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-medium"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      {submitting ? "Sending..." : "Send Inquiry"}
+                    </Button>
+                  </form>
                 </div>
-
-                <a
-                  href={property.hostaway_url || "https://www.rosecitystays.com"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                >
-                  <Button
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-full py-6 text-base font-medium"
-                    style={{ fontFamily: "var(--font-body)" }}
-                  >
-                    Book on Hostaway <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </a>
-
-                <div className="mt-4 flex items-center gap-2 justify-center">
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-xs text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>or</span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-
-                <p className="text-center text-xs text-muted-foreground mt-3" style={{ fontFamily: "var(--font-body)" }}>
-                  Send a direct inquiry below — no platform fees
-                </p>
-              </div>
-
-              {/* Direct Inquiry Form */}
-              <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                <h3 className="text-xl font-light text-foreground mb-5" style={{ fontFamily: "var(--font-display)" }}>
-                  Send Direct Inquiry
-                </h3>
-                <form onSubmit={handleInquiry} className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Name *</label>
-                    <Input
-                      required
-                      value={inquiryForm.name}
-                      onChange={(e) => setInquiryForm({ ...inquiryForm, name: e.target.value })}
-                      placeholder="Your name"
-                      className="bg-background text-sm"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Email *</label>
-                    <Input
-                      required
-                      type="email"
-                      value={inquiryForm.email}
-                      onChange={(e) => setInquiryForm({ ...inquiryForm, email: e.target.value })}
-                      placeholder="your@email.com"
-                      className="bg-background text-sm"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Dates</label>
-                    <Input
-                      value={inquiryForm.dates}
-                      onChange={(e) => setInquiryForm({ ...inquiryForm, dates: e.target.value })}
-                      placeholder="Apr 15 – Apr 20"
-                      className="bg-background text-sm"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Guests</label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max={property.guests}
-                      value={inquiryForm.guests}
-                      onChange={(e) => setInquiryForm({ ...inquiryForm, guests: e.target.value })}
-                      className="bg-background text-sm"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wide" style={{ fontFamily: "var(--font-body)" }}>Message</label>
-                    <Textarea
-                      value={inquiryForm.message}
-                      onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
-                      placeholder="Any questions or special requests?"
-                      rows={3}
-                      className="bg-background text-sm resize-none"
-                      style={{ fontFamily: "var(--font-body)" }}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-medium"
-                    style={{ fontFamily: "var(--font-body)" }}
-                  >
-                    {submitting ? "Sending..." : "Send Inquiry"}
-                  </Button>
-                </form>
-              </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Checkout Modal */}
+      {checkoutBooking && property && (
+        <CheckoutModal
+          propertyId={property.id}
+          propertyName={property.name}
+          checkIn={checkoutBooking.checkIn}
+          checkOut={checkoutBooking.checkOut}
+          nights={checkoutBooking.nights}
+          avgNightlyRate={checkoutBooking.avgNightlyRate}
+          guestCount={checkoutBooking.guestCount}
+          cleaningFee={({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[property.id] ?? 125}
+          subtotal={checkoutBooking.avgNightlyRate * checkoutBooking.nights}
+          totalAmount={checkoutBooking.avgNightlyRate * checkoutBooking.nights + (({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[property.id] ?? 125)}
+          onClose={() => setCheckoutBooking(null)}
+        />
+      )}
 
       {/* Guest Reviews */}
       <div className="bg-background py-4">

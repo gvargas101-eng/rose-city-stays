@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Blog from "./pages/Blog";
 import BlogDetail from "./pages/BlogDetail";
 import PropertyDetail from "./pages/PropertyDetail";
+import BookingConfirmation from "./pages/BookingConfirmation";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -17,6 +18,7 @@ function Router() {
       <Route path={"/blog"} component={Blog} />
       <Route path={"/blog/:slug"} component={BlogDetail} />
       <Route path={"/property/:id"} component={PropertyDetail} />
+      <Route path={"/booking/confirmation"} component={BookingConfirmation} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
