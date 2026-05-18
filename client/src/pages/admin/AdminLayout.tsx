@@ -1,13 +1,13 @@
 /**
  * AdminLayout — sidebar layout for all admin pages.
- * Only accessible to users with role=admin.
+ * Uses standalone password-based admin session (independent of Manus OAuth).
  */
 
-import { Link, useLocation, useRouter } from "wouter";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { Link, useLocation } from "wouter";
 import { Building2, CalendarCheck, LayoutDashboard, LogOut, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import AdminLogin from "./AdminLogin";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -16,14 +16,26 @@ const navItems = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
   const [location] = useLocation();
-  const router = useRouter();
-  const logout = trpc.auth.logout.useMutation({
-    onSuccess: () => { window.location.href = "/"; },
+  const utils = trpc.useUtils();
+
+  // Check standalone admin session
+  const { data: adminSession, isLoading } = trpc.adminAuth.me.useQuery(undefined, {
+    retry: false,
+    staleTime: 60_000,
   });
 
-  if (loading) {
+  const logoutMutation = trpc.adminAuth.logout.useMutation({
+    onSuccess: () => {
+      utils.adminAuth.me.invalidate();
+      window.location.href = "/";
+    },
+    onError: () => {
+      toast.error("Logout failed");
+    },
+  });
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -31,10 +43,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!user || user.role !== "admin") {
-    // Redirect non-admins to home
-    window.location.replace("/");
-    return null;
+  // Not authenticated — show the login page
+  if (!adminSession?.authenticated) {
+    return <AdminLogin />;
   }
 
   return (
@@ -84,14 +95,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="px-3 py-4 border-t border-border">
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
             <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary">
-              {user.name?.[0]?.toUpperCase() ?? "A"}
+              {adminSession.username?.[0]?.toUpperCase() ?? "A"}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-foreground truncate">{user.name ?? "Admin"}</div>
+              <div className="text-xs font-medium text-foreground truncate">{adminSession.username ?? "Admin"}</div>
               <div className="text-xs text-muted-foreground">Administrator</div>
             </div>
             <button
-              onClick={() => logout.mutate()}
+              onClick={() => logoutMutation.mutate()}
               className="text-muted-foreground hover:text-foreground transition-colors"
               title="Sign out"
             >

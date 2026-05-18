@@ -117,3 +117,17 @@
 - [x] Add admin route guard to all /admin/* routes (redirect non-admins to home)
 - [x] Migrate PropertyDetail to load property data from DB (trpc.properties.bySlug)
 - [x] Add photo reorder support (← → arrow buttons) in admin property edit
+
+## Photo Re-hosting (Fix Airbnb Hotlink Block)
+
+- [ ] Download all property photos from Airbnb CDN and re-upload to site's own CDN
+- [ ] Update all photo URLs in the database to use new CDN URLs
+- [ ] Verify photos load correctly on published site
+
+## Standalone Admin Login (Password-Based)
+
+- [ ] Add admin_credentials table to DB (username, hashed password)
+- [ ] Build /admin/login page with username + password form
+- [ ] Add adminLogin tRPC procedure (verify password, issue session cookie)
+- [ ] Update AdminLayout to check for admin session (Manus OAuth OR password session)
+- [ ] Show admin login link in navbar for non-logged-in users visiting /admin

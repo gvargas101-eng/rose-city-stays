@@ -1,0 +1,28 @@
+{
+  "query": "\nSELECT pp.id, pp.propertyId, pp.url, p.name \nFROM property_photos pp\nJOIN properties p ON pp.propertyId = p.id\nWHERE pp.url LIKE '%muscache%' OR pp.url LIKE '%airbnb%';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute \nSELECT pp.id, pp.propertyId, pp.url, p.name \nFROM property_photos pp\nJOIN properties p ON pp.propertyId = p.id\nWHERE pp.url LIKE '%muscache%' OR pp.url LIKE '%airbnb%';\n",
+  "rows": [
+    {
+      "id": "26",
+      "propertyId": "4",
+      "url": "https://a0.muscache.com/im/pictures/miso/Hosting-52309432/original/alamo-1.jpeg",
+      "name": "The Alamo House — Stylish 4BR Home"
+    },
+    {
+      "id": "27",
+      "propertyId": "4",
+      "url": "https://a0.muscache.com/im/pictures/miso/Hosting-52309432/original/alamo-2.jpeg",
+      "name": "The Alamo House — Stylish 4BR Home"
+    },
+    {
+      "id": "28",
+      "propertyId": "5",
+      "url": "https://a0.muscache.com/im/pictures/miso/Hosting-green-acres/original/green-1.jpeg",
+      "name": "Green Acres — Peaceful Country Retreat"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tpropertyId\turl\tname\n26\t4\thttps://a0.muscache.com/im/pictures/miso/Hosting-52309432/original/alamo-1.jpeg\tThe Alamo House — Stylish 4BR Home\n27\t4\thttps://a0.muscache.com/im/pictures/miso/Hosting-52309432/original/alamo-2.jpeg\tThe Alamo House — Stylish 4BR Home\n28\t5\thttps://a0.muscache.com/im/pictures/miso/Hosting-green-acres/original/green-1.jpeg\tGreen Acres — Peaceful Country Retreat\n",
+  "stderr": "",
+  "execution_time_ms": 260
+}

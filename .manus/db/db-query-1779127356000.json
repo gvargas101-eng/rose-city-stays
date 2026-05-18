@@ -1,0 +1,16 @@
+{
+  "query": "\nSELECT \n  COUNT(*) as total,\n  SUM(CASE WHEN url LIKE '%cloudfront%' THEN 1 ELSE 0 END) as cdn_hosted,\n  SUM(CASE WHEN url LIKE '%muscache%' OR url LIKE '%airbnb%' THEN 1 ELSE 0 END) as airbnb_urls,\n  SUM(CASE WHEN url NOT LIKE '%cloudfront%' AND url NOT LIKE '%muscache%' AND url NOT LIKE '%airbnb%' THEN 1 ELSE 0 END) as other_urls\nFROM property_photos;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute \nSELECT \n  COUNT(*) as total,\n  SUM(CASE WHEN url LIKE '%cloudfront%' THEN 1 ELSE 0 END) as cdn_hosted,\n  SUM(CASE WHEN url LIKE '%muscache%' OR url LIKE '%airbnb%' THEN 1 ELSE 0 END) as airbnb_urls,\n  SUM(CASE WHEN url NOT LIKE '%cloudfront%' AND url NOT LIKE '%muscache%' AND url NOT LIKE '%airbnb%' THEN 1 ELSE 0 END) as other_urls\nFROM property_photos;\n",
+  "rows": [
+    {
+      "total": "38",
+      "cdn_hosted": "35",
+      "airbnb_urls": "3",
+      "other_urls": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\tcdn_hosted\tairbnb_urls\tother_urls\n38\t35\t3\t0\n",
+  "stderr": "",
+  "execution_time_ms": 265
+}

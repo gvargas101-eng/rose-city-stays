@@ -6,14 +6,18 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [location] = useLocation();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  // Check standalone admin session for admin link visibility
+  const { data: adminSession } = trpc.adminAuth.me.useQuery(undefined, {
+    retry: false,
+    staleTime: 60_000,
+  });
+  const isAdmin = adminSession?.authenticated === true;
 
   const isHome = location === "/";
 
