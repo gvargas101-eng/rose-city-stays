@@ -1,0 +1,18 @@
+{
+  "query": "SELECT propertyId, COUNT(*) as count FROM property_photos WHERE propertyId IN (4, 5) GROUP BY propertyId;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT propertyId, COUNT(*) as count FROM property_photos WHERE propertyId IN (4, 5) GROUP BY propertyId;",
+  "rows": [
+    {
+      "propertyId": "4",
+      "count": "10"
+    },
+    {
+      "propertyId": "5",
+      "count": "10"
+    }
+  ],
+  "messages": [],
+  "stdout": "propertyId\tcount\n4\t10\n5\t10\n",
+  "stderr": "",
+  "execution_time_ms": 258
+}

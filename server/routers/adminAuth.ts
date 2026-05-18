@@ -91,8 +91,13 @@ export const adminAuthRouter = router({
     const cookies = (ctx.req.headers.cookie || "")
       .split(";")
       .reduce((acc: Record<string, string>, c) => {
-        const [k, v] = c.trim().split("=");
-        if (k && v) acc[k] = v;
+        const trimmed = c.trim();
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx > 0) {
+          const k = trimmed.slice(0, eqIdx);
+          const v = trimmed.slice(eqIdx + 1);
+          if (k && v) acc[k] = v;
+        }
         return acc;
       }, {});
 
