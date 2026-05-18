@@ -47,7 +47,7 @@
 - [x] Upload real photos for The Alamo House (sourced from Airbnb)
 - [x] Direct booking with payment processing (Stripe integration)
 - [x] Date range picker in inquiry form (check-in / check-out date selection)
-- [ ] Custom domain setup (rosecitystays.com)
+- [ ] Custom domain setup (rosecitystays.com) — requires user to configure DNS in Management UI → Settings → Domains
 - [x] Final end-to-end testing before replacing owner's existing site (all 19 tests passing, 0 TS errors)
 
 ## New Requests (Apr 2)
