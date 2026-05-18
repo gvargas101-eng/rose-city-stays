@@ -31,7 +31,7 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
           <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
             <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
             <span className="text-xs font-semibold text-foreground" style={{ fontFamily: "var(--font-body)" }}>
-              {property.rating.toFixed(2)}
+              {(Number(property.rating) || 5.0).toFixed(2)}
             </span>
           </div>
           {/* Type badge */}

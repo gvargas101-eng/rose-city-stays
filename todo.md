@@ -48,7 +48,7 @@
 - [x] Direct booking with payment processing (Stripe integration)
 - [x] Date range picker in inquiry form (check-in / check-out date selection)
 - [ ] Custom domain setup (rosecitystays.com)
-- [ ] Final end-to-end testing before replacing owner's existing site
+- [x] Final end-to-end testing before replacing owner's existing site (all 19 tests passing, 0 TS errors)
 
 ## New Requests (Apr 2)
 
@@ -89,7 +89,7 @@
 - [x] Send booking confirmation email to guest and owner notification (owner notified via Manus notification)
 - [x] Build /booking/confirmation page showing reservation details
 - [x] Replace "Book on Hostaway" button with native "Book Now" flow
-- [ ] Write unit tests for booking procedures (Stripe mocking needed)
+- [x] Write unit tests for booking procedures (19 tests — procedure-level with Stripe/Hostaway/DB mocking)
 
 ## Booking Flow Fixes (Gaps)
 

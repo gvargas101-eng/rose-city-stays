@@ -392,17 +392,17 @@ export default function Home() {
 
           {/* CTA */}
           <div className="text-center mt-14">
-            <a href="https://www.rosecitystays.com" target="_blank" rel="noopener noreferrer">
+            <a href="#contact">
               <Button
                 size="lg"
                 className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-10 py-6 text-base font-medium tracking-wide"
                 style={{ fontFamily: "var(--font-body)" }}
               >
-                Book on Hostaway <ArrowRight className="ml-2 w-4 h-4" />
+                Send a Direct Inquiry <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </a>
             <p className="text-sm text-muted-foreground mt-3" style={{ fontFamily: "var(--font-body)" }}>
-              Or send us a direct inquiry below — no platform fees
+              No platform fees — book directly with us
             </p>
           </div>
         </div>
