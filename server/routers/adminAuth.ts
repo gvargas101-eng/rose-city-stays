@@ -12,6 +12,7 @@ import { adminCredentials } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { ENV as env } from "../_core/env";
+import { getSessionCookieOptions } from "../_core/cookies";
 
 const ADMIN_COOKIE = "admin_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
@@ -66,10 +67,11 @@ export const adminAuthRouter = router({
 
       const token = await signAdminToken(cred.username);
 
-      // Set secure HTTP-only cookie
-      ctx.res.setHeader("Set-Cookie", [
-        `${ADMIN_COOKIE}=${token}; HttpOnly; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
-      ]);
+      // Set secure HTTP-only cookie using Express res.cookie() to avoid clobbering other Set-Cookie headers
+      ctx.res.cookie(ADMIN_COOKIE, token, {
+        ...getSessionCookieOptions(ctx.req),
+        maxAge: COOKIE_MAX_AGE * 1000, // Express uses milliseconds
+      });
 
       return { success: true, username: cred.username };
     }),
@@ -78,9 +80,7 @@ export const adminAuthRouter = router({
    * Logout — clears the admin session cookie.
    */
   logout: publicProcedure.mutation(async ({ ctx }) => {
-    ctx.res.setHeader("Set-Cookie", [
-      `${ADMIN_COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`,
-    ]);
+    ctx.res.clearCookie(ADMIN_COOKIE, getSessionCookieOptions(ctx.req));
     return { success: true };
   }),
 
