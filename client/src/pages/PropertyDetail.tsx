@@ -174,11 +174,17 @@ export default function PropertyDetail() {
               className="col-span-2 row-span-2 relative cursor-pointer group"
               onClick={() => openLightbox(0)}
             >
-              <img
-                src={property.images[0]}
-                alt={property.shortName}
-                className="w-full h-72 lg:h-96 object-cover transition-transform duration-500 group-hover:scale-105"
-              />
+              {property.images[0] ? (
+                <img
+                  src={property.images[0]}
+                  alt={property.shortName}
+                  className="w-full h-72 lg:h-96 object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <div className="w-full h-72 lg:h-96 bg-muted flex items-center justify-center">
+                  <span className="text-muted-foreground">No photo available</span>
+                </div>
+              )}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
             </div>
             {property.images.slice(1, 3).map((img, i) => (
@@ -187,12 +193,16 @@ export default function PropertyDetail() {
                 className="relative cursor-pointer group overflow-hidden"
                 onClick={() => openLightbox(i + 1)}
               >
-                <img
-                  src={img}
-                  alt={`${property.shortName} ${i + 2}`}
-                  className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  style={{ height: "calc(50% - 6px)", minHeight: "144px" }}
-                />
+                {img ? (
+                  <img
+                    src={img}
+                    alt={`${property.shortName} ${i + 2}`}
+                    className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    style={{ height: "calc(50% - 6px)", minHeight: "144px" }}
+                  />
+                ) : (
+                  <div className="w-full bg-muted" style={{ height: "calc(50% - 6px)", minHeight: "144px" }} />
+                )}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
               </div>
             ))}

@@ -21,12 +21,18 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
       >
         {/* Image */}
         <div className="relative overflow-hidden aspect-[4/3]">
-          <img
-            src={property.image}
-            alt={property.shortName}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
+          {property.image ? (
+            <img
+              src={property.image}
+              alt={property.shortName}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <span className="text-muted-foreground text-sm">No photo</span>
+            </div>
+          )}
           {/* Rating badge */}
           <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm">
             <Star className="w-3 h-3 fill-amber-400 text-amber-400" />

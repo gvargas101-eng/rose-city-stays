@@ -68,7 +68,7 @@ As UT Tyler's School of Medicine grows, so does Tyler's reputation as a healthca
 ## Plan Your Stay in Tyler
 
 Whether you're visiting for medical school interviews, relocating for a residency, or exploring career opportunities in healthcare, Rose City Stays offers comfortable, professionally-managed properties perfect for extended stays. Our Hospital District properties are particularly convenient for UT Health Tyler and medical school facilities.`,
-    featuredImage: "https://images.unsplash.com/photo-1576091160550-2173f7f869?w=1200https://images.unsplash.com/photo-1576091160550-112173f7f869?w=1200&q=80q=80",
+    featuredImage: "https://images.unsplash.com/photo-1576091160550-112173f7f869?w=1200&q=80",
     author: "Rose City Stays",
     date: "2026-03-15",
     category: "Healthcare & Education",
@@ -148,7 +148,7 @@ If you're staying in Tyler for the weekend, don't miss:
 ## Plan Your First Monday Weekend
 
 Make your next First Monday visit unforgettable by staying in Tyler. Our properties provide the perfect base for exploring the world's largest flea market and discovering everything the Rose City has to offer.`,
-    featuredImage: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200https://images.unsplash.com/photo-1555529669-e69e7ea0bb29?w=1200&q=80q=80",
+    featuredImage: "https://images.unsplash.com/photo-1555529669-e69e7ea0bb29?w=1200&q=80",
     author: "Rose City Stays",
     date: "2026-03-10",
     category: "Events & Attractions",
@@ -249,7 +249,7 @@ If you're visiting for the Rose Festival, don't miss:
 ## Plan Your Rose Festival Experience
 
 Make the Texas Rose Festival part of your Tyler experience. Book a Rose City Stays property and immerse yourself in 90+ years of tradition, beauty, and community celebration.`,
-    featuredImage: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200https://images.unsplash.com/photo-1519167758481-83f19106c8e9?w=1200&q=80q=80",
+    featuredImage: "https://images.unsplash.com/photo-1519167758481-83f19106c8e9?w=1200&q=80",
     author: "Rose City Stays",
     date: "2026-03-05",
     category: "Events & Attractions",
@@ -360,7 +360,7 @@ While in Tyler for the Azalea Trail, explore:
 ## Plan Your Spring Getaway
 
 The Azalea Trail is one of Tyler's most beautiful seasonal experiences. Book a Rose City Stays property and make your spring visit unforgettable.`,
-    featuredImage: "https://images.unsplash.com/photo-1490869968872-a8b42514a879?w=800https://images.unsplash.com/photo-1490869968872-a8b42514a879?w=1200&q=80q=80",
+    featuredImage: "https://images.unsplash.com/photo-1490869968872-a8b42514a879?w=1200&q=80",
     author: "Rose City Stays",
     date: "2026-02-28",
     category: "Events & Attractions",
@@ -458,7 +458,7 @@ For more information about UT Health East Texas, visit **uthealtheasttexas.com**
 ## Plan Your Stay
 
 If you're relocating to Tyler for medical training or work at UT Health East Texas, Rose City Stays offers comfortable, professionally-managed properties perfect for your needs.`,
-    featuredImage: "https://images.unsplash.com/photo-1576091160550-2173f7f869?w=1200https://images.unsplash.com/photo-1576091160550-112173f7f869?w=1200&q=80q=80",
+    featuredImage: "https://images.unsplash.com/photo-1576091160550-112173f7f869?w=1200&q=80",
     author: "Rose City Stays",
     date: "2026-02-20",
     category: "Healthcare & Education",

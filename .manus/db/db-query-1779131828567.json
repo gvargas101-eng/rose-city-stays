@@ -1,0 +1,70 @@
+{
+  "query": "SELECT p.id, p.name, p.slug, COUNT(ph.id) as photo_count FROM properties p LEFT JOIN property_photos ph ON p.id = ph.propertyId GROUP BY p.id, p.name, p.slug ORDER BY photo_count ASC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT p.id, p.name, p.slug, COUNT(ph.id) as photo_count FROM properties p LEFT JOIN property_photos ph ON p.id = ph.propertyId GROUP BY p.id, p.name, p.slug ORDER BY photo_count ASC;",
+  "rows": [
+    {
+      "id": "5",
+      "name": "Green Acres — Peaceful Country Retreat",
+      "slug": "green-acres",
+      "photo_count": "0"
+    },
+    {
+      "id": "4",
+      "name": "The Alamo House — Stylish 4BR Home",
+      "slug": "alamo-house",
+      "photo_count": "0"
+    },
+    {
+      "id": "7",
+      "name": "Azalea Spring Cottage — Charming 2BR",
+      "slug": "azalea-spring-cottage",
+      "photo_count": "1"
+    },
+    {
+      "id": "6",
+      "name": "Legacy House — Elegant 4BR Estate",
+      "slug": "legacy-house",
+      "photo_count": "1"
+    },
+    {
+      "id": "8",
+      "name": "Noir Hollytree — Sophisticated 3BR",
+      "slug": "noir-hollytree",
+      "photo_count": "1"
+    },
+    {
+      "id": "9",
+      "name": "Hollytree King Bed — Photo 5 & 6",
+      "slug": "hollytree-king-bed",
+      "photo_count": "2"
+    },
+    {
+      "id": "10",
+      "name": "Hollytree Townhouse — King Bed, Great Location",
+      "slug": "hollytree-townhouse",
+      "photo_count": "5"
+    },
+    {
+      "id": "3",
+      "name": "Hollytree Golf, Dining & Shopping — Perfect Location",
+      "slug": "hollytree-golf-dining",
+      "photo_count": "5"
+    },
+    {
+      "id": "2",
+      "name": "Hospital District! Retreat! Wall Ave.",
+      "slug": "hospital-district",
+      "photo_count": "10"
+    },
+    {
+      "id": "1",
+      "name": "The Briar: Spacious 3BR Retreat – Peaceful Escape",
+      "slug": "the-briar",
+      "photo_count": "10"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tslug\tphoto_count\n5\tGreen Acres — Peaceful Country Retreat\tgreen-acres\t0\n4\tThe Alamo House — Stylish 4BR Home\talamo-house\t0\n7\tAzalea Spring Cottage — Charming 2BR\tazalea-spring-cottage\t1\n6\tLegacy House — Elegant 4BR Estate\tlegacy-house\t1\n8\tNoir Hollytree — Sophisticated 3BR\tnoir-hollytree\t1\n9\tHollytree King Bed — Photo 5 & 6\thollytree-king-bed\t2\n10\tHollytree Townhouse — King Bed, Great Location\thollytree-townhouse\t5\n3\tHollytree Golf, Dining & Shopping — Perfect Location\thollytree-golf-dining\t5\n2\tHospital District! Retreat! Wall Ave.\thospital-district\t10\n1\tThe Briar: Spacious 3BR Retreat – Peaceful Escape\tthe-briar\t10\n",
+  "stderr": "",
+  "execution_time_ms": 264
+}

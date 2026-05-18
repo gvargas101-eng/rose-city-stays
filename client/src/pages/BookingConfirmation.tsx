@@ -79,7 +79,7 @@ export default function BookingConfirmation() {
             {/* Booking details card */}
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               {/* Property image */}
-              {property && (
+              {property && property.images[0] && (
                 <div className="h-48 overflow-hidden">
                   <img
                     src={property.images[0]}

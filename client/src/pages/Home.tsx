@@ -105,8 +105,8 @@ export default function Home() {
     return {
       ...(staticMatch ?? {}),
       ...pAny,
-      images: (pAny.photos as string[] | undefined) ?? (pAny.images as string[] | undefined) ?? [],
-      image: (pAny.image as string) || (pAny.photos as string[])?.[0] || "",
+      images: ((pAny.photos as string[] | undefined)?.length ? (pAny.photos as string[]) : undefined) ?? (pAny.images as string[] | undefined) ?? staticMatch?.images ?? [],
+      image: (pAny.image as string) || (pAny.photos as string[])?.[0] || staticMatch?.image || undefined,
     } as Property;
   });
 
