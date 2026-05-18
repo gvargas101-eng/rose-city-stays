@@ -6,9 +6,13 @@ import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getPropertyCalendar, getListingBasePrice, PROPERTY_TO_HOSTAWAY_ID } from "./hostaway";
 import { bookingRouter } from "./routers/booking";
+import { adminRouter } from "./routers/admin";
+import { propertiesRouter } from "./routers/properties";
 
 export const appRouter = router({
   booking: bookingRouter,
+  admin: adminRouter,
+  properties: propertiesRouter,
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({

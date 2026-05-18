@@ -2,7 +2,8 @@
 // All 10 properties in Tyler, TX
 
 export interface Property {
-  id: string;
+  id: string | number;
+  slug?: string;
   name: string;
   shortName: string;
   type: string;

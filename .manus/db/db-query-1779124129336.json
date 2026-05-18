@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, name, email, role FROM users LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT id, name, email, role FROM users LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Gustavo Vargas",
+      "email": "gustavo@rosecitystays.com",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n1\tGustavo Vargas\tgustavo@rosecitystays.com\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 349
+}

@@ -96,3 +96,24 @@
 - [x] Fix checkout flow: collect guest info BEFORE creating PaymentIntent (not placeholder data)
 - [x] Replace remaining "Book on Hostaway" CTAs in Navbar and Footer with native booking links
 - [x] Update Navbar "Book Now" button to scroll to properties or link to booking flow
+
+## Admin Dashboard
+
+- [x] Add properties table to DB schema (id, name, slug, description, tagline, address, guests, bedrooms, bathrooms, type, hostaway_listing_id, cleaning_fee, base_rate)
+- [x] Add property_photos table (id, property_id, url, sort_order)
+- [x] Add property_amenities table (id, property_id, amenity)
+- [x] Seed DB with all 10 existing properties from properties.ts
+- [x] Build admin layout with sidebar (Properties, Bookings, Settings)
+- [x] Build admin property list page (/admin/properties)
+- [x] Build admin property edit page (/admin/properties/:id) — edit name, description, tagline, guests, bedrooms, bathrooms, cleaning fee
+- [x] Build photo management UI — upload new photos, reorder, delete
+- [x] Build amenities editor — add/remove amenity tags
+- [x] Build admin bookings page (/admin/bookings) — list all direct bookings with guest info, dates, status, amount
+- [x] Update public property pages to read from DB instead of hardcoded properties.ts
+- [x] Protect all /admin/* routes — only accessible to owner (role=admin)
+
+## Admin Dashboard Gaps (to fix)
+
+- [x] Add admin route guard to all /admin/* routes (redirect non-admins to home)
+- [x] Migrate PropertyDetail to load property data from DB (trpc.properties.bySlug)
+- [x] Add photo reorder support (← → arrow buttons) in admin property edit

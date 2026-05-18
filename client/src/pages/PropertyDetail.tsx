@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getPropertyById, properties } from "@/lib/properties";
+import { getPropertyById, properties as staticProperties, type Property } from "@/lib/properties";
 import PropertyCard from "@/components/PropertyCard";
 import PhotoLightbox from "@/components/PhotoLightbox";
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
@@ -33,7 +33,30 @@ import CheckoutModal from "@/components/CheckoutModal";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
-  const property = getPropertyById(id || "");
+
+  // Load property from DB (falls back to static data while loading)
+  const { data: dbProperty, isLoading: dbLoading } = trpc.properties.bySlug.useQuery(
+    { slug: id || "" },
+    { enabled: !!id, staleTime: 5 * 60 * 1000, retry: false }
+  );
+
+  const staticProperty = getPropertyById(id || "");
+  const property: Property | null = dbProperty
+    ? ({
+        ...(staticProperty ?? {}),
+        ...dbProperty,
+        guests: Number(dbProperty.guests) || staticProperty?.guests || 1,
+        bedrooms: Number(dbProperty.bedrooms) || staticProperty?.bedrooms || 1,
+        bathrooms: Number(dbProperty.bathrooms) || staticProperty?.bathrooms || 1,
+        images: dbProperty.photos?.length ? dbProperty.photos : (staticProperty?.images ?? []),
+        image: dbProperty.image || staticProperty?.image || "",
+        rating: staticProperty?.rating ?? 5.0,
+        reviewCount: staticProperty?.reviewCount ?? 0,
+        highlights: staticProperty?.highlights ?? [],
+        priceNote: staticProperty?.priceNote ?? "",
+        hostaway_url: dbProperty.hostaway_url || staticProperty?.hostaway_url || "",
+      } as unknown as Property)
+    : (staticProperty ?? null);
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -52,6 +75,14 @@ export default function PropertyDetail() {
     message: "",
   });
   const [submitting, setSubmitting] = useState(false);
+
+  if (dbLoading && !staticProperty) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!property) {
     return (
@@ -89,13 +120,13 @@ export default function PropertyDetail() {
   });
 
   const { data: priceData } = trpc.hostaway.basePrice.useQuery(
-    { propertyId: property?.id || "" },
+    { propertyId: String(property?.id || "") },
     { enabled: !!property?.id, staleTime: 10 * 60 * 1000 }
   );
 
   const { data: calendarData } = trpc.hostaway.calendar.useQuery(
     {
-      propertyId: property?.id || "",
+      propertyId: String(property?.id || ""),
       startDate: new Date().toISOString().split("T")[0],
       endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     },
@@ -115,8 +146,8 @@ export default function PropertyDetail() {
     });
   };
 
-  const relatedProperties = properties
-    .filter((p) => p.id !== property.id)
+  const relatedProperties = staticProperties
+    .filter((p: Property) => p.id !== property.id)
     .slice(0, 3);
 
   return (
@@ -287,7 +318,7 @@ export default function PropertyDetail() {
 
             {/* Availability Calendar */}
             <div className="mb-10">
-              <AvailabilityCalendar propertyId={property.id} />
+              <AvailabilityCalendar propertyId={String(property.id)} />
             </div>
 
             <div className="rule-thin mb-8" />
@@ -325,7 +356,7 @@ export default function PropertyDetail() {
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-6">
               <BookingPanel
-                propertyId={property.id}
+                propertyId={String(property.id)}
                 propertyName={property.name}
                 basePrice={priceData?.price || null}
                 rating={property.rating}
@@ -417,16 +448,16 @@ export default function PropertyDetail() {
       {/* Checkout Modal */}
       {checkoutBooking && property && (
         <CheckoutModal
-          propertyId={property.id}
+          propertyId={String(property.id)}
           propertyName={property.name}
           checkIn={checkoutBooking.checkIn}
           checkOut={checkoutBooking.checkOut}
           nights={checkoutBooking.nights}
           avgNightlyRate={checkoutBooking.avgNightlyRate}
           guestCount={checkoutBooking.guestCount}
-          cleaningFee={({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[property.id] ?? 125}
+          cleaningFee={({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[String(property.id)] ?? 125}
           subtotal={checkoutBooking.avgNightlyRate * checkoutBooking.nights}
-          totalAmount={checkoutBooking.avgNightlyRate * checkoutBooking.nights + (({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[property.id] ?? 125)}
+          totalAmount={checkoutBooking.avgNightlyRate * checkoutBooking.nights + (({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[String(property.id)] ?? 125)}
           onClose={() => setCheckoutBooking(null)}
         />
       )}
@@ -438,7 +469,7 @@ export default function PropertyDetail() {
             Guest Reviews
           </h2>
           <ReviewsSection
-            reviews={propertyReviews[property.id] || []}
+            reviews={propertyReviews[String(property.id)] || []}
             propertyName={property.name}
           />
         </div>
@@ -451,7 +482,7 @@ export default function PropertyDetail() {
             More Properties You May Like
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {relatedProperties.map((p, i) => (
+            {relatedProperties.map((p: Property, i: number) => (
               <PropertyCard key={p.id} property={p} index={i} />
             ))}
           </div>

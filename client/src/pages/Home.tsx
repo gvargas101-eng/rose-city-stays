@@ -27,7 +27,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PropertyCard from "@/components/PropertyCard";
-import { properties, type Property } from "@/lib/properties";
+import { properties as staticProperties, type Property } from "@/lib/properties";
 import { getAllBlogArticles } from "@/lib/blog";
 import { Link } from "wouter";
 
@@ -90,19 +90,34 @@ const testimonials = [
 ];
 
 export default function Home() {
+  // Load properties from DB (falls back to static data while loading)
+  const { data: dbProperties } = trpc.properties.list.useQuery();
+
   // Filter state
   const [filterGuests, setFilterGuests] = useState("any");
   const [filterBedrooms, setFilterBedrooms] = useState("any");
   const [filterType, setFilterType] = useState("any");
 
-  const filteredProperties = properties.filter((p: Property) => {
+  // Merge DB data with static data — DB wins for fields it has
+  const allProperties: Property[] = (dbProperties ?? staticProperties).map((p) => {
+    const pAny = p as Record<string, unknown>;
+    const staticMatch = staticProperties.find((sp) => sp.slug === (pAny.slug as string));
+    return {
+      ...(staticMatch ?? {}),
+      ...pAny,
+      images: (pAny.photos as string[] | undefined) ?? (pAny.images as string[] | undefined) ?? [],
+      image: (pAny.image as string) || (pAny.photos as string[])?.[0] || "",
+    } as Property;
+  });
+
+  const filteredProperties = allProperties.filter((p: Property) => {
     if (filterGuests !== "any" && p.guests < parseInt(filterGuests)) return false;
     if (filterBedrooms !== "any" && p.bedrooms < parseInt(filterBedrooms)) return false;
     if (filterType !== "any" && p.type !== filterType) return false;
     return true;
   });
 
-  const propertyTypes = Array.from(new Set(properties.map((p: Property) => p.type)));
+  const propertyTypes = Array.from(new Set(allProperties.map((p: Property) => p.type)));
 
   const [contactForm, setContactForm] = useState({
     name: "",
@@ -818,7 +833,7 @@ export default function Home() {
                   style={{ fontFamily: "var(--font-body)" }}
                 >
                   <option value="">Any / Not sure yet</option>
-                  {properties.map((p) => (
+                  {allProperties.map((p) => (
                     <option key={p.id} value={p.shortName}>{p.shortName}</option>
                   ))}
                 </select>
