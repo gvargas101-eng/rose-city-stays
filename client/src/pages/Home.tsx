@@ -101,12 +101,17 @@ export default function Home() {
   // Merge DB data with static data — DB wins for fields it has
   const allProperties: Property[] = (dbProperties ?? staticProperties).map((p) => {
     const pAny = p as Record<string, unknown>;
-    const staticMatch = staticProperties.find((sp) => sp.slug === (pAny.slug as string));
+    // Static properties use `id` as their slug (e.g. "the-briar"), DB uses `slug` field
+    const dbSlug = (pAny.slug as string) || (pAny.id as string);
+    const staticMatch = staticProperties.find((sp) => sp.id === dbSlug);
+    const coverImage = (pAny.image as string) || (pAny.photos as string[])?.[0] || staticMatch?.image || undefined;
     return {
       ...(staticMatch ?? {}),
       ...pAny,
+      // Use slug as the id for routing so /property/<slug> works correctly
+      id: dbSlug || pAny.id,
       images: ((pAny.photos as string[] | undefined)?.length ? (pAny.photos as string[]) : undefined) ?? (pAny.images as string[] | undefined) ?? staticMatch?.images ?? [],
-      image: (pAny.image as string) || (pAny.photos as string[])?.[0] || staticMatch?.image || undefined,
+      image: coverImage,
     } as Property;
   });
 

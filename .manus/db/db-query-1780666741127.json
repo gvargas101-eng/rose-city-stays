@@ -1,0 +1,60 @@
+{
+  "query": "SELECT id, slug, shortName FROM properties ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT id, slug, shortName FROM properties ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "slug": "the-briar",
+      "shortName": "The Briar"
+    },
+    {
+      "id": "2",
+      "slug": "hospital-district",
+      "shortName": "Wall Ave. Retreat"
+    },
+    {
+      "id": "3",
+      "slug": "hollytree-golf-dining",
+      "shortName": "Hollytree Golf"
+    },
+    {
+      "id": "4",
+      "slug": "alamo-house",
+      "shortName": "The Alamo House"
+    },
+    {
+      "id": "5",
+      "slug": "green-acres",
+      "shortName": "Green Acres"
+    },
+    {
+      "id": "6",
+      "slug": "legacy-house",
+      "shortName": "Legacy House"
+    },
+    {
+      "id": "7",
+      "slug": "azalea-spring-cottage",
+      "shortName": "Azalea Cottage"
+    },
+    {
+      "id": "8",
+      "slug": "noir-hollytree",
+      "shortName": "Noir Hollytree"
+    },
+    {
+      "id": "9",
+      "slug": "hollytree-king-bed",
+      "shortName": "Hollytree Photo 5/6"
+    },
+    {
+      "id": "10",
+      "slug": "hollytree-townhouse",
+      "shortName": "Hollytree Townhouse"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tslug\tshortName\n1\tthe-briar\tThe Briar\n2\thospital-district\tWall Ave. Retreat\n3\thollytree-golf-dining\tHollytree Golf\n4\talamo-house\tThe Alamo House\n5\tgreen-acres\tGreen Acres\n6\tlegacy-house\tLegacy House\n7\tazalea-spring-cottage\tAzalea Cottage\n8\tnoir-hollytree\tNoir Hollytree\n9\thollytree-king-bed\tHollytree Photo 5/6\n10\thollytree-townhouse\tHollytree Townhouse\n",
+  "stderr": "",
+  "execution_time_ms": 277
+}

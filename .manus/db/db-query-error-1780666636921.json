@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT p.id, p.name, COUNT(pp.id) as photo_count, MIN(pp.url) as first_photo_url\nFROM properties p\nLEFT JOIN property_photos pp ON pp.property_id = p.id\nGROUP BY p.id, p.name\nORDER BY p.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute \nSELECT p.id, p.name, COUNT(pp.id) as photo_count, MIN(pp.url) as first_photo_url\nFROM properties p\nLEFT JOIN property_photos pp ON pp.property_id = p.id\nGROUP BY p.id, p.name\nORDER BY p.id;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'pp.property_id' in 'on clause'"
+  ]
+}

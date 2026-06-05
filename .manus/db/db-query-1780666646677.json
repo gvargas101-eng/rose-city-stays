@@ -1,0 +1,70 @@
+{
+  "query": "\nSELECT p.id, p.name, COUNT(pp.id) as photo_count, MIN(pp.url) as first_photo_url\nFROM properties p\nLEFT JOIN property_photos pp ON pp.propertyId = p.id\nGROUP BY p.id, p.name\nORDER BY p.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute \nSELECT p.id, p.name, COUNT(pp.id) as photo_count, MIN(pp.url) as first_photo_url\nFROM properties p\nLEFT JOIN property_photos pp ON pp.propertyId = p.id\nGROUP BY p.id, p.name\nORDER BY p.id;\n",
+  "rows": [
+    {
+      "id": "1",
+      "name": "The Briar: Spacious 3BR Retreat – Peaceful Escape",
+      "photo_count": "10",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/prop-1-photo-10_d45ff8b0.jpg"
+    },
+    {
+      "id": "2",
+      "name": "Hospital District! Retreat! Wall Ave.",
+      "photo_count": "10",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/prop-2-photo-11_1cc7040b.jpg"
+    },
+    {
+      "id": "3",
+      "name": "Hollytree Golf, Dining & Shopping — Perfect Location",
+      "photo_count": "5",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hollytree-golf-photo-01_29d8f2c8.jpg"
+    },
+    {
+      "id": "4",
+      "name": "The Alamo House — Stylish 4BR Home",
+      "photo_count": "10",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/alamo-house-photo-01_ce0007b8.jpeg"
+    },
+    {
+      "id": "5",
+      "name": "Green Acres — Peaceful Country Retreat",
+      "photo_count": "10",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/green-acres-photo-01_d2242b58.jpeg"
+    },
+    {
+      "id": "6",
+      "name": "Legacy House — Elegant 4BR Estate",
+      "photo_count": "1",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/legacy-1.jpg"
+    },
+    {
+      "id": "7",
+      "name": "Azalea Spring Cottage — Charming 2BR",
+      "photo_count": "1",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/azalea-1.jpg"
+    },
+    {
+      "id": "8",
+      "name": "Noir Hollytree — Sophisticated 3BR",
+      "photo_count": "1",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/noir-1.jpg"
+    },
+    {
+      "id": "9",
+      "name": "Hollytree King Bed — Photo 5 & 6",
+      "photo_count": "2",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-1_f122bb77.jpg"
+    },
+    {
+      "id": "10",
+      "name": "Hollytree Townhouse — King Bed, Great Location",
+      "photo_count": "5",
+      "first_photo_url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-2_b65ac856.jpg"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tphoto_count\tfirst_photo_url\n1\tThe Briar: Spacious 3BR Retreat – Peaceful Escape\t10\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/prop-1-photo-10_d45ff8b0.jpg\n2\tHospital District! Retreat! Wall Ave.\t10\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/prop-2-photo-11_1cc7040b.jpg\n3\tHollytree Golf, Dining & Shopping — Perfect Location\t5\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hollytree-golf-photo-01_29d8f2c8.jpg\n4\tThe Alamo House — Stylish 4BR Home\t10\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/alamo-house-photo-01_ce0007b8.jpeg\n5\tGreen Acres — Peaceful Country Retreat\t10\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/green-acres-photo-01_d2242b58.jpeg\n6\tLegacy House — Elegant 4BR Estate\t1\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/legacy-1.jpg\n7\tAzalea Spring Cottage — Charming 2BR\t1\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/azalea-1.jpg\n8\tNoir Hollytree — Sophisticated 3BR\t1\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/noir-1.jpg\n9\tHollytree King Bed — Photo 5 & 6\t2\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-1_f122bb77.jpg\n10\tHollytree Townhouse — King Bed, Great Location\t5\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-2_b65ac856.jpg\n",
+  "stderr": "",
+  "execution_time_ms": 262
+}
