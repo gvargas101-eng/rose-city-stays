@@ -119,18 +119,21 @@ export default function PropertyDetail() {
     },
   });
 
+  // Use slug (from URL param `id`) for all Hostaway lookups — the map keys are slugs, not numeric IDs
+  const propertySlug = property?.slug || id || "";
+
   const { data: priceData } = trpc.hostaway.basePrice.useQuery(
-    { propertyId: String(property?.id || "") },
-    { enabled: !!property?.id, staleTime: 10 * 60 * 1000 }
+    { propertyId: propertySlug },
+    { enabled: !!propertySlug, staleTime: 10 * 60 * 1000 }
   );
 
   const { data: calendarData } = trpc.hostaway.calendar.useQuery(
     {
-      propertyId: String(property?.id || ""),
+      propertyId: propertySlug,
       startDate: new Date().toISOString().split("T")[0],
       endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     },
-    { enabled: !!property?.id, staleTime: 5 * 60 * 1000 }
+            { enabled: !!propertySlug, staleTime: 5 * 60 * 1000 }
   );
 
   const handleInquiry = async (e: React.FormEvent) => {
@@ -328,7 +331,7 @@ export default function PropertyDetail() {
 
             {/* Availability Calendar */}
             <div className="mb-10">
-              <AvailabilityCalendar propertyId={String(property.id)} />
+              <AvailabilityCalendar propertyId={propertySlug} />
             </div>
 
             <div className="rule-thin mb-8" />
@@ -366,7 +369,7 @@ export default function PropertyDetail() {
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-6">
               <BookingPanel
-                propertyId={String(property.id)}
+                propertyId={propertySlug}
                 propertyName={property.name}
                 basePrice={priceData?.price || null}
                 rating={property.rating}
@@ -458,16 +461,16 @@ export default function PropertyDetail() {
       {/* Checkout Modal */}
       {checkoutBooking && property && (
         <CheckoutModal
-          propertyId={String(property.id)}
+          propertyId={propertySlug}
           propertyName={property.name}
           checkIn={checkoutBooking.checkIn}
           checkOut={checkoutBooking.checkOut}
           nights={checkoutBooking.nights}
           avgNightlyRate={checkoutBooking.avgNightlyRate}
           guestCount={checkoutBooking.guestCount}
-          cleaningFee={({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[String(property.id)] ?? 125}
+          cleaningFee={({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[propertySlug] ?? 125}
           subtotal={checkoutBooking.avgNightlyRate * checkoutBooking.nights}
-          totalAmount={checkoutBooking.avgNightlyRate * checkoutBooking.nights + (({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[String(property.id)] ?? 125)}
+          totalAmount={checkoutBooking.avgNightlyRate * checkoutBooking.nights + (({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[propertySlug] ?? 125)}
           onClose={() => setCheckoutBooking(null)}
         />
       )}
