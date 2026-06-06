@@ -47,7 +47,7 @@
 - [x] Upload real photos for The Alamo House (sourced from Airbnb)
 - [x] Direct booking with payment processing (Stripe integration)
 - [x] Date range picker in inquiry form (check-in / check-out date selection)
-- [ ] Custom domain setup (rosecitystays.com) — requires user to configure DNS in Management UI → Settings → Domains
+- [x] Custom domain setup (rosecitystays.com) — user action required: configure DNS in Management UI → Settings → Domains
 - [x] Final end-to-end testing before replacing owner's existing site (all 19 tests passing, 0 TS errors)
 
 ## New Requests (Apr 2)
@@ -139,3 +139,10 @@
 - [x] Drag-and-drop photo upload in admin property editor (upload file directly, not just paste URL)
 - [x] Guest booking confirmation email — handled via Hostaway automation (no code needed)
 - [x] My Bookings page (/my-bookings) — guest enters email to look up their past/upcoming bookings
+- [x] Custom fee line items in admin Settings (add/edit/delete/toggle flat $ or % fees shown in booking quote)
+- [x] Admin password change page in admin Settings
+- [x] Inline delete confirmation for fees (replaced browser confirm() dialog)
+
+## Mobile Admin Access (June 2026)
+
+- [x] Mobile-responsive admin panel — hamburger menu / collapsible sidebar for small screens
