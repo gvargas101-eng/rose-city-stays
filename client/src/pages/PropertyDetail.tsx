@@ -141,6 +141,11 @@ export default function PropertyDetail() {
   });
   const liveTaxRate = taxRateData?.taxRate ?? 0.09;
 
+  const { data: activeFeesData } = trpc.settings.getActiveFees.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeFees = activeFeesData ?? [];
+
   const handleInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -484,6 +489,7 @@ export default function PropertyDetail() {
             taxAmount={taxAmount}
             taxRate={liveTaxRate}
             totalAmount={totalAmount}
+            customFees={activeFees}
             onClose={() => setCheckoutBooking(null)}
           />
         );

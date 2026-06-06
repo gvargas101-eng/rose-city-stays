@@ -75,6 +75,26 @@ export const appRouter = router({
       const taxRate = row ? parseFloat(row.value) : 0.09;
       return { taxRate };
     }),
+
+    // Public: get all active custom fees for the booking quote
+    getActiveFees: publicProcedure.query(async () => {
+      const db0 = await getDb();
+      if (!db0) return [];
+      const { customFees: customFeesTable } = await import("../drizzle/schema");
+      const { asc } = await import("drizzle-orm");
+      const rows = await db0
+        .select()
+        .from(customFeesTable)
+        .where(eq(customFeesTable.active, 1))
+        .orderBy(asc(customFeesTable.sortOrder));
+      return rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        type: r.type as "flat" | "percent",
+        amount: parseFloat(r.amount),
+      }));
+    }),
   }),
 
   inquiry: router({

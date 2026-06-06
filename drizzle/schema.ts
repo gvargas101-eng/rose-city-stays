@@ -139,3 +139,23 @@ export const siteSettings = mysqlTable("site_settings", {
 });
 
 export type SiteSetting = typeof siteSettings.$inferSelect;
+
+/**
+ * Custom fees — owner-defined line item fees shown in the booking quote.
+ * Examples: extra guest fee, extra cleaning, pet fee, etc.
+ * type: "flat" = fixed dollar amount, "percent" = percentage of nightly subtotal
+ */
+export const customFees = mysqlTable("custom_fees", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),          // e.g. "Extra Guest Fee"
+  description: text("description"),                          // optional note shown to guest
+  type: mysqlEnum("type", ["flat", "percent"]).notNull().default("flat"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull().default("0.00"), // dollars or percent
+  active: int("active").notNull().default(1),                // 1 = shown in quote, 0 = hidden
+  sortOrder: int("sortOrder").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CustomFee = typeof customFees.$inferSelect;
+export type InsertCustomFee = typeof customFees.$inferInsert;

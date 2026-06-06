@@ -25,6 +25,14 @@ import { useLocation } from "wouter";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
+interface CustomFee {
+  id: number;
+  name: string;
+  description?: string | null;
+  type: "flat" | "percent";
+  amount: number;
+}
+
 interface CheckoutModalProps {
   propertyId: string;
   propertyName: string;
@@ -38,6 +46,7 @@ interface CheckoutModalProps {
   taxAmount: number;
   taxRate: number;
   totalAmount: number;
+  customFees?: CustomFee[];
   onClose: () => void;
 }
 
@@ -161,7 +170,7 @@ function PaymentStep({
 export default function CheckoutModal(props: CheckoutModalProps) {
   const {
     propertyId, propertyName, checkIn, checkOut,
-    nights, avgNightlyRate, guestCount, cleaningFee, subtotal, taxAmount, taxRate, totalAmount, onClose,
+    nights, avgNightlyRate, guestCount, cleaningFee, subtotal, taxAmount, taxRate, totalAmount, customFees = [], onClose,
   } = props;
 
   const createPaymentIntent = trpc.booking.createPaymentIntent.useMutation();
@@ -247,6 +256,13 @@ export default function CheckoutModal(props: CheckoutModalProps) {
           {(() => {
             const fees = liveFees ?? { subtotal, cleaningFee, taxAmount, taxRate, totalAmount };
             const taxPct = Math.round(fees.taxRate * 100);
+            // Compute custom fee amounts based on nightly subtotal
+            const customFeeLines = customFees.map(f => ({
+              ...f,
+              computed: f.type === "flat" ? f.amount : (fees.subtotal * f.amount) / 100,
+            }));
+            const customFeesTotal = customFeeLines.reduce((s, f) => s + f.computed, 0);
+            const grandTotal = fees.totalAmount + customFeesTotal;
             return (
               <div className="mt-3 space-y-1 text-sm">
                 <div className="flex justify-between text-muted-foreground">
@@ -261,9 +277,17 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                   <span>Hotel occupancy tax ({taxPct}%)</span>
                   <span>${fees.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
+                {customFeeLines.map(f => (
+                  <div key={f.id} className="flex justify-between text-muted-foreground">
+                    <span title={f.description ?? undefined}>
+                      {f.name}{f.type === "percent" ? ` (${f.amount}%)` : ""}
+                    </span>
+                    <span>${f.computed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                ))}
                 <div className="flex justify-between font-semibold text-foreground pt-2 border-t border-border mt-1">
                   <span>Total (USD)</span>
-                  <span>${fees.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span>${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
             );

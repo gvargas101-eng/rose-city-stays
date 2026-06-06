@@ -7,7 +7,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings } from "../../drizzle/schema";
+import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees } from "../../drizzle/schema";
 import { eq, asc, desc } from "drizzle-orm";
 import { storagePut } from "../storage";
 
@@ -229,6 +229,69 @@ export const adminRouter = router({
         sortOrder: nextOrder,
       });
       return { success: true, url };
+    }),
+
+  // ── Custom Fees ───────────────────────────────────────────────────────────
+
+  /** List all custom fees */
+  listCustomFees: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    return db.select().from(customFees).orderBy(asc(customFees.sortOrder));
+  }),
+
+  /** Create a new custom fee */
+  createCustomFee: adminProcedure
+    .input(z.object({
+      name: z.string().min(1),
+      description: z.string().optional(),
+      type: z.enum(["flat", "percent"]),
+      amount: z.string(),
+      active: z.number().int().min(0).max(1).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const existing = await db.select().from(customFees).orderBy(desc(customFees.sortOrder)).limit(1);
+      const nextOrder = existing.length > 0 ? existing[0].sortOrder + 1 : 0;
+      const [result] = await db.insert(customFees).values({
+        name: input.name,
+        description: input.description ?? null,
+        type: input.type,
+        amount: input.amount,
+        active: input.active ?? 1,
+        sortOrder: nextOrder,
+      });
+      return { success: true, id: (result as any).insertId };
+    }),
+
+  /** Update a custom fee */
+  updateCustomFee: adminProcedure
+    .input(z.object({
+      id: z.number(),
+      name: z.string().min(1).optional(),
+      description: z.string().optional(),
+      type: z.enum(["flat", "percent"]).optional(),
+      amount: z.string().optional(),
+      active: z.number().int().min(0).max(1).optional(),
+      sortOrder: z.number().int().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { id, ...updates } = input;
+      await db.update(customFees).set(updates).where(eq(customFees.id, id));
+      return { success: true };
+    }),
+
+  /** Delete a custom fee */
+  deleteCustomFee: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(customFees).where(eq(customFees.id, input.id));
+      return { success: true };
     }),
 
   /** Update booking status */
