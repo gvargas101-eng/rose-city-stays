@@ -35,6 +35,8 @@ interface CheckoutModalProps {
   guestCount: number;
   cleaningFee: number;
   subtotal: number;
+  taxAmount: number;
+  taxRate: number;
   totalAmount: number;
   onClose: () => void;
 }
@@ -159,7 +161,7 @@ function PaymentStep({
 export default function CheckoutModal(props: CheckoutModalProps) {
   const {
     propertyId, propertyName, checkIn, checkOut,
-    nights, avgNightlyRate, guestCount, cleaningFee, subtotal, totalAmount, onClose,
+    nights, avgNightlyRate, guestCount, cleaningFee, subtotal, taxAmount, taxRate, totalAmount, onClose,
   } = props;
 
   const createPaymentIntent = trpc.booking.createPaymentIntent.useMutation();
@@ -169,6 +171,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+  // Live fee breakdown from server (updated after PaymentIntent is created with real tax rate)
+  const [liveFees, setLiveFees] = useState<{ subtotal: number; cleaningFee: number; taxAmount: number; taxRate: number; totalAmount: number } | null>(null);
 
   // Called when guest submits their info — creates PaymentIntent with real data
   const handleInfoSubmit = async (e: React.FormEvent) => {
@@ -191,6 +195,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
       });
       setClientSecret(result.clientSecret);
       setPaymentIntentId(result.bookingId);
+      setLiveFees({ subtotal: result.subtotal, cleaningFee: result.cleaningFee, taxAmount: result.taxAmount, taxRate: result.taxRate, totalAmount: result.totalAmount });
       setStep("payment");
     } catch (err) {
       setInitError("Unable to initialize payment. Please try again.");
@@ -238,20 +243,31 @@ export default function CheckoutModal(props: CheckoutModalProps) {
               </div>
             </div>
           </div>
-          <div className="mt-3 space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>${avgNightlyRate} × {nights} nights</span>
-              <span>${subtotal.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Cleaning fee</span>
-              <span>${cleaningFee}</span>
-            </div>
-            <div className="flex justify-between font-semibold text-foreground pt-1 border-t border-border mt-1">
-              <span>Total (USD)</span>
-              <span>${totalAmount.toLocaleString()}</span>
-            </div>
-          </div>
+          {/* Itemized fee breakdown — uses live server values after PaymentIntent created, estimates before */}
+          {(() => {
+            const fees = liveFees ?? { subtotal, cleaningFee, taxAmount, taxRate, totalAmount };
+            const taxPct = Math.round(fees.taxRate * 100);
+            return (
+              <div className="mt-3 space-y-1 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>${avgNightlyRate.toLocaleString()} × {nights} night{nights !== 1 ? "s" : ""}</span>
+                  <span>${fees.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Cleaning fee</span>
+                  <span>${fees.cleaningFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Hotel occupancy tax ({taxPct}%)</span>
+                  <span>${fees.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-foreground pt-2 border-t border-border mt-1">
+                  <span>Total (USD)</span>
+                  <span>${fees.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Form body */}

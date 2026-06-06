@@ -5,18 +5,16 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, router } from "../_core/trpc";
+import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { properties, propertyPhotos, propertyAmenities, bookings } from "../../drizzle/schema";
+import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings } from "../../drizzle/schema";
 import { eq, asc, desc } from "drizzle-orm";
+import { storagePut } from "../storage";
 
-// Middleware: require admin role
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
-  }
-  return next({ ctx });
-});
+// Helper: random suffix for file keys
+function randomSuffix() {
+  return Math.random().toString(36).slice(2, 10);
+}
 
 export const adminRouter = router({
   // ── Properties ────────────────────────────────────────────────────────────
@@ -176,6 +174,61 @@ export const adminRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       return db.select().from(bookings).orderBy(desc(bookings.createdAt));
+    }),
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+
+  /** Get all site settings as a key/value map */
+  getSettings: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    const rows = await db.select().from(siteSettings);
+    return Object.fromEntries(rows.map(r => [r.key, r.value]));
+  }),
+
+  /** Update a site setting */
+  updateSetting: adminProcedure
+    .input(z.object({ key: z.string().min(1), value: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db
+        .insert(siteSettings)
+        .values({ key: input.key, value: input.value })
+        .onDuplicateKeyUpdate({ set: { value: input.value } });
+      return { success: true };
+    }),
+
+  /** Upload a photo file and return the CDN URL */
+  uploadPhoto: adminProcedure
+    .input(z.object({
+      propertyId: z.number(),
+      fileName: z.string(),
+      fileBase64: z.string(),   // base64-encoded file content
+      mimeType: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const buffer = Buffer.from(input.fileBase64, "base64");
+      const ext = input.fileName.split(".").pop() ?? "jpg";
+      const key = `property-photos/${input.propertyId}/${randomSuffix()}.${ext}`;
+      const { url } = await storagePut(key, buffer, input.mimeType);
+
+      // Get current max sort order
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const existing = await db
+        .select()
+        .from(propertyPhotos)
+        .where(eq(propertyPhotos.propertyId, input.propertyId))
+        .orderBy(desc(propertyPhotos.sortOrder))
+        .limit(1);
+      const nextOrder = existing.length > 0 ? existing[0].sortOrder + 1 : 0;
+      await db.insert(propertyPhotos).values({
+        propertyId: input.propertyId,
+        url,
+        sortOrder: nextOrder,
+      });
+      return { success: true, url };
     }),
 
   /** Update booking status */

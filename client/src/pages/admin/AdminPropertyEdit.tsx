@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Trash2, Plus, ArrowLeft, GripVertical, ExternalLink } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, GripVertical, ExternalLink, Upload, ImagePlus } from "lucide-react";
+import { useRef, useState as useStateAlias } from "react";
 
 export default function AdminPropertyEdit() {
   const params = useParams<{ id: string }>();
@@ -54,6 +55,35 @@ export default function AdminPropertyEdit() {
 
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [newAmenity, setNewAmenity] = useState("");
+  const [isDraggingOver, setIsDraggingOver] = useStateAlias(false);
+  const [uploadingFiles, setUploadingFiles] = useStateAlias<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadPhoto = trpc.admin.uploadPhoto.useMutation({
+    onSuccess: () => { refetch(); toast.success("Photo uploaded!"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleFileUpload = async (files: FileList | File[]) => {
+    const arr = Array.from(files);
+    for (const file of arr) {
+      if (!file.type.startsWith("image/")) { toast.error(`${file.name} is not an image`); continue; }
+      if (file.size > 16 * 1024 * 1024) { toast.error(`${file.name} exceeds 16 MB`); continue; }
+      setUploadingFiles(prev => [...prev, file.name]);
+      try {
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        await uploadPhoto.mutateAsync({ propertyId, fileName: file.name, fileBase64: base64, mimeType: file.type });
+      } catch {
+        // error already shown by onError
+      } finally {
+        setUploadingFiles(prev => prev.filter(n => n !== file.name));
+      }
+    }
+  };
 
   // Local form state
   const [form, setForm] = useState<Record<string, string | number>>({});
@@ -306,30 +336,59 @@ export default function AdminPropertyEdit() {
               ))}
             </div>
 
-            {/* Add photo */}
-            <div className="flex gap-2">
-              <Input
-                value={newPhotoUrl}
-                onChange={(e) => setNewPhotoUrl(e.target.value)}
-                placeholder="Paste photo URL (https://...)"
-                className="flex-1"
+            {/* Drag-and-drop upload zone */}
+            <div
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                isDraggingOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+              }`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+              onDragLeave={() => setIsDraggingOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDraggingOver(false);
+                if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files);
+              }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => { if (e.target.files) handleFileUpload(e.target.files); e.target.value = ""; }}
               />
-              <Button
-                onClick={() => {
-                  if (!newPhotoUrl.trim()) return;
-                  addPhoto.mutate({ propertyId, url: newPhotoUrl.trim() });
-                }}
-                disabled={!newPhotoUrl.trim() || addPhoto.isPending}
-                size="sm"
-                className="gap-1.5 shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Photo
-              </Button>
+              <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm font-medium text-foreground">Drop photos here or click to browse</p>
+              <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP up to 16 MB · Multiple files supported</p>
+              {uploadingFiles.length > 0 && (
+                <div className="mt-3 text-xs text-primary">
+                  Uploading: {uploadingFiles.join(", ")}…
+                </div>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Paste any image URL — Airbnb CDN, Cloudfront, or any direct image link.
-            </p>
+
+            {/* URL fallback */}
+            <details className="mt-3">
+              <summary className="text-xs text-muted-foreground cursor-pointer select-none hover:text-foreground">Or paste a URL instead</summary>
+              <div className="flex gap-2 mt-2">
+                <Input
+                  value={newPhotoUrl}
+                  onChange={(e) => setNewPhotoUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="flex-1 text-sm"
+                />
+                <Button
+                  onClick={() => { if (!newPhotoUrl.trim()) return; addPhoto.mutate({ propertyId, url: newPhotoUrl.trim() }); }}
+                  disabled={!newPhotoUrl.trim() || addPhoto.isPending}
+                  size="sm"
+                  className="gap-1.5 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add
+                </Button>
+              </div>
+            </details>
           </section>
 
           {/* Amenities */}

@@ -5,6 +5,9 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getPropertyCalendar, getListingBasePrice, PROPERTY_TO_HOSTAWAY_ID } from "./hostaway";
+import { getDb } from "./db";
+import { siteSettings } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 import { bookingRouter } from "./routers/booking";
 import { adminRouter } from "./routers/admin";
 import { propertiesRouter } from "./routers/properties";
@@ -61,6 +64,17 @@ export const appRouter = router({
       .query(({ input }) => {
         return { supported: input.propertyId in PROPERTY_TO_HOSTAWAY_ID };
       }),
+  }),
+
+  settings: router({
+    // Public: get the current tax rate for use in booking quote preview
+    getTaxRate: publicProcedure.query(async () => {
+      const db0 = await getDb();
+      if (!db0) return { taxRate: 0.09 };
+      const [row] = await db0.select().from(siteSettings).where(eq(siteSettings.key, "taxRate")).limit(1);
+      const taxRate = row ? parseFloat(row.value) : 0.09;
+      return { taxRate };
+    }),
   }),
 
   inquiry: router({

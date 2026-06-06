@@ -136,6 +136,11 @@ export default function PropertyDetail() {
             { enabled: !!propertySlug, staleTime: 5 * 60 * 1000 }
   );
 
+  const { data: taxRateData } = trpc.settings.getTaxRate.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const liveTaxRate = taxRateData?.taxRate ?? 0.09;
+
   const handleInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -459,21 +464,30 @@ export default function PropertyDetail() {
       </div>
 
       {/* Checkout Modal */}
-      {checkoutBooking && property && (
-        <CheckoutModal
-          propertyId={propertySlug}
-          propertyName={property.name}
-          checkIn={checkoutBooking.checkIn}
-          checkOut={checkoutBooking.checkOut}
-          nights={checkoutBooking.nights}
-          avgNightlyRate={checkoutBooking.avgNightlyRate}
-          guestCount={checkoutBooking.guestCount}
-          cleaningFee={({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[propertySlug] ?? 125}
-          subtotal={checkoutBooking.avgNightlyRate * checkoutBooking.nights}
-          totalAmount={checkoutBooking.avgNightlyRate * checkoutBooking.nights + (({ "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 } as Record<string, number>)[propertySlug] ?? 125)}
-          onClose={() => setCheckoutBooking(null)}
-        />
-      )}
+      {checkoutBooking && property && (() => {
+        const CLEANING: Record<string, number> = { "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 };
+        const cleaningFee = (CLEANING[propertySlug] ?? 125);
+        const subtotal = Math.round(checkoutBooking.avgNightlyRate * checkoutBooking.nights * 100) / 100;
+        const taxAmount = Math.round(subtotal * liveTaxRate * 100) / 100;
+        const totalAmount = Math.round((subtotal + cleaningFee + taxAmount) * 100) / 100;
+        return (
+          <CheckoutModal
+            propertyId={propertySlug}
+            propertyName={property.name}
+            checkIn={checkoutBooking.checkIn}
+            checkOut={checkoutBooking.checkOut}
+            nights={checkoutBooking.nights}
+            avgNightlyRate={checkoutBooking.avgNightlyRate}
+            guestCount={checkoutBooking.guestCount}
+            cleaningFee={cleaningFee}
+            subtotal={subtotal}
+            taxAmount={taxAmount}
+            taxRate={liveTaxRate}
+            totalAmount={totalAmount}
+            onClose={() => setCheckoutBooking(null)}
+          />
+        );
+      })()}
 
       {/* Guest Reviews */}
       <div className="bg-background py-4">

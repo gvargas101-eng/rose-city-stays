@@ -7,7 +7,7 @@ import Stripe from "stripe";
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { bookings } from "../../drizzle/schema";
+import { bookings, siteSettings } from "../../drizzle/schema";
 import { PROPERTY_TO_HOSTAWAY_ID } from "../hostaway";
 import { createHostawayReservation } from "../hostaway-booking";
 import { notifyOwner } from "../_core/notification";
@@ -60,7 +60,16 @@ export const bookingRouter = router({
 
       const cleaningFee = CLEANING_FEES[input.propertyId] ?? 125;
       const subtotal = Math.round(input.nightlyRate * input.nights * 100) / 100;
-      const totalAmount = Math.round((subtotal + cleaningFee) * 100) / 100;
+
+      // Fetch tax rate from site_settings (default 9% if not set)
+      const db0 = await getDb();
+      let taxRate = 0.09;
+      if (db0) {
+        const [setting] = await db0.select().from(siteSettings).where(eq(siteSettings.key, "taxRate")).limit(1);
+        if (setting) taxRate = parseFloat(setting.value);
+      }
+      const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
+      const totalAmount = Math.round((subtotal + cleaningFee + taxAmount) * 100) / 100;
       const totalCents = Math.round(totalAmount * 100);
 
       // Create Stripe PaymentIntent
@@ -97,6 +106,8 @@ export const bookingRouter = router({
         nightlyRate: String(input.nightlyRate),
         subtotal: String(subtotal),
         cleaningFee: String(cleaningFee),
+        taxAmount: String(taxAmount),
+        taxRate: String(taxRate),
         totalAmount: String(totalAmount),
         stripePaymentIntentId: paymentIntent.id,
         status: "pending",
@@ -108,6 +119,8 @@ export const bookingRouter = router({
         bookingId: paymentIntent.id,
         totalAmount,
         cleaningFee,
+        taxAmount,
+        taxRate,
         subtotal,
       };
     }),
@@ -225,6 +238,37 @@ export const bookingRouter = router({
           nightlyRate: booking.nightlyRate,
         },
       };
+    }),
+
+  /**
+   * Get all bookings for a guest by email address (for My Bookings page)
+   */
+  getByEmail: publicProcedure
+    .input(z.object({ email: z.string().email() }))
+    .query(async ({ input }) => {
+      const db2 = await getDb();
+      if (!db2) return [];
+      const results = await db2
+        .select()
+        .from(bookings)
+        .where(eq(bookings.guestEmail, input.email.toLowerCase().trim()))
+        .orderBy(bookings.createdAt);
+
+      return results.map((b) => ({
+        id: b.id,
+        propertyId: b.propertyId,
+        checkIn: b.checkIn,
+        checkOut: b.checkOut,
+        nights: b.nights,
+        guestCount: b.guestCount,
+        totalAmount: b.totalAmount,
+        cleaningFee: b.cleaningFee,
+        nightlyRate: b.nightlyRate,
+        taxAmount: b.taxAmount,
+        status: b.status,
+        hostawayReservationId: b.hostawayReservationId,
+        createdAt: b.createdAt,
+      }));
     }),
 
   /**

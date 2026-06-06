@@ -4,7 +4,7 @@
  */
 
 import { Link, useLocation } from "wouter";
-import { Building2, CalendarCheck, LayoutDashboard, LogOut, ChevronRight } from "lucide-react";
+import { Building2, CalendarCheck, LayoutDashboard, LogOut, ChevronRight, Settings2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import AdminLogin from "./AdminLogin";
@@ -13,6 +13,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/properties", label: "Properties", icon: Building2 },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+  { href: "/admin/settings", label: "Settings", icon: Settings2 },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

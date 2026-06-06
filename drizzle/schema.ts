@@ -93,6 +93,8 @@ export const bookings = mysqlTable("bookings", {
   nightlyRate: decimal("nightlyRate", { precision: 10, scale: 2 }).notNull(),
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
   cleaningFee: decimal("cleaningFee", { precision: 10, scale: 2 }).notNull().default("0"),
+  taxAmount: decimal("taxAmount", { precision: 10, scale: 2 }).notNull().default("0"),
+  taxRate: decimal("taxRate", { precision: 5, scale: 4 }).notNull().default("0.0900"), // e.g. 0.0900 = 9%
   totalAmount: decimal("totalAmount", { precision: 10, scale: 2 }).notNull(),
 
   stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 256 }),
@@ -124,3 +126,16 @@ export const adminCredentials = mysqlTable("admin_credentials", {
 });
 
 export type AdminCredential = typeof adminCredentials.$inferSelect;
+
+/**
+ * Site settings — key/value store for configurable site-wide settings.
+ * Keys: "taxRate" (decimal string, e.g. "0.0900" for 9%), etc.
+ */
+export const siteSettings = mysqlTable("site_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 64 }).notNull().unique(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SiteSetting = typeof siteSettings.$inferSelect;

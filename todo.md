@@ -131,3 +131,11 @@
 - [x] Add adminLogin tRPC procedure (verify password, issue session cookie)
 - [x] Update AdminLayout to check for admin session (Manus OAuth OR password session)
 - [x] Show admin login link in navbar for non-logged-in users visiting /admin
+
+## New Features (June 2026)
+
+- [x] Itemized fees/taxes in booking quote — 9% hotel occupancy tax on nightly subtotal, shown as itemized line items before payment
+- [x] Admin-configurable tax rate in admin Settings page
+- [x] Drag-and-drop photo upload in admin property editor (upload file directly, not just paste URL)
+- [x] Guest booking confirmation email — handled via Hostaway automation (no code needed)
+- [x] My Bookings page (/my-bookings) — guest enters email to look up their past/upcoming bookings
