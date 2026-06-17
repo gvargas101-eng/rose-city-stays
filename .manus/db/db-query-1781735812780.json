@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE properties SET name = 'Azul at Hollytree — King Bed Suite' WHERE id = 9;\nUPDATE properties SET name = 'Rose at Hollytree — Golf, Dining & Shopping' WHERE id = 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute UPDATE properties SET name = 'Azul at Hollytree — King Bed Suite' WHERE id = 9;\nUPDATE properties SET name = 'Rose at Hollytree — Golf, Dining & Shopping' WHERE id = 3;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 293
+}

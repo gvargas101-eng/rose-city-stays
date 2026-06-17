@@ -196,7 +196,7 @@ export default function Home() {
               className="inline-block text-white/80 text-xs tracking-[0.25em] uppercase border border-white/30 rounded-full px-4 py-1.5"
               style={{ fontFamily: "var(--font-body)" }}
             >
-              Tyler, Texas · Short-Term & Corporate Rentals
+              Tyler, Texas · The Rose Capital of America
             </span>
           </div>
 
@@ -204,16 +204,16 @@ export default function Home() {
             className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-light text-white mb-6 leading-[1.05] animate-fade-in-up animate-delay-100"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Your Home Away
+            Tyler's Premier
             <br />
-            <em className="italic">from Home</em>
+            <em className="italic">Short-Term Rental Collection</em>
           </h1>
 
           <p
             className="text-lg sm:text-xl text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animate-delay-200"
             style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}
           >
-            Premium short-term rentals in the heart of East Texas. 10 thoughtfully designed properties, 4.9-star rated, ready for your next stay.
+            10 designer properties in Tyler, TX — the Rose Capital of America. Steps from UT Health, Mother Frances Hospital, and downtown dining. 4.9★ rated across 200+ stays.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animate-delay-300">
@@ -233,7 +233,7 @@ export default function Home() {
                 className="border-white/50 text-white bg-white/10 hover:bg-white/20 rounded-full px-8 py-6 text-base font-medium tracking-wide backdrop-blur-sm"
                 style={{ fontFamily: "var(--font-body)" }}
               >
-                Send an Inquiry
+                Book Direct & Save
               </Button>
             </a>
           </div>
@@ -299,11 +299,14 @@ export default function Home() {
               className="text-4xl lg:text-5xl font-light text-foreground mb-4"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              10 Exceptional Properties
+              10 Properties. Every Stay
               <br />
-              <em className="italic text-muted-foreground">in Tyler, Texas</em>
+              <em className="italic text-muted-foreground">Thoughtfully Designed.</em>
             </h2>
             <div className="w-16 h-px bg-primary mt-6" />
+            <p className="text-base text-muted-foreground mt-6 max-w-2xl" style={{ fontFamily: "var(--font-body)" }}>
+              From the Hospital District to Hollytree, each Rose City Stays property is fully furnished, professionally managed, and available to book directly — no platform fees, no middleman.
+            </p>
           </div>
 
           {/* Filter Bar */}
@@ -430,7 +433,7 @@ export default function Home() {
               className="text-4xl lg:text-5xl font-light text-foreground"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Why Book Direct?
+              Skip the Fees. Book Direct.
             </h2>
             <div className="w-16 h-px bg-primary mx-auto mt-6" />
           </div>
@@ -875,6 +878,38 @@ export default function Home() {
               </p>
             </form>
           </div>
+        </div>
+      </section>
+
+      {/* ── BOTTOM CTA ── */}
+      <section className="py-24 bg-foreground text-background">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <span
+            className="block text-xs tracking-[0.2em] uppercase text-primary mb-4"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            Book Direct
+          </span>
+          <h2
+            className="text-4xl lg:text-5xl font-light text-background mb-6"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Book Direct. Save More.
+            <br />
+            <em className="italic">Stay Better.</em>
+          </h2>
+          <p className="text-base text-background/60 mb-10 leading-relaxed" style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}>
+            Skip Airbnb and VRBO fees — guests who book directly with Rose City Stays save 10–15% and get direct access to our team before, during, and after their stay.
+          </p>
+          <a href="#properties">
+            <Button
+              size="lg"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-10 py-6 text-base font-medium tracking-wide shadow-lg shadow-primary/30"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              See All Properties <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </a>
         </div>
       </section>
 

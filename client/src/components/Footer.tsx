@@ -22,7 +22,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-sm text-background/60 leading-relaxed mb-6" style={{ fontFamily: "var(--font-body)" }}>
-              Premium short-term and corporate rentals in Tyler, TX. Your home away from home in the Rose Capital of America.
+              Tyler’s top-rated short-term rental collection. 10 properties, professionally managed, available to book direct.
             </p>
             <div className="flex items-center gap-3">
               <a
@@ -103,7 +103,7 @@ export default function Footer() {
               <li>
                 <div className="flex items-start gap-3 text-sm text-background/60" style={{ fontFamily: "var(--font-body)" }}>
                   <Phone className="w-4 h-4 flex-shrink-0 text-primary mt-0.5" />
-                  <span>Available via email or booking platform</span>
+                  <span>Available 7 days a week</span>
                 </div>
               </li>
             </ul>

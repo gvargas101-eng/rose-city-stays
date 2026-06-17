@@ -1,0 +1,60 @@
+{
+  "query": "SELECT id, name, slug FROM properties ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT id, name, slug FROM properties ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "The Briar: Spacious 3BR Retreat – Peaceful Escape",
+      "slug": "the-briar"
+    },
+    {
+      "id": "2",
+      "name": "Hospital District! Retreat! Wall Ave.",
+      "slug": "hospital-district"
+    },
+    {
+      "id": "3",
+      "name": "Hollytree Golf, Dining & Shopping — Perfect Location",
+      "slug": "hollytree-golf-dining"
+    },
+    {
+      "id": "4",
+      "name": "The Alamo House — Stylish 4BR Home",
+      "slug": "alamo-house"
+    },
+    {
+      "id": "5",
+      "name": "Green Acres — Peaceful Country Retreat",
+      "slug": "green-acres"
+    },
+    {
+      "id": "6",
+      "name": "Legacy House — Elegant 4BR Estate",
+      "slug": "legacy-house"
+    },
+    {
+      "id": "7",
+      "name": "Azalea Spring Cottage — Charming 2BR",
+      "slug": "azalea-spring-cottage"
+    },
+    {
+      "id": "8",
+      "name": "Noir Hollytree — Sophisticated 3BR",
+      "slug": "noir-hollytree"
+    },
+    {
+      "id": "9",
+      "name": "Hollytree King Bed — Photo 5 & 6",
+      "slug": "hollytree-king-bed"
+    },
+    {
+      "id": "10",
+      "name": "Hollytree Townhouse — King Bed, Great Location",
+      "slug": "hollytree-townhouse"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tslug\n1\tThe Briar: Spacious 3BR Retreat – Peaceful Escape\tthe-briar\n2\tHospital District! Retreat! Wall Ave.\thospital-district\n3\tHollytree Golf, Dining & Shopping — Perfect Location\thollytree-golf-dining\n4\tThe Alamo House — Stylish 4BR Home\talamo-house\n5\tGreen Acres — Peaceful Country Retreat\tgreen-acres\n6\tLegacy House — Elegant 4BR Estate\tlegacy-house\n7\tAzalea Spring Cottage — Charming 2BR\tazalea-spring-cottage\n8\tNoir Hollytree — Sophisticated 3BR\tnoir-hollytree\n9\tHollytree King Bed — Photo 5 & 6\thollytree-king-bed\n10\tHollytree Townhouse — King Bed, Great Location\thollytree-townhouse\n",
+  "stderr": "",
+  "execution_time_ms": 325
+}

@@ -137,8 +137,8 @@ export const properties: Property[] = [
   },
   {
     id: "hollytree-golf-dining",
-    name: "Hollytree Golf, Dining & Shopping — Perfect Location",
-    shortName: "Hollytree Golf",
+    name: "Rose at Hollytree — Golf, Dining & Shopping",
+    shortName: "Rose at Hollytree",
     type: "House",
     guests: 6,
     bedrooms: 3,
@@ -475,8 +475,8 @@ export const properties: Property[] = [
   },
   {
     id: "hollytree-king-bed",
-    name: "Hollytree Golf — Perfect Location, King Bed",
-    shortName: "Hollytree King",
+    name: "Azul at Hollytree — King Bed Suite",
+    shortName: "Azul at Hollytree",
     type: "House",
     guests: 6,
     bedrooms: 3,
