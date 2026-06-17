@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, name, shortName, slug FROM properties WHERE id IN (3, 9);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT id, name, shortName, slug FROM properties WHERE id IN (3, 9);",
+  "rows": [
+    {
+      "id": "3",
+      "name": "Rose at Hollytree — Golf, Dining & Shopping",
+      "shortName": "Hollytree Golf",
+      "slug": "hollytree-golf-dining"
+    },
+    {
+      "id": "9",
+      "name": "Azul at Hollytree — King Bed Suite",
+      "shortName": "Hollytree Photo 5/6",
+      "slug": "hollytree-king-bed"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tshortName\tslug\n3\tRose at Hollytree — Golf, Dining & Shopping\tHollytree Golf\thollytree-golf-dining\n9\tAzul at Hollytree — King Bed Suite\tHollytree Photo 5/6\thollytree-king-bed\n",
+  "stderr": "",
+  "execution_time_ms": 282
+}
