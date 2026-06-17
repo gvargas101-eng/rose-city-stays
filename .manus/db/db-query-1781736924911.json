@@ -1,0 +1,15 @@
+{
+  "query": "SELECT id, name, shortName FROM properties WHERE id = 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT id, name, shortName FROM properties WHERE id = 10;",
+  "rows": [
+    {
+      "id": "10",
+      "name": "Verde at Hollytree — King Bed, Great Location",
+      "shortName": "Verde at Hollytree"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tshortName\n10\tVerde at Hollytree — King Bed, Great Location\tVerde at Hollytree\n",
+  "stderr": "",
+  "execution_time_ms": 266
+}

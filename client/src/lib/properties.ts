@@ -528,8 +528,8 @@ export const properties: Property[] = [
   },
   {
     id: "hollytree-townhouse",
-    name: "Hollytree Townhouse — King Bed, Great Location",
-    shortName: "Hollytree Townhouse",
+    name: "Verde at Hollytree — King Bed, Great Location",
+    shortName: "Verde at Hollytree",
     type: "Townhouse",
     guests: 7,
     bedrooms: 3,
