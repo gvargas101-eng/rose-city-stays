@@ -10,6 +10,7 @@ import { getDb } from "../db";
 import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees } from "../../drizzle/schema";
 import { eq, asc, desc } from "drizzle-orm";
 import { storagePut } from "../storage";
+import { syncHostawayListings } from "../hostaway-sync";
 
 // Helper: random suffix for file keys
 function randomSuffix() {
@@ -293,6 +294,14 @@ export const adminRouter = router({
       await db.delete(customFees).where(eq(customFees.id, input.id));
       return { success: true };
     }),
+
+  // ── Hostaway Sync ──────────────────────────────────────────────────────────
+
+  /** Manually trigger a Hostaway → DB sync and return the result summary */
+  syncHostaway: adminProcedure.mutation(async () => {
+    const result = await syncHostawayListings();
+    return result;
+  }),
 
   /** Update booking status */
   updateBookingStatus: adminProcedure

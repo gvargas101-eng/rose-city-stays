@@ -17,6 +17,9 @@ import {
   DollarSign,
   X,
   Check,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 type FeeType = "flat" | "percent";
@@ -37,6 +40,21 @@ const emptyFeeForm = (): FeeFormState => ({
 
 export default function AdminSettings() {
   const utils = trpc.useUtils();
+
+  // ── Hostaway Sync ──────────────────────────────────────────────────────────
+  const [syncResult, setSyncResult] = useState<{ total: number; created: number; updated: number; skipped: number; errors: string[] } | null>(null);
+  const syncHostaway = trpc.admin.syncHostaway.useMutation({
+    onSuccess: (data) => {
+      setSyncResult(data);
+      utils.admin.listProperties.invalidate();
+      if (data.errors.length === 0) {
+        toast.success(`Sync complete — ${data.created} new, ${data.updated} updated out of ${data.total} listings.`);
+      } else {
+        toast.warning(`Sync finished with ${data.errors.length} error(s). See details below.`);
+      }
+    },
+    onError: (e) => toast.error(`Sync failed: ${e.message}`),
+  });
 
   // ── Tax Rate ──────────────────────────────────────────────────────────────
   const { data: settings, isLoading: settingsLoading } = trpc.admin.getSettings.useQuery();
@@ -390,6 +408,68 @@ export default function AdminSettings() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── Hostaway Sync ── */}
+          <section className="bg-background rounded-xl border border-border p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <RefreshCw className="w-4 h-4 text-primary" />
+              <h2 className="text-base font-semibold text-foreground">Hostaway Sync</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Pull all active listings from Hostaway and update this site’s property database.
+              New listings are added automatically; existing ones are updated with the latest
+              name, description, photos, and amenities.
+              Admin-managed fields (short name, cleaning fee, sort order) are never overwritten.
+              Auto-sync also runs every night at 2 AM CT.
+            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => { setSyncResult(null); syncHostaway.mutate(); }}
+                disabled={syncHostaway.isPending}
+                className="gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncHostaway.isPending ? "animate-spin" : ""}`} />
+                {syncHostaway.isPending ? "Syncing…" : "Sync Now"}
+              </Button>
+            </div>
+
+            {syncResult && (
+              <div className={`rounded-lg border p-4 text-sm space-y-2 ${
+                syncResult.errors.length === 0
+                  ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800"
+                  : "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800"
+              }`}>
+                <div className="flex items-center gap-2 font-medium">
+                  {syncResult.errors.length === 0
+                    ? <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    : <AlertCircle className="w-4 h-4 text-yellow-600" />}
+                  <span>Sync Result</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-background/60 rounded p-2">
+                    <div className="text-lg font-bold text-foreground">{syncResult.total}</div>
+                    <div className="text-xs text-muted-foreground">Total listings</div>
+                  </div>
+                  <div className="bg-background/60 rounded p-2">
+                    <div className="text-lg font-bold text-green-600">{syncResult.created}</div>
+                    <div className="text-xs text-muted-foreground">New</div>
+                  </div>
+                  <div className="bg-background/60 rounded p-2">
+                    <div className="text-lg font-bold text-blue-600">{syncResult.updated}</div>
+                    <div className="text-xs text-muted-foreground">Updated</div>
+                  </div>
+                </div>
+                {syncResult.errors.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="font-medium text-yellow-700 dark:text-yellow-400">Errors ({syncResult.errors.length}):</p>
+                    {syncResult.errors.map((e, i) => (
+                      <p key={i} className="text-xs text-yellow-700 dark:text-yellow-400 font-mono">{e}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>

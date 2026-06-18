@@ -146,3 +146,10 @@
 ## Mobile Admin Access (June 2026)
 
 - [x] Mobile-responsive admin panel — hamburger menu / collapsible sidebar for small screens
+
+## Hostaway Auto-Sync (June 2026)
+
+- [x] Build hostaway-sync.ts engine — fetches all listings, upserts into DB (name, description, photos, amenities, guests, bedrooms, bathrooms)
+- [x] Add admin.syncHostaway tRPC mutation to admin router
+- [x] Add "Hostaway Sync" section to Admin Settings with Sync Now button and result display
+- [x] Nightly auto-sync scheduled via Manus schedule (2 AM CT daily)
