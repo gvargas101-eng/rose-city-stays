@@ -156,19 +156,26 @@
 
 ## Auto-Blog System (June 2026)
 
-- [ ] Add blog_posts table to DB schema (slug, title, excerpt, content, featured_image, category, tags, meta_description, published, ai_generated, created_at)
-- [ ] Seed DB with existing 6 static blog articles from blog.ts
-- [ ] Build blog tRPC procedures (list, bySlug) — public, reads from DB
-- [ ] Update Blog.tsx and BlogDetail.tsx to read from DB via tRPC
-- [ ] Build server/blog-writer.ts — search Tyler TX news (web search), write post with LLM, save to DB
-- [ ] Add admin.generateBlogPost mutation to admin router
-- [ ] Add "Blog Auto-Writer" section to Admin Settings with Generate Now button + post preview
-- [ ] Wire bi-weekly scheduled job (every 2 weeks) to auto-generate and publish a new post
+- [x] Add blog_posts table to DB schema (slug, title, excerpt, content, featured_image, category, tags, meta_description, published, ai_generated, created_at)
+- [x] Seed DB with existing 6 static blog articles from blog.ts
+- [x] Build blog tRPC procedures (list, bySlug) — public, reads from DB
+- [x] Update Blog.tsx and BlogDetail.tsx to read from DB via tRPC
+- [x] Build server/blog-writer.ts — search Tyler TX news (web search), write post with LLM, save to DB
+- [x] Add admin.generateBlogPost mutation to admin router
+- [x] Add "Blog Auto-Writer" section to Admin Settings with Generate Now button + post preview
+- [x] Wire bi-weekly scheduled job (every 2 weeks) to auto-generate and publish a new post
 
 ## Bug Fixes (June 2026)
 
-- [ ] Fix large blank section after property grid (About/host section failing to render — broken image)
-- [ ] Add nightly pricing to property cards on homepage
-- [ ] Hide Admin link from public navigation (only show to admin users)
-- [ ] Fix amenity pills not rendering on property cards
-- [ ] Verify Houston Cottage cover photo and review count
+- [x] Fix large blank section after property grid (About/host section failing to render — broken image)
+- [x] Add nightly pricing to property cards on homepage
+- [x] Hide Admin link from public navigation (only show to admin users)
+- [x] Fix amenity pills not rendering on property cards
+- [x] Verify Houston Cottage cover photo and review count
+
+## Fixes (June 2026 — Round 2)
+
+- [x] Hide Admin link from public nav entirely — access only via direct URL /admin/login
+- [x] Fix blog post detail page blank content (large gap between title and body)
+- [x] Replace About section image with a real property photo
+- [x] Update stats bar "10 Properties" → "11 Properties"

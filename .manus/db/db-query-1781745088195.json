@@ -1,0 +1,34 @@
+{
+  "query": "SELECT pp.url, p.name FROM property_photos pp JOIN properties p ON pp.propertyId = p.id WHERE p.id IN (1, 10) ORDER BY p.id, pp.sortOrder LIMIT 6;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT pp.url, p.name FROM property_photos pp JOIN properties p ON pp.propertyId = p.id WHERE p.id IN (1, 10) ORDER BY p.id, pp.sortOrder LIMIT 6;",
+  "rows": [
+    {
+      "url": "https://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-ed199p-fMlLVUMe0cGeyajq7Oh7UfA9T0AkrGD49iSY-68c0417870464",
+      "name": "Spacious Home with 2 Living Areas"
+    },
+    {
+      "url": "https://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-Ll9EFg69NQel--Ixc9jJLiiSFlsr4eySRD3RR2TMe4r0-68c041760ed83",
+      "name": "Spacious Home with 2 Living Areas"
+    },
+    {
+      "url": "https://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-TXbzI6G-6zigSAAKGq80NFsC49S--4QsARyTTl1LGCR4-68c0416810f2b",
+      "name": "Spacious Home with 2 Living Areas"
+    },
+    {
+      "url": "https://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-34ivb84Cg7r2Mb4C6IfFUcq8wHeZNHYXbrrU8pCyJIU-68c0417243000",
+      "name": "Spacious Home with 2 Living Areas"
+    },
+    {
+      "url": "https://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-evSCc06SvXLVAddMmEmdX23vEp--EFeDn00QndTYcKFc-68c05327d3383",
+      "name": "Spacious Home with 2 Living Areas"
+    },
+    {
+      "url": "https://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-d3rbKj1WSeLLZcFE2m8UXvySmJPybn2umZ3kHw4AFW0-68c063f195f6b",
+      "name": "Spacious Home with 2 Living Areas"
+    }
+  ],
+  "messages": [],
+  "stdout": "url\tname\nhttps://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-ed199p-fMlLVUMe0cGeyajq7Oh7UfA9T0AkrGD49iSY-68c0417870464\tSpacious Home with 2 Living Areas\nhttps://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-Ll9EFg69NQel--Ixc9jJLiiSFlsr4eySRD3RR2TMe4r0-68c041760ed83\tSpacious Home with 2 Living Areas\nhttps://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-TXbzI6G-6zigSAAKGq80NFsC49S--4QsARyTTl1LGCR4-68c0416810f2b\tSpacious Home with 2 Living Areas\nhttps://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-34ivb84Cg7r2Mb4C6IfFUcq8wHeZNHYXbrrU8pCyJIU-68c0417243000\tSpacious Home with 2 Living Areas\nhttps://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-evSCc06SvXLVAddMmEmdX23vEp--EFeDn00QndTYcKFc-68c05327d3383\tSpacious Home with 2 Living Areas\nhttps://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-d3rbKj1WSeLLZcFE2m8UXvySmJPybn2umZ3kHw4AFW0-68c063f195f6b\tSpacious Home with 2 Living Areas\n",
+  "stderr": "",
+  "execution_time_ms": 277
+}

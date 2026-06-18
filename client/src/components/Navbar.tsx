@@ -85,20 +85,7 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            {isAdmin && (
-              <Link href="/admin">
-                <button
-                  className={`flex items-center gap-1.5 text-sm font-medium tracking-wide transition-colors hover:text-primary ${
-                    transparent ? "text-white/90 hover:text-white" : "text-foreground/70 hover:text-foreground"
-                  }`}
-                  style={{ fontFamily: "var(--font-body)" }}
-                  title="Admin Dashboard"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Admin
-                </button>
-              </Link>
-            )}
+
             <a href="/#properties">
               <Button
                 size="sm"
@@ -138,17 +125,7 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            {isAdmin && (
-              <Link href="/admin" onClick={() => setMenuOpen(false)}>
-                <button
-                  className="flex items-center gap-2 text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2"
-                  style={{ fontFamily: "var(--font-body)" }}
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Admin Dashboard
-                </button>
-              </Link>
-            )}
+
             <a href="/#properties" onClick={() => setMenuOpen(false)}>
               <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-medium"

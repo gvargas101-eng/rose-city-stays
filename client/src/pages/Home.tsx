@@ -34,7 +34,7 @@ import { Link } from "wouter";
 // Generated hero image
 const HERO_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hollytree-golf-photo-01_29d8f2c8.jpg"; // 6127 Photo-3 wide-angle living room
 const TYLER_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/tyler-tx-GDKyBfxJZPpPZRX8xgdf9B.webp";
-const ABOUT_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/about-host-WnHa9oaZNQ9KzyBExpeQjQ.webp";
+const ABOUT_IMAGE = "https://hostaway-platform.s3.us-west-2.amazonaws.com/listing/127000-329641-ed199p-fMlLVUMe0cGeyajq7Oh7UfA9T0AkrGD49iSY-68c0417870464";
 
 // Intersection observer hook for scroll animations
 function useInView(threshold = 0.05) {
@@ -231,7 +231,7 @@ export default function Home() {
             className="text-lg sm:text-xl text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animate-delay-200"
             style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}
           >
-            10 designer properties in Tyler, TX — the Rose Capital of America. Steps from UT Health, Mother Frances Hospital, and downtown dining. 4.9★ rated across 200+ stays.
+            11 designer properties in Tyler, TX — the Rose Capital of America. Steps from UT Health, Mother Frances Hospital, and downtown dining. 4.9★ rated across 200+ stays.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animate-delay-300">
@@ -271,7 +271,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { value: "10", label: "Properties" },
+              { value: "11", label: "Properties" },
               { value: "4.9★", label: "Average Rating" },
               { value: "24/7", label: "Self Check-In" },
               { value: "500+", label: "Mbps WiFi" },
@@ -317,7 +317,7 @@ export default function Home() {
               className="text-4xl lg:text-5xl font-light text-foreground mb-4"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              10 Properties. Every Stay
+              11 Properties. Every Stay
               <br />
               <em className="italic text-muted-foreground">Thoughtfully Designed.</em>
             </h2>

@@ -79,14 +79,10 @@ export default function BlogDetail() {
           </div>
         </div>
 
-        {/* Featured Image */}
-        {article.featuredImage ? (
+        {/* Featured Image — only render if one exists */}
+        {article.featuredImage && (
           <div className="w-full aspect-video bg-muted overflow-hidden">
             <img src={article.featuredImage} alt={article.title} className="w-full h-full object-cover" />
-          </div>
-        ) : (
-          <div className="w-full aspect-[4/1] bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-            <span className="text-6xl">🌹</span>
           </div>
         )}
 
