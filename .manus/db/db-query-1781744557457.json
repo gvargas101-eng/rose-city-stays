@@ -1,0 +1,76 @@
+{
+  "query": "SELECT id, slug, shortName, active FROM properties ORDER BY sortOrder;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT id, slug, shortName, active FROM properties ORDER BY sortOrder;",
+  "rows": [
+    {
+      "id": "1",
+      "slug": "the-briar",
+      "shortName": "The Briar",
+      "active": "1"
+    },
+    {
+      "id": "2",
+      "slug": "hospital-district",
+      "shortName": "Wall Ave. Retreat",
+      "active": "1"
+    },
+    {
+      "id": "3",
+      "slug": "hollytree-golf-dining",
+      "shortName": "Rose at Hollytree",
+      "active": "1"
+    },
+    {
+      "id": "4",
+      "slug": "alamo-house",
+      "shortName": "The Alamo House",
+      "active": "1"
+    },
+    {
+      "id": "5",
+      "slug": "green-acres",
+      "shortName": "Green Acres",
+      "active": "1"
+    },
+    {
+      "id": "6",
+      "slug": "legacy-house",
+      "shortName": "Legacy House",
+      "active": "1"
+    },
+    {
+      "id": "7",
+      "slug": "azalea-spring-cottage",
+      "shortName": "Spring Cottage",
+      "active": "1"
+    },
+    {
+      "id": "8",
+      "slug": "noir-hollytree",
+      "shortName": "Noir Hollytree",
+      "active": "1"
+    },
+    {
+      "id": "9",
+      "slug": "hollytree-king-bed",
+      "shortName": "Azul at Hollytree",
+      "active": "1"
+    },
+    {
+      "id": "10",
+      "slug": "hollytree-townhouse",
+      "shortName": "Verde at Hollytree",
+      "active": "1"
+    },
+    {
+      "id": "30001",
+      "slug": "cozy-3-bedrooms-walk-to-hospitals-downtown-stanleys",
+      "shortName": "Houston Cottage",
+      "active": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tslug\tshortName\tactive\n1\tthe-briar\tThe Briar\t1\n2\thospital-district\tWall Ave. Retreat\t1\n3\thollytree-golf-dining\tRose at Hollytree\t1\n4\talamo-house\tThe Alamo House\t1\n5\tgreen-acres\tGreen Acres\t1\n6\tlegacy-house\tLegacy House\t1\n7\tazalea-spring-cottage\tSpring Cottage\t1\n8\tnoir-hollytree\tNoir Hollytree\t1\n9\thollytree-king-bed\tAzul at Hollytree\t1\n10\thollytree-townhouse\tVerde at Hollytree\t1\n30001\tcozy-3-bedrooms-walk-to-hospitals-downtown-stanleys\tHouston Cottage\t1\n",
+  "stderr": "",
+  "execution_time_ms": 283
+}

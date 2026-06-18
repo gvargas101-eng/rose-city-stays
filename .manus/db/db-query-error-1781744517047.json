@@ -1,0 +1,8 @@
+{
+  "query": "SELECT p.id, p.name, COUNT(pi.id) as image_count FROM properties p LEFT JOIN property_images pi ON pi.propertyId = p.id GROUP BY p.id, p.name ORDER BY p.sortOrder;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT p.id, p.name, COUNT(pi.id) as image_count FROM properties p LEFT JOIN property_images pi ON pi.propertyId = p.id GROUP BY p.id, p.name ORDER BY p.sortOrder;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'bn23yppaqdw8fggwufqwsm.property_images' doesn't exist"
+  ]
+}

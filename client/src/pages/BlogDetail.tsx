@@ -1,48 +1,49 @@
-// Rose City Stays Blog Detail Page
-// Design: Rose City Luxe — individual blog post with related content
-
-import { useRoute } from "wouter";
-import { Link } from "wouter";
+// Rose City Stays Blog Detail Page — reads from DB via tRPC
+import { useRoute, Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { getBlogArticleBySlug, getRelatedArticles } from "@/lib/blog";
-import { getPropertyById } from "@/lib/properties";
+import { Skeleton } from "@/components/ui/skeleton";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Calendar, Clock, User, ArrowLeft } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { useSEO } from "@/hooks/useSEO";
-import { generateArticleSchema } from "@/lib/seo";
+import { trpc } from "@/lib/trpc";
 
 export default function BlogDetail() {
   const [match, params] = useRoute("/blog/:slug");
 
-  if (!match) {
-    return null;
-  }
-
-  const article = getBlogArticleBySlug(params?.slug as string);
-
-  useSEO(
-    {
-      title: `${article?.title} | Rose City Stays Blog`,
-      description: article?.metaDescription || article?.excerpt || "",
-      ogImage: article?.featuredImage,
-      keywords: article?.tags,
-    },
-    article
-      ? generateArticleSchema({
-          title: article.title,
-          description: article.excerpt,
-          image: article.featuredImage,
-          author: article.author,
-          datePublished: article.date,
-          url: `https://rosecitystays.com/blog/${article.slug}`,
-        })
-      : undefined
+  const { data: article, isLoading, isError } = trpc.blog.bySlug.useQuery(
+    { slug: params?.slug ?? "" },
+    { enabled: !!params?.slug }
   );
 
-  if (!article) {
+  useSEO({
+    title: article ? `${article.title} | Rose City Stays Blog` : "Blog | Rose City Stays",
+    description: article?.metaDescription || article?.excerpt || "",
+    ogImage: article?.featuredImage ?? undefined,
+    keywords: article ? (article.tags as string[]) : [],
+  });
+
+  if (!match) return null;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1">
+          <Skeleton className="w-full aspect-video" />
+          <div className="container max-w-4xl py-12 space-y-4">
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (isError || !article) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
@@ -52,9 +53,7 @@ export default function BlogDetail() {
               Article Not Found
             </h1>
             <Link href="/blog">
-              <Button className="bg-primary text-primary-foreground rounded-full">
-                Back to Blog
-              </Button>
+              <Button className="bg-primary text-primary-foreground rounded-full">Back to Blog</Button>
             </Link>
           </div>
         </main>
@@ -62,8 +61,6 @@ export default function BlogDetail() {
       </div>
     );
   }
-
-  const relatedArticles = getRelatedArticles(article.id);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -74,10 +71,7 @@ export default function BlogDetail() {
         <div className="py-6 px-4 border-b border-border">
           <div className="container max-w-4xl">
             <Link href="/blog">
-              <Button
-                variant="ghost"
-                className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-              >
+              <Button variant="ghost" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Blog
               </Button>
@@ -86,31 +80,30 @@ export default function BlogDetail() {
         </div>
 
         {/* Featured Image */}
-        <div className="w-full aspect-video bg-muted overflow-hidden">
-          <img
-            src={article.featuredImage}
-            alt={article.title}
-            className="w-full h-full object-cover"
-          />
-        </div>
+        {article.featuredImage ? (
+          <div className="w-full aspect-video bg-muted overflow-hidden">
+            <img src={article.featuredImage} alt={article.title} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="w-full aspect-[4/1] bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+            <span className="text-6xl">🌹</span>
+          </div>
+        )}
 
         {/* Article Header */}
         <section className="py-12 px-4 border-b border-border">
           <div className="container max-w-4xl">
-            {/* Category Badge */}
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <span className="badge-mauve">{article.category}</span>
+              {article.aiGenerated === 1 && (
+                <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">AI Generated</span>
+              )}
             </div>
 
-            {/* Title */}
-            <h1
-              className="text-4xl lg:text-5xl font-light mb-6 text-foreground"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
+            <h1 className="text-4xl lg:text-5xl font-light mb-6 text-foreground" style={{ fontFamily: "var(--font-display)" }}>
               {article.title}
             </h1>
 
-            {/* Meta Info */}
             <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4" />
@@ -119,7 +112,7 @@ export default function BlogDetail() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 <span style={{ fontFamily: "var(--font-body)" }}>
-                  {new Date(article.date).toLocaleDateString("en-US", {
+                  {new Date(article.publishedAt).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
@@ -137,145 +130,35 @@ export default function BlogDetail() {
         {/* Article Content */}
         <section className="py-12 px-4">
           <div className="container max-w-4xl">
-            <div
-              className="prose prose-sm max-w-none"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
+            <div className="prose prose-sm max-w-none" style={{ fontFamily: "var(--font-body)" }}>
               <Streamdown>{article.content}</Streamdown>
             </div>
           </div>
         </section>
 
         {/* Tags */}
-        <section className="py-8 px-4 border-t border-border">
-          <div className="container max-w-4xl">
-            <div className="flex flex-wrap gap-2">
-              {article.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs px-3 py-1 bg-muted text-muted-foreground rounded-full"
-                  style={{ fontFamily: "var(--font-body)" }}
-                >
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Related Properties */}
-        {article.relatedProperties.length > 0 && (
-          <section className="py-12 px-4 bg-muted/30 border-t border-border">
+        {(article.tags as string[]).length > 0 && (
+          <section className="py-8 px-4 border-t border-border">
             <div className="container max-w-4xl">
-              <h2
-                className="text-2xl font-light mb-8 text-foreground"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                Perfect Properties for This Experience
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {article.relatedProperties
-                  .map((propId) => getPropertyById(propId))
-                  .filter((p) => p !== undefined)
-                  .map((property) => (
-                    <Link key={property!.id} href={`/property/${property!.id}`}>
-                      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer property-card h-full">
-                        <div className="aspect-video overflow-hidden bg-muted">
-                          <img
-                            src={property!.image}
-                            alt={property!.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <CardContent className="p-4">
-                          <h3
-                            className="font-light text-lg mb-2"
-                            style={{ fontFamily: "var(--font-display)" }}
-                          >
-                            {property!.shortName}
-                          </h3>
-                          <p
-                            className="text-sm text-muted-foreground mb-4"
-                            style={{ fontFamily: "var(--font-body)" }}
-                          >
-                            {property!.shortDescription}
-                          </p>
-                          <Button
-                            variant="outline"
-                            className="w-full rounded-full"
-                            style={{ fontFamily: "var(--font-body)" }}
-                          >
-                            View Property
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Related Articles */}
-        {relatedArticles.length > 0 && (
-          <section className="py-12 px-4 border-t border-border">
-            <div className="container max-w-4xl">
-              <h2
-                className="text-2xl font-light mb-8 text-foreground"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                Related Articles
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {relatedArticles.map((relatedArticle) => (
-                  <Link key={relatedArticle.id} href={`/blog/${relatedArticle.slug}`}>
-                    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer property-card h-full">
-                      <div className="aspect-video overflow-hidden bg-muted">
-                        <img
-                          src={relatedArticle.featuredImage}
-                          alt={relatedArticle.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <CardContent className="p-4">
-                        <span className="badge-mauve text-xs mb-2 inline-block">
-                          {relatedArticle.category}
-                        </span>
-                        <h3
-                          className="font-light text-lg mb-2 line-clamp-2"
-                          style={{ fontFamily: "var(--font-display)" }}
-                        >
-                          {relatedArticle.title}
-                        </h3>
-                        <p
-                          className="text-sm text-muted-foreground"
-                          style={{ fontFamily: "var(--font-body)" }}
-                        >
-                          {relatedArticle.readTime} min read
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </Link>
+              <div className="flex flex-wrap gap-2">
+                {(article.tags as string[]).map((tag) => (
+                  <span key={tag} className="text-xs px-3 py-1 bg-muted text-muted-foreground rounded-full" style={{ fontFamily: "var(--font-body)" }}>
+                    #{tag}
+                  </span>
                 ))}
               </div>
             </div>
           </section>
         )}
 
-        {/* CTA Section */}
-        <section className="py-16 px-4 bg-primary/5 border-t border-border">
+        {/* CTA */}
+        <section className="py-12 px-4 bg-primary/5 border-t border-border">
           <div className="container max-w-4xl text-center">
-            <h2
-              className="text-3xl font-light mb-4 text-foreground"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
+            <h2 className="text-2xl font-light mb-3 text-foreground" style={{ fontFamily: "var(--font-display)" }}>
               Ready to Visit Tyler?
             </h2>
-            <p
-              className="text-lg text-muted-foreground mb-8"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              Book a stay at Rose City Stays and experience everything this article covers.
+            <p className="text-muted-foreground mb-6" style={{ fontFamily: "var(--font-body)" }}>
+              Book a Rose City Stays property and experience everything you just read about.
             </p>
             <Link href="/#properties">
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8">

@@ -153,3 +153,22 @@
 - [x] Add admin.syncHostaway tRPC mutation to admin router
 - [x] Add "Hostaway Sync" section to Admin Settings with Sync Now button and result display
 - [x] Nightly auto-sync scheduled via Manus schedule (2 AM CT daily)
+
+## Auto-Blog System (June 2026)
+
+- [ ] Add blog_posts table to DB schema (slug, title, excerpt, content, featured_image, category, tags, meta_description, published, ai_generated, created_at)
+- [ ] Seed DB with existing 6 static blog articles from blog.ts
+- [ ] Build blog tRPC procedures (list, bySlug) — public, reads from DB
+- [ ] Update Blog.tsx and BlogDetail.tsx to read from DB via tRPC
+- [ ] Build server/blog-writer.ts — search Tyler TX news (web search), write post with LLM, save to DB
+- [ ] Add admin.generateBlogPost mutation to admin router
+- [ ] Add "Blog Auto-Writer" section to Admin Settings with Generate Now button + post preview
+- [ ] Wire bi-weekly scheduled job (every 2 weeks) to auto-generate and publish a new post
+
+## Bug Fixes (June 2026)
+
+- [ ] Fix large blank section after property grid (About/host section failing to render — broken image)
+- [ ] Add nightly pricing to property cards on homepage
+- [ ] Hide Admin link from public navigation (only show to admin users)
+- [ ] Fix amenity pills not rendering on property cards
+- [ ] Verify Houston Cottage cover photo and review count

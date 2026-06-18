@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AdminLayout from "./AdminLayout";
+import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,11 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
+  PenLine,
+  BookOpen,
+  ExternalLink,
+  EyeOff as EyeOffIcon,
+  Eye as EyeIcon,
 } from "lucide-react";
 
 type FeeType = "flat" | "percent";
@@ -55,6 +61,36 @@ export default function AdminSettings() {
     },
     onError: (e) => toast.error(`Sync failed: ${e.message}`),
   });
+
+  // ── Blog Auto-Writer ──────────────────────────────────────────────────────
+  const [blogTopic, setBlogTopic] = useState("");
+  const [blogResult, setBlogResult] = useState<{ success: boolean; title?: string; slug?: string; error?: string } | null>(null);
+  const { data: blogPosts = [], isLoading: blogPostsLoading, refetch: refetchBlogPosts } = trpc.admin.listBlogPosts.useQuery();
+
+  const generateBlogPost = trpc.admin.generateBlogPost.useMutation({
+    onSuccess: (data) => {
+      setBlogResult(data);
+      refetchBlogPosts();
+      if (data.success) {
+        toast.success(`Blog post published: "${data.title}"`);
+      } else {
+        toast.error(`Blog generation failed: ${data.error}`);
+      }
+    },
+    onError: (e) => toast.error(`Blog generation failed: ${e.message}`),
+  });
+
+  const toggleBlogPost = trpc.admin.toggleBlogPost.useMutation({
+    onSuccess: () => { refetchBlogPosts(); toast.success("Post updated."); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteBlogPost = trpc.admin.deleteBlogPost.useMutation({
+    onSuccess: () => { refetchBlogPosts(); toast.success("Post deleted."); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [confirmDeleteBlogId, setConfirmDeleteBlogId] = useState<number | null>(null);
 
   // ── Tax Rate ──────────────────────────────────────────────────────────────
   const { data: settings, isLoading: settingsLoading } = trpc.admin.getSettings.useQuery();
@@ -472,6 +508,136 @@ export default function AdminSettings() {
                 )}
               </div>
             )}
+          </section>
+
+          {/* ── Blog Auto-Writer ── */}
+          <section className="bg-card border border-border rounded-xl p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <PenLine className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Blog Auto-Writer</h2>
+                <p className="text-sm text-muted-foreground">AI writes a new SEO blog post about Tyler, TX every 2 weeks automatically. You can also generate one now.</p>
+              </div>
+            </div>
+
+            {/* Generate Now */}
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground mb-1 block">Topic (optional — leave blank to auto-pick)</Label>
+                <Input
+                  placeholder="e.g. Tyler TX restaurants, Rose Festival, medical travel..."
+                  value={blogTopic}
+                  onChange={(e) => setBlogTopic(e.target.value)}
+                  disabled={generateBlogPost.isPending}
+                />
+              </div>
+              <Button
+                onClick={() => { setBlogResult(null); generateBlogPost.mutate({ topic: blogTopic || undefined }); }}
+                disabled={generateBlogPost.isPending}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+              >
+                {generateBlogPost.isPending ? (
+                  <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Writing...(~30s)</>
+                ) : (
+                  <><PenLine className="w-4 h-4 mr-2" /> Generate Post</>
+                )}
+              </Button>
+            </div>
+
+            {/* Result card */}
+            {blogResult && (
+              <div className={`rounded-lg p-4 border text-sm space-y-2 ${
+                blogResult.success ? "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800" : "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
+              }`}>
+                {blogResult.success ? (
+                  <>
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Post published successfully!
+                    </div>
+                    <p className="text-foreground font-medium">{blogResult.title}</p>
+                    <Link href={`/blog/${blogResult.slug}`} className="text-primary underline underline-offset-2 flex items-center gap-1">
+                      View post <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                    <AlertCircle className="w-4 h-4" />
+                    {blogResult.error}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Blog post list */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">All Blog Posts ({blogPosts.length})</span>
+              </div>
+              {blogPostsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading...</p>
+              ) : blogPosts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No posts yet. Generate your first one above.</p>
+              ) : (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {blogPosts.map((post) => (
+                    <div key={post.id} className="flex items-center gap-3 p-3 bg-background/60 border border-border rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground truncate">{post.title}</span>
+                          {post.aiGenerated === 1 && (
+                            <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded shrink-0">AI</span>
+                          )}
+                          {post.published === 0 && (
+                            <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded shrink-0">Draft</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {post.category} · {new Date(post.publishedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Link href={`/blog/${post.slug}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => toggleBlogPost.mutate({ id: post.id, published: post.published === 1 ? 0 : 1 })}
+                          title={post.published === 1 ? "Unpublish" : "Publish"}
+                        >
+                          {post.published === 1 ? <EyeOffIcon className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                        </Button>
+                        {confirmDeleteBlogId === post.id ? (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => { deleteBlogPost.mutate({ id: post.id }); setConfirmDeleteBlogId(null); }}>
+                              <Check className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmDeleteBlogId(null)}>
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-600" onClick={() => setConfirmDeleteBlogId(post.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground border-t border-border pt-3">
+              ⏰ Auto-generates a new post every 2 weeks. Posts are published immediately and appear on the public blog.
+            </p>
           </section>
         </div>
       </div>

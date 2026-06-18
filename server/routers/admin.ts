@@ -11,6 +11,7 @@ import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, 
 import { eq, asc, desc } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { syncHostawayListings } from "../hostaway-sync";
+import { generateBlogPost } from "../blog-writer";
 
 // Helper: random suffix for file keys
 function randomSuffix() {
@@ -302,6 +303,48 @@ export const adminRouter = router({
     const result = await syncHostawayListings();
     return result;
   }),
+
+  // ── Blog Auto-Writer ──────────────────────────────────────────────────────────
+
+  /** Generate a new AI blog post and publish it */
+  generateBlogPost: adminProcedure
+    .input(z.object({ topic: z.string().optional() }).optional())
+    .mutation(async ({ input }) => {
+      const result = await generateBlogPost(input?.topic);
+      return result;
+    }),
+
+  /** List all blog posts (admin view — includes drafts) */
+  listBlogPosts: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    const { blogPosts: blogPostsTable } = await import("../../drizzle/schema");
+    const { desc: descOrder } = await import("drizzle-orm");
+    const rows = await db.select().from(blogPostsTable).orderBy(descOrder(blogPostsTable.publishedAt));
+    return rows.map(r => ({ ...r, tags: r.tags ? JSON.parse(r.tags) : [] }));
+  }),
+
+  /** Toggle a blog post published/draft */
+  toggleBlogPost: adminProcedure
+    .input(z.object({ id: z.number(), published: z.number().int().min(0).max(1) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { blogPosts: blogPostsTable } = await import("../../drizzle/schema");
+      await db.update(blogPostsTable).set({ published: input.published }).where(eq(blogPostsTable.id, input.id));
+      return { success: true };
+    }),
+
+  /** Delete a blog post */
+  deleteBlogPost: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { blogPosts: blogPostsTable } = await import("../../drizzle/schema");
+      await db.delete(blogPostsTable).where(eq(blogPostsTable.id, input.id));
+      return { success: true };
+    }),
 
   /** Update booking status */
   updateBookingStatus: adminProcedure

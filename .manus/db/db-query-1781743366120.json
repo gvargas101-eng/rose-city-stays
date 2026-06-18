@@ -1,0 +1,54 @@
+{
+  "query": "SHOW COLUMNS FROM property_amenities; SELECT p.name, COUNT(a.id) as amenity_count FROM properties p LEFT JOIN property_amenities a ON a.propertyId = p.id GROUP BY p.id LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SHOW COLUMNS FROM property_amenities; SELECT p.name, COUNT(a.id) as amenity_count FROM properties p LEFT JOIN property_amenities a ON a.propertyId = p.id GROUP BY p.id LIMIT 10;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "propertyId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "amenity",
+      "Type": "varchar(128)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "sortOrder",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    }
+  ],
+  "messages": [
+    "name\tamenity_count",
+    "Rose at Hollytree Dr Golf, Dinning/shopping Perfect Location!\t0",
+    "Hollytree Townhouse King Bed, Great Location!\t0",
+    "Spacious Home with 2 Living Areas\t0",
+    "The Alamo House / King size bed Fast internet!\t0",
+    "Green Acres District, Sleeps 8, King/Queen\t0",
+    "Cozy,  3 Bedrooms.  Walk to Hospitals, Downtown & Stanley's\t0",
+    "The Legacy House! King size, blazing internet!\t0",
+    "Azalea Spring Cottage\t0",
+    "Noir at Hollytree Dr.  Perfect Location!\t0",
+    "Azul at Hollytree Dr. Golf! Perfect location,  King Bed\t0"
+  ],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\npropertyId\tint\tNO\t\tNULL\t\namenity\tvarchar(128)\tNO\t\tNULL\t\nsortOrder\tint\tNO\t\t0\t\nname\tamenity_count\nRose at Hollytree Dr Golf, Dinning/shopping Perfect Location!\t0\nHollytree Townhouse King Bed, Great Location!\t0\nSpacious Home with 2 Living Areas\t0\nThe Alamo House / King size bed Fast internet!\t0\nGreen Acres District, Sleeps 8, King/Queen\t0\nCozy,  3 Bedrooms.  Walk to Hospitals, Downtown & Stanley's\t0\nThe Legacy House! King size, blazing internet!\t0\nAzalea Spring Cottage\t0\nNoir at Hollytree Dr.  Perfect Location!\t0\nAzul at Hollytree Dr. Golf! Perfect location,  King Bed\t0\n",
+  "stderr": "",
+  "execution_time_ms": 307
+}

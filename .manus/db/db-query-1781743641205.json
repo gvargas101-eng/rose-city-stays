@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, slug, name, hostawayListingId FROM properties WHERE id = 30001;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT id, slug, name, hostawayListingId FROM properties WHERE id = 30001;",
+  "rows": [
+    {
+      "id": "30001",
+      "slug": "cozy-3-bedrooms-walk-to-hospitals-downtown-stanleys",
+      "name": "Cozy,  3 Bedrooms.  Walk to Hospitals, Downtown & Stanley's",
+      "hostawayListingId": "560227"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tslug\tname\thostawayListingId\n30001\tcozy-3-bedrooms-walk-to-hospitals-downtown-stanleys\tCozy,  3 Bedrooms.  Walk to Hospitals, Downtown & Stanley's\t560227\n",
+  "stderr": "",
+  "execution_time_ms": 265
+}

@@ -7,6 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { generateBlogPost } from "../blog-writer";
+import { syncHostawayListings } from "../hostaway-sync";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -35,6 +37,32 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  // ── Heartbeat endpoints for scheduled jobs ──────────────────────────────
+  // Called by the Manus scheduler; protected by a shared secret.
+  const HEARTBEAT_SECRET = process.env.HEARTBEAT_SECRET || "rose-city-heartbeat";
+
+  app.post("/api/heartbeat/blog-writer", async (req, res) => {
+    const auth = (req.headers["x-heartbeat-secret"] as string) || (req.query.secret as string);
+    if (auth !== HEARTBEAT_SECRET) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const result = await generateBlogPost(req.body?.topic);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/heartbeat/hostaway-sync", async (req, res) => {
+    const auth = (req.headers["x-heartbeat-secret"] as string) || (req.query.secret as string);
+    if (auth !== HEARTBEAT_SECRET) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const result = await syncHostawayListings();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

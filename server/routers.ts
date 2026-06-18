@@ -4,7 +4,7 @@ import { notifyOwner } from "./_core/notification";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getPropertyCalendar, getListingBasePrice, PROPERTY_TO_HOSTAWAY_ID } from "./hostaway";
+import { getPropertyCalendar, getListingBasePrice, getBatchBasePrices, PROPERTY_TO_HOSTAWAY_ID } from "./hostaway";
 import { getDb } from "./db";
 import { siteSettings } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -12,12 +12,14 @@ import { bookingRouter } from "./routers/booking";
 import { adminRouter } from "./routers/admin";
 import { propertiesRouter } from "./routers/properties";
 import { adminAuthRouter } from "./routers/adminAuth";
+import { blogRouter } from "./routers/blog";
 
 export const appRouter = router({
   booking: bookingRouter,
   admin: adminRouter,
   properties: propertiesRouter,
   adminAuth: adminAuthRouter,
+  blog: blogRouter,
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
@@ -63,6 +65,14 @@ export const appRouter = router({
       .input(z.object({ propertyId: z.string() }))
       .query(({ input }) => {
         return { supported: input.propertyId in PROPERTY_TO_HOSTAWAY_ID };
+      }),
+
+    // Get starting prices for multiple properties at once
+    batchPrices: publicProcedure
+      .input(z.object({ propertyIds: z.array(z.string()) }))
+      .query(async ({ input }) => {
+        const prices = await getBatchBasePrices(input.propertyIds);
+        return { prices };
       }),
   }),
 

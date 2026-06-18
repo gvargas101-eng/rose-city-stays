@@ -37,22 +37,29 @@ const TYLER_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn
 const ABOUT_IMAGE = "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/about-host-WnHa9oaZNQ9KzyBExpeQjQ.webp";
 
 // Intersection observer hook for scroll animations
-function useInView(threshold = 0.1) {
+function useInView(threshold = 0.05) {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {
+    // Safety fallback: always show after 2s even if observer doesn't fire
+    const fallback = setTimeout(() => setInView(true), 2000);
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setInView(true);
+          clearTimeout(fallback);
           observer.disconnect();
         }
       },
-      { threshold }
+      { threshold, rootMargin: "0px 0px -50px 0px" }
     );
     if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTimeout(fallback);
+    };
   }, [threshold]);
 
   return { ref, inView };
@@ -92,6 +99,17 @@ const testimonials = [
 export default function Home() {
   // Load properties from DB (falls back to static data while loading)
   const { data: dbProperties } = trpc.properties.list.useQuery();
+
+  // Batch-fetch live nightly prices from Hostaway for all properties
+  const propertyIds = (dbProperties ?? staticProperties).map((p) => {
+    const pAny = p as Record<string, unknown>;
+    return ((pAny.slug as string) || (pAny.id as string)) as string;
+  });
+  const { data: pricesData } = trpc.hostaway.batchPrices.useQuery(
+    { propertyIds },
+    { enabled: propertyIds.length > 0, staleTime: 5 * 60 * 1000 }
+  );
+  const prices: Record<string, number | null> = pricesData?.prices ?? {};
 
   // Filter state
   const [filterGuests, setFilterGuests] = useState("any");
@@ -384,7 +402,7 @@ export default function Home() {
           {filteredProperties.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {filteredProperties.map((property: Property, i: number) => (
-                <PropertyCard key={property.id} property={property} index={i} />
+                <PropertyCard key={property.id} property={property} index={i} nightlyPrice={prices[property.id] ?? null} />
               ))}
             </div>
           ) : (

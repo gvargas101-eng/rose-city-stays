@@ -8,16 +8,14 @@ import type { Property } from "@/lib/properties";
 interface PropertyCardProps {
   property: Property;
   index?: number;
+  nightlyPrice?: number | null;
 }
 
-export default function PropertyCard({ property, index = 0 }: PropertyCardProps) {
-  const delayClass = `animate-delay-${Math.min((index % 4) * 100 + 100, 400)}`;
-
+export default function PropertyCard({ property, index = 0, nightlyPrice }: PropertyCardProps) {
   return (
     <Link href={`/property/${property.id}`}>
       <div
-        className={`group property-card bg-card rounded-lg overflow-hidden border border-border animate-fade-in-up ${delayClass} cursor-pointer`}
-        style={{ opacity: 0 }}
+        className="group property-card bg-card rounded-lg overflow-hidden border border-border cursor-pointer"
       >
         {/* Image */}
         <div className="relative overflow-hidden aspect-[4/3]">
@@ -89,9 +87,15 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
 
           {/* CTA */}
           <div className="flex items-center justify-between pt-3 border-t border-border">
-            <span className="text-xs text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
-              {property.reviewCount} reviews
-            </span>
+            <div style={{ fontFamily: "var(--font-body)" }}>
+              {nightlyPrice != null ? (
+                <span className="text-sm font-semibold text-foreground">
+                  From ${Math.round(nightlyPrice)}<span className="text-xs font-normal text-muted-foreground">/night</span>
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">{property.reviewCount} reviews</span>
+              )}
+            </div>
             <span
               className="text-sm font-medium text-primary group-hover:underline"
               style={{ fontFamily: "var(--font-body)" }}

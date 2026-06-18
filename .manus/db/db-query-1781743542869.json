@@ -1,0 +1,65 @@
+{
+  "query": "SELECT id, slug, name FROM properties ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute SELECT id, slug, name FROM properties ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "slug": "the-briar",
+      "name": "Spacious Home with 2 Living Areas"
+    },
+    {
+      "id": "2",
+      "slug": "hospital-district",
+      "name": "Hospital District! Retreat! Wall Ave."
+    },
+    {
+      "id": "3",
+      "slug": "hollytree-golf-dining",
+      "name": "Rose at Hollytree Dr Golf, Dinning/shopping Perfect Location!"
+    },
+    {
+      "id": "4",
+      "slug": "alamo-house",
+      "name": "The Alamo House / King size bed Fast internet!"
+    },
+    {
+      "id": "5",
+      "slug": "green-acres",
+      "name": "Green Acres District, Sleeps 8, King/Queen"
+    },
+    {
+      "id": "6",
+      "slug": "legacy-house",
+      "name": "The Legacy House! King size, blazing internet!"
+    },
+    {
+      "id": "7",
+      "slug": "azalea-spring-cottage",
+      "name": "Azalea Spring Cottage"
+    },
+    {
+      "id": "8",
+      "slug": "noir-hollytree",
+      "name": "Noir at Hollytree Dr.  Perfect Location!"
+    },
+    {
+      "id": "9",
+      "slug": "hollytree-king-bed",
+      "name": "Azul at Hollytree Dr. Golf! Perfect location,  King Bed"
+    },
+    {
+      "id": "10",
+      "slug": "hollytree-townhouse",
+      "name": "Hollytree Townhouse King Bed, Great Location!"
+    },
+    {
+      "id": "30001",
+      "slug": "cozy-3-bedrooms-walk-to-hospitals-downtown-stanleys",
+      "name": "Cozy,  3 Bedrooms.  Walk to Hospitals, Downtown & Stanley's"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tslug\tname\n1\tthe-briar\tSpacious Home with 2 Living Areas\n2\thospital-district\tHospital District! Retreat! Wall Ave.\n3\thollytree-golf-dining\tRose at Hollytree Dr Golf, Dinning/shopping Perfect Location!\n4\talamo-house\tThe Alamo House / King size bed Fast internet!\n5\tgreen-acres\tGreen Acres District, Sleeps 8, King/Queen\n6\tlegacy-house\tThe Legacy House! King size, blazing internet!\n7\tazalea-spring-cottage\tAzalea Spring Cottage\n8\tnoir-hollytree\tNoir at Hollytree Dr.  Perfect Location!\n9\thollytree-king-bed\tAzul at Hollytree Dr. Golf! Perfect location,  King Bed\n10\thollytree-townhouse\tHollytree Townhouse King Bed, Great Location!\n30001\tcozy-3-bedrooms-walk-to-hospitals-downtown-stanleys\tCozy,  3 Bedrooms.  Walk to Hospitals, Downtown & Stanley's\n",
+  "stderr": "",
+  "execution_time_ms": 265
+}

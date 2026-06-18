@@ -19,7 +19,22 @@ export const PROPERTY_TO_HOSTAWAY_ID: Record<string, number> = {
   "noir-hollytree": 329648,
   "hollytree-king-bed": 329649,
   "hollytree-townhouse": 366803,
+  "cozy-3-bedrooms-walk-to-hospitals-downtown-stanleys": 560227,
 };
+
+/** Fetch base prices for multiple properties in parallel */
+export async function getBatchBasePrices(
+  propertyIds: string[]
+): Promise<Record<string, number | null>> {
+  const results = await Promise.allSettled(
+    propertyIds.map(async (id) => ({ id, price: await getListingBasePrice(id) }))
+  );
+  const out: Record<string, number | null> = {};
+  for (const r of results) {
+    if (r.status === "fulfilled") out[r.value.id] = r.value.price;
+  }
+  return out;
+}
 
 export interface CalendarDay {
   date: string;

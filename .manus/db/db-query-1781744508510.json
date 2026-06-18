@@ -1,0 +1,170 @@
+{
+  "query": "DESCRIBE properties;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user wPFtpuzcjTMQHQ6.root --database bn23yPpAqDW8FGGWUFqWsM --execute DESCRIBE properties;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "slug",
+      "Type": "varchar(64)",
+      "Null": "NO",
+      "Key": "UNI",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "name",
+      "Type": "varchar(256)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "shortName",
+      "Type": "varchar(64)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "type",
+      "Type": "varchar(32)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "House",
+      "Extra": ""
+    },
+    {
+      "Field": "guests",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "4",
+      "Extra": ""
+    },
+    {
+      "Field": "bedrooms",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "2",
+      "Extra": ""
+    },
+    {
+      "Field": "bathrooms",
+      "Type": "decimal(3,1)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "1.0",
+      "Extra": ""
+    },
+    {
+      "Field": "description",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "shortDescription",
+      "Type": "varchar(512)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "neighborhood",
+      "Type": "varchar(128)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "checkInTime",
+      "Type": "varchar(16)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "3:00 PM",
+      "Extra": ""
+    },
+    {
+      "Field": "checkOutTime",
+      "Type": "varchar(16)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "11:00 AM",
+      "Extra": ""
+    },
+    {
+      "Field": "cancellationPolicy",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "hostawayListingId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "cleaningFee",
+      "Type": "decimal(8,2)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "125.00",
+      "Extra": ""
+    },
+    {
+      "Field": "active",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "1",
+      "Extra": ""
+    },
+    {
+      "Field": "sortOrder",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nslug\tvarchar(64)\tNO\tUNI\tNULL\t\nname\tvarchar(256)\tNO\t\tNULL\t\nshortName\tvarchar(64)\tNO\t\tNULL\t\ntype\tvarchar(32)\tNO\t\tHouse\t\nguests\tint\tNO\t\t4\t\nbedrooms\tint\tNO\t\t2\t\nbathrooms\tdecimal(3,1)\tNO\t\t1.0\t\ndescription\ttext\tYES\t\tNULL\t\nshortDescription\tvarchar(512)\tYES\t\tNULL\t\nneighborhood\tvarchar(128)\tYES\t\tNULL\t\ncheckInTime\tvarchar(16)\tYES\t\t3:00 PM\t\ncheckOutTime\tvarchar(16)\tYES\t\t11:00 AM\t\ncancellationPolicy\ttext\tYES\t\tNULL\t\nhostawayListingId\tint\tYES\t\tNULL\t\ncleaningFee\tdecimal(8,2)\tNO\t\t125.00\t\nactive\tint\tNO\t\t1\t\nsortOrder\tint\tNO\t\t0\t\ncreatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\n",
+  "stderr": "",
+  "execution_time_ms": 259
+}
