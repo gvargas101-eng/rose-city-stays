@@ -103,7 +103,7 @@ export default function Footer() {
               <li>
                 <div className="flex items-start gap-3 text-sm text-background/60" style={{ fontFamily: "var(--font-body)" }}>
                   <Phone className="w-4 h-4 flex-shrink-0 text-primary mt-0.5" />
-                  <span>Available 7 days a week</span>
+                  <a href="tel:+19037144305" className="hover:text-background/90 transition-colors">(903) 714-4305 — available 7 days a week</a>
                 </div>
               </li>
             </ul>

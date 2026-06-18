@@ -103,15 +103,12 @@ export default function Blog() {
                 {filteredArticles.map((article) => (
                   <Link key={article.id} href={`/blog/${article.slug}`}>
                     <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow cursor-pointer property-card">
-                      {article.featuredImage && (
+                      {article.featuredImage ? (
                         <div className="aspect-video overflow-hidden bg-muted">
                           <img src={article.featuredImage} alt={article.title} className="w-full h-full object-cover" />
                         </div>
-                      )}
-                      {!article.featuredImage && (
-                        <div className="aspect-video bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                          <span className="text-4xl">🌹</span>
-                        </div>
+                      ) : (
+                        <div className="h-2 bg-gradient-to-r from-primary/60 to-primary/20" />
                       )}
 
                       <CardContent className="p-6">

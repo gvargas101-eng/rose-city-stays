@@ -79,11 +79,13 @@ export default function BlogDetail() {
           </div>
         </div>
 
-        {/* Featured Image — only render if one exists */}
-        {article.featuredImage && (
+        {/* Featured Image — show image if available, otherwise a slim accent bar */}
+        {article.featuredImage ? (
           <div className="w-full aspect-video bg-muted overflow-hidden">
             <img src={article.featuredImage} alt={article.title} className="w-full h-full object-cover" />
           </div>
+        ) : (
+          <div className="h-1.5 bg-gradient-to-r from-primary via-primary/60 to-primary/20" />
         )}
 
         {/* Article Header */}
