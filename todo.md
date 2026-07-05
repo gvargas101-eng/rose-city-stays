@@ -192,3 +192,7 @@
 - [x] Update CheckoutModal to redirect to Stripe hosted checkout instead of embedding PaymentElement
 - [x] Update booking.test.ts to test createCheckoutSession instead of removed createPaymentIntent
 - [x] All 19 tests passing, 0 TypeScript errors
+
+## Bug Fixes (July 2026)
+
+- [x] Fix React rules-of-hooks violation in PropertyDetail.tsx — moved all hooks before early returns so DB-only properties (e.g. cozy-3-bedrooms) load correctly

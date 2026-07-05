@@ -76,6 +76,49 @@ export default function PropertyDetail() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // ── ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS (React rules of hooks) ──
+  // Use slug (from URL param `id`) for all Hostaway lookups — the map keys are slugs, not numeric IDs
+  const propertySlug = id || "";
+
+  const submitInquiry = trpc.inquiry.submit.useMutation({
+    onSuccess: () => {
+      toast.success("Inquiry sent!", {
+        description: "We'll confirm availability and get back to you within 24 hours.",
+      });
+      setInquiryForm({ name: "", email: "", dates: "", guests: "2", message: "" });
+      setSubmitting(false);
+    },
+    onError: () => {
+      toast.error("Failed to send inquiry. Please email us directly.");
+      setSubmitting(false);
+    },
+  });
+
+  const { data: priceData } = trpc.hostaway.basePrice.useQuery(
+    { propertyId: propertySlug },
+    { enabled: !!propertySlug, staleTime: 10 * 60 * 1000 }
+  );
+
+  const { data: calendarData } = trpc.hostaway.calendar.useQuery(
+    {
+      propertyId: propertySlug,
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+    },
+    { enabled: !!propertySlug, staleTime: 5 * 60 * 1000 }
+  );
+
+  const { data: taxRateData } = trpc.settings.getTaxRate.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const liveTaxRate = taxRateData?.taxRate ?? 0.09;
+
+  const { data: activeFeesData } = trpc.settings.getActiveFees.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeFees = activeFeesData ?? [];
+
+  // ── Early returns after all hooks ──
   if (dbLoading && !staticProperty) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -104,47 +147,6 @@ export default function PropertyDetail() {
       </div>
     );
   }
-
-  const submitInquiry = trpc.inquiry.submit.useMutation({
-    onSuccess: () => {
-      toast.success("Inquiry sent for " + property!.shortName + "!", {
-        description: "We'll confirm availability and get back to you within 24 hours.",
-      });
-      setInquiryForm({ name: "", email: "", dates: "", guests: "2", message: "" });
-      setSubmitting(false);
-    },
-    onError: () => {
-      toast.error("Failed to send inquiry. Please email us directly.");
-      setSubmitting(false);
-    },
-  });
-
-  // Use slug (from URL param `id`) for all Hostaway lookups — the map keys are slugs, not numeric IDs
-  const propertySlug = property?.slug || id || "";
-
-  const { data: priceData } = trpc.hostaway.basePrice.useQuery(
-    { propertyId: propertySlug },
-    { enabled: !!propertySlug, staleTime: 10 * 60 * 1000 }
-  );
-
-  const { data: calendarData } = trpc.hostaway.calendar.useQuery(
-    {
-      propertyId: propertySlug,
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    },
-            { enabled: !!propertySlug, staleTime: 5 * 60 * 1000 }
-  );
-
-  const { data: taxRateData } = trpc.settings.getTaxRate.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000,
-  });
-  const liveTaxRate = taxRateData?.taxRate ?? 0.09;
-
-  const { data: activeFeesData } = trpc.settings.getActiveFees.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000,
-  });
-  const activeFees = activeFeesData ?? [];
 
   const handleInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
