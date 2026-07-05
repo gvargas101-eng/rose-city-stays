@@ -127,7 +127,26 @@ export default function PropertyDetail() {
   const { data: activeFeesData } = trpc.settings.getActiveFees.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
   });
-  const activeFees = activeFeesData ?? [];
+    const activeFees = activeFeesData ?? [];
+
+  // Build a lookup map: date string -> minimumStay (from Hostaway calendar data)
+  const minStayMap = (() => {
+    const map: Record<string, number> = {};
+    for (const d of calendarData?.days ?? []) {
+      if (d.minimumStay > 0) map[d.date] = d.minimumStay;
+    }
+    return map;
+  })();
+
+  // Default minimum stay shown in the panel badge before a check-in date is chosen:
+  // use the minimum stay of the next available day, falling back to 1.
+  const defaultMinStay = (() => {
+    const today = new Date().toISOString().split("T")[0];
+    const nextAvail = (calendarData?.days ?? [])
+      .filter(d => d.isAvailable && d.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))[0];
+    return nextAvail?.minimumStay ?? 1;
+  })();
 
   // ── Early returns after all hooks ──
   if (dbLoading && !staticProperty) {
@@ -458,6 +477,8 @@ export default function PropertyDetail() {
                 rating={property.rating}
                 reviewCount={property.reviewCount}
                 calendarDays={calendarData?.days || []}
+                minStay={defaultMinStay}
+                minStayMap={minStayMap}
                 onBookNow={(booking) => setCheckoutBooking(booking)}
                 onInquiry={() => setShowInquiry(true)}
               />

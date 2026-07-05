@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Users, Star, ChevronDown, ChevronUp } from "lucide-react";
+import { CalendarDays, Users, Star, ChevronDown, ChevronUp, Moon } from "lucide-react";
 import DateRangePicker from "@/components/DateRangePicker";
 import type { CalendarDay } from "@/lib/calendar-types";
 
@@ -18,6 +18,10 @@ interface BookingPanelProps {
   rating: number;
   reviewCount: number;
   calendarDays: CalendarDay[];
+  /** Default minimum stay shown before a check-in date is selected (from next available day) */
+  minStay?: number;
+  /** Per-date minimum stay map from Hostaway: date string -> minimumStay nights */
+  minStayMap?: Record<string, number>;
   onBookNow: (booking: BookingSelection) => void;
   onInquiry: () => void;
 }
@@ -50,6 +54,8 @@ export default function BookingPanel({
   rating,
   reviewCount,
   calendarDays,
+  minStay = 1,
+  minStayMap = {},
   onBookNow,
   onInquiry,
 }: BookingPanelProps) {
@@ -67,7 +73,19 @@ export default function BookingPanel({
   const subtotal = nightlyRate * (selection?.nights || 0);
   const total = subtotal + cleaningFee;
 
-  const handleRangeChange = (range: { checkIn: Date; checkOut: Date; nights: number; avgNightlyRate: number } | null) => {
+  // When a check-in date is selected, use its specific minimum stay from Hostaway
+  const [pendingCheckIn, setPendingCheckIn] = useState<string | null>(null);
+  const effectiveMinStay = pendingCheckIn
+    ? (minStayMap[pendingCheckIn] ?? minStay)
+    : minStay;
+
+  const handleRangeChange = (
+    range: { checkIn: Date; checkOut: Date; nights: number; avgNightlyRate: number } | null,
+    checkInDateStr?: string
+  ) => {
+    if (checkInDateStr !== undefined) {
+      setPendingCheckIn(checkInDateStr);
+    }
     setSelection(range);
     if (range) setShowPicker(false);
   };
@@ -105,6 +123,14 @@ export default function BookingPanel({
         )}
       </div>
 
+      {/* Minimum stay notice */}
+      {effectiveMinStay > 1 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-xs text-primary font-medium">
+          <Moon className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>{effectiveMinStay}-night minimum stay required</span>
+        </div>
+      )}
+
       {/* Date selector */}
       <div>
         <button
@@ -130,6 +156,8 @@ export default function BookingPanel({
             <DateRangePicker
               calendarDays={calendarDays}
               onRangeChange={handleRangeChange}
+              minStay={effectiveMinStay}
+              minStayMap={minStayMap}
             />
           </div>
         )}

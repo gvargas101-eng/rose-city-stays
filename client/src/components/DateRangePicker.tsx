@@ -1,6 +1,7 @@
 /**
  * DateRangePicker — uses react-day-picker to let guests select check-in/check-out
- * Integrates with the live Hostaway calendar to disable booked dates
+ * Integrates with the live Hostaway calendar to disable booked dates and enforce
+ * per-date minimum stay requirements.
  */
 
 import { useState, useCallback } from "react";
@@ -11,12 +12,25 @@ import type { CalendarDay } from "@/lib/calendar-types";
 
 interface DateRangePickerProps {
   calendarDays: CalendarDay[];
-  onRangeChange: (range: { checkIn: Date; checkOut: Date; nights: number; avgNightlyRate: number } | null) => void;
+  onRangeChange: (
+    range: { checkIn: Date; checkOut: Date; nights: number; avgNightlyRate: number } | null,
+    checkInDateStr?: string
+  ) => void;
+  /** Default minimum stay (used before a check-in date is selected) */
   minStay?: number;
+  /** Per-date minimum stay map from Hostaway: date string -> minimumStay nights */
+  minStayMap?: Record<string, number>;
 }
 
-export default function DateRangePicker({ calendarDays, onRangeChange, minStay = 1 }: DateRangePickerProps) {
+export default function DateRangePicker({
+  calendarDays,
+  onRangeChange,
+  minStay = 1,
+  minStayMap = {},
+}: DateRangePickerProps) {
   const [range, setRange] = useState<DateRange | undefined>(undefined);
+  const [tooShort, setTooShort] = useState(false);
+  const [effectiveMin, setEffectiveMin] = useState(minStay);
   const today = startOfDay(new Date());
 
   // Build a set of unavailable date strings for fast lookup
@@ -37,15 +51,33 @@ export default function DateRangePicker({ calendarDays, onRangeChange, minStay =
 
   const handleSelect = (newRange: DateRange | undefined) => {
     setRange(newRange);
+    setTooShort(false);
 
-    if (!newRange?.from || !newRange?.to) {
+    if (!newRange?.from) {
       onRangeChange(null);
+      return;
+    }
+
+    const checkInStr = format(newRange.from, "yyyy-MM-dd");
+    // Look up the minimum stay for this specific check-in date
+    const dateMinStay = minStayMap[checkInStr] ?? minStay;
+    setEffectiveMin(dateMinStay);
+
+    if (!newRange?.to) {
+      onRangeChange(null, checkInStr);
       return;
     }
 
     const nights = differenceInCalendarDays(newRange.to, newRange.from);
     if (nights < 1) {
-      onRangeChange(null);
+      onRangeChange(null, checkInStr);
+      return;
+    }
+
+    // Enforce minimum stay for this check-in date
+    if (nights < dateMinStay) {
+      setTooShort(true);
+      onRangeChange(null, checkInStr);
       return;
     }
 
@@ -70,19 +102,21 @@ export default function DateRangePicker({ calendarDays, onRangeChange, minStay =
 
     if (hasUnavailable) {
       setRange(undefined);
-      onRangeChange(null);
+      onRangeChange(null, checkInStr);
       return;
     }
 
     const avgNightlyRate = pricedNights > 0 ? Math.round(totalPrice / pricedNights) : 0;
 
-    onRangeChange({
-      checkIn: newRange.from,
-      checkOut: newRange.to,
-      nights,
-      avgNightlyRate,
-    });
+    onRangeChange(
+      { checkIn: newRange.from, checkOut: newRange.to, nights, avgNightlyRate },
+      checkInStr
+    );
   };
+
+  const selectedNights = range?.from && range?.to
+    ? differenceInCalendarDays(range.to, range.from)
+    : 0;
 
   return (
     <div className="rdp-wrapper">
@@ -120,15 +154,23 @@ export default function DateRangePicker({ calendarDays, onRangeChange, minStay =
         fromDate={today}
         showOutsideDays={false}
       />
-      {range?.from && range?.to && (
-        <div className="mt-2 text-sm text-muted-foreground text-center">
-          {format(range.from, "MMM d")} → {format(range.to, "MMM d, yyyy")} &nbsp;·&nbsp;{" "}
-          {differenceInCalendarDays(range.to, range.from)} nights
+      {/* Minimum stay warning */}
+      {tooShort && range?.from && range?.to && (
+        <div className="mt-2 text-xs text-destructive text-center font-medium">
+          Minimum stay is {effectiveMin} nights — please select a longer stay
         </div>
       )}
+      {/* Valid selection summary */}
+      {!tooShort && range?.from && range?.to && selectedNights >= effectiveMin && (
+        <div className="mt-2 text-sm text-muted-foreground text-center">
+          {format(range.from, "MMM d")} → {format(range.to, "MMM d, yyyy")} &nbsp;·&nbsp;{" "}
+          {selectedNights} nights
+        </div>
+      )}
+      {/* Prompt to select checkout */}
       {range?.from && !range?.to && (
         <div className="mt-2 text-sm text-muted-foreground text-center">
-          Select your check-out date
+          Select your check-out date{effectiveMin > 1 ? ` (${effectiveMin}-night minimum)` : ""}
         </div>
       )}
     </div>

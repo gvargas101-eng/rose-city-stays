@@ -207,3 +207,4 @@
 
 - [x] Redesign house rules section with icon tiles (no-smoking, no-pets, no-parties, etc.)
 - [x] Block confirmed bookings in the availability calendar (feed DB bookings as blocked dates)
+- [x] Show minimum stay notice in the booking panel (read from Hostaway calendar data)
