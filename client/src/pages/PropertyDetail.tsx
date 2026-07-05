@@ -18,6 +18,14 @@ import {
   CheckCircle2,
   MapPin,
   Calendar,
+  CigaretteOff,
+  PawPrint,
+  PartyPopper,
+  Volume2,
+  Baby,
+  ShieldCheck,
+  Home as HomeIcon,
+  Fingerprint,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -372,15 +380,66 @@ export default function PropertyDetail() {
                   </div>
                 ))}
               </div>
-              {/* House Rules from Hostaway */}
-              {(property as any).houseRules && (
-                <div className="mt-4 p-4 bg-muted/40 rounded-lg">
-                  <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2" style={{ fontFamily: "var(--font-body)" }}>House Rules</div>
-                  <div className="text-sm text-foreground whitespace-pre-line" style={{ fontFamily: "var(--font-body)" }}>
-                    {(property as any).houseRules}
+              {/* House Rules from Hostaway — parsed into icon tiles */}
+              {(property as any).houseRules && (() => {
+                const raw: string = (property as any).houseRules;
+                const lines = raw.split(/\n/).map((l: string) => l.trim()).filter(Boolean);
+
+                // Map keywords → icon + clean label
+                const iconMap: { keywords: string[]; icon: React.ReactNode; label: string }[] = [
+                  { keywords: ['no smoking', 'smoking or vaping', 'no vaping', 'smoking'], icon: <CigaretteOff className="w-5 h-5" />, label: 'No smoking or vaping' },
+                  { keywords: ['no pet', 'no unauthorized pet', 'no animals'], icon: <PawPrint className="w-5 h-5" />, label: 'No unauthorized pets' },
+                  { keywords: ['no part', 'no event', 'no gathering'], icon: <PartyPopper className="w-5 h-5" />, label: 'No parties or events' },
+                  { keywords: ['quiet hour', 'no loud', 'noise'], icon: <Volume2 className="w-5 h-5" />, label: 'Quiet hours enforced' },
+                  { keywords: ['child', 'infant', 'baby', 'kid'], icon: <Baby className="w-5 h-5" />, label: 'Children welcome' },
+                  { keywords: ['all overnight guest', 'disclose', 'registered guest'], icon: <Users className="w-5 h-5" />, label: 'All guests must be registered' },
+                  { keywords: ['self check', 'keypad', 'lockbox', 'smart lock'], icon: <Fingerprint className="w-5 h-5" />, label: 'Self check-in' },
+                  { keywords: ['security deposit', 'damage', 'liability'], icon: <ShieldCheck className="w-5 h-5" />, label: 'Security deposit may apply' },
+                  { keywords: ['respect', 'property', 'treat', 'home'], icon: <HomeIcon className="w-5 h-5" />, label: 'Treat property with respect' },
+                ];
+
+                const matched = new Set<string>();
+                const tiles: { icon: React.ReactNode; label: string }[] = [];
+
+                for (const rule of iconMap) {
+                  const found = rule.keywords.some(kw =>
+                    lines.some((line: string) => line.toLowerCase().includes(kw))
+                  );
+                  if (found && !matched.has(rule.label)) {
+                    matched.add(rule.label);
+                    tiles.push({ icon: rule.icon, label: rule.label });
+                  }
+                }
+
+                // Any lines that didn't match a known icon become plain text tiles
+                const unmatchedLines = lines.filter((line: string) => {
+                  const lower = line.toLowerCase();
+                  return !iconMap.some(r => r.keywords.some(kw => lower.includes(kw)));
+                });
+
+                return (
+                  <div className="mt-5">
+                    <h3 className="text-base font-medium text-foreground mb-3" style={{ fontFamily: "var(--font-body)" }}>House Rules</h3>
+                    {tiles.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                        {tiles.map((tile) => (
+                          <div key={tile.label} className="flex items-center gap-3 p-3 bg-muted/40 rounded-lg">
+                            <span className="text-primary flex-shrink-0">{tile.icon}</span>
+                            <span className="text-sm text-foreground" style={{ fontFamily: "var(--font-body)" }}>{tile.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {unmatchedLines.length > 0 && (
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        {unmatchedLines.map((line: string, i: number) => (
+                          <p key={i} className="text-sm text-foreground/80 leading-relaxed" style={{ fontFamily: "var(--font-body)" }}>{line}</p>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
               <div className="mt-4 p-4 bg-accent/30 rounded-lg">
                 <p className="text-sm text-foreground/70" style={{ fontFamily: "var(--font-body)" }}>
                   <strong className="text-foreground">Cancellation Policy:</strong> {property.cancellationPolicy}

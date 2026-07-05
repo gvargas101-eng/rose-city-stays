@@ -6,8 +6,8 @@ import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getPropertyCalendar, getListingBasePrice, getBatchBasePrices, PROPERTY_TO_HOSTAWAY_ID } from "./hostaway";
 import { getDb } from "./db";
-import { siteSettings } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { siteSettings, bookings } from "../drizzle/schema";
+import { eq, and, gte, lte, inArray } from "drizzle-orm";
 import { bookingRouter } from "./routers/booking";
 import { adminRouter } from "./routers/admin";
 import { propertiesRouter } from "./routers/properties";
@@ -49,6 +49,51 @@ export const appRouter = router({
           input.startDate,
           input.endDate
         );
+
+        // Overlay DB bookings (paid/confirmed) as blocked dates so they appear
+        // unavailable immediately after payment, before Hostaway sync completes.
+        try {
+          const db0 = await getDb();
+          if (db0) {
+            const startMs = new Date(input.startDate).getTime();
+            const endMs = new Date(input.endDate).getTime() + 86400000; // inclusive
+            const dbBookings = await db0
+              .select({ checkIn: bookings.checkIn, checkOut: bookings.checkOut })
+              .from(bookings)
+              .where(
+                and(
+                  eq(bookings.propertyId, input.propertyId),
+                  inArray(bookings.status, ["paid", "confirmed"]),
+                  lte(bookings.checkIn, endMs),
+                  gte(bookings.checkOut, startMs)
+                )
+              );
+
+            if (dbBookings.length > 0) {
+              // Build a set of blocked date strings from DB bookings
+              const blockedDates = new Set<string>();
+              for (const b of dbBookings) {
+                let cur = new Date(b.checkIn);
+                const end = new Date(b.checkOut);
+                while (cur < end) {
+                  blockedDates.add(cur.toISOString().split("T")[0]);
+                  cur = new Date(cur.getTime() + 86400000);
+                }
+              }
+              // Override isAvailable for any date covered by a DB booking
+              return {
+                days: days.map(d =>
+                  blockedDates.has(d.date)
+                    ? { ...d, isAvailable: false, status: "reserved" }
+                    : d
+                ),
+              };
+            }
+          }
+        } catch {
+          // Non-fatal: fall through to return Hostaway data as-is
+        }
+
         return { days };
       }),
 

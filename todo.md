@@ -202,3 +202,8 @@
 - [x] Add houseRules column to DB schema (properties table)
 - [x] Update hostaway-sync to pull houseRules from Hostaway API
 - [x] Display house rules on property detail page
+
+## UX Improvements (July 2026)
+
+- [x] Redesign house rules section with icon tiles (no-smoking, no-pets, no-parties, etc.)
+- [x] Block confirmed bookings in the availability calendar (feed DB bookings as blocked dates)
