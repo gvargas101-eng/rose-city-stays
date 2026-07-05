@@ -98,6 +98,7 @@ export const bookings = mysqlTable("bookings", {
   totalAmount: decimal("totalAmount", { precision: 10, scale: 2 }).notNull(),
 
   stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 256 }),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
   hostawayReservationId: varchar("hostawayReservationId", { length: 64 }),
 
   status: mysqlEnum("status", ["pending", "paid", "confirmed", "cancelled", "failed"])

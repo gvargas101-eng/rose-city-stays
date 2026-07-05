@@ -4,16 +4,21 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TRPCError } from "@trpc/server";
 
 // ── Mock Stripe ──────────────────────────────────────────────────────────────
-const mockPaymentIntentCreate = vi.fn();
+const mockCheckoutSessionCreate = vi.fn();
+const mockCheckoutSessionRetrieve = vi.fn();
 const mockPaymentIntentRetrieve = vi.fn();
 
 vi.mock("stripe", () => ({
   default: vi.fn().mockImplementation(() => ({
+    checkout: {
+      sessions: {
+        create: mockCheckoutSessionCreate,
+        retrieve: mockCheckoutSessionRetrieve,
+      },
+    },
     paymentIntents: {
-      create: mockPaymentIntentCreate,
       retrieve: mockPaymentIntentRetrieve,
     },
   })),
@@ -26,16 +31,57 @@ vi.mock("./hostaway-booking", () => ({
 }));
 
 // ── Mock DB ──────────────────────────────────────────────────────────────────
-const mockInsertValues = vi.fn().mockResolvedValue([{ insertId: 42 }]);
+const mockInsertReturningId = vi.fn().mockResolvedValue([{ id: 42 }]);
+const mockInsertValues = vi.fn().mockReturnValue({ $returningId: mockInsertReturningId });
 const mockInsert = vi.fn().mockReturnValue({ values: mockInsertValues });
 
 const mockUpdateSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) });
 const mockUpdate = vi.fn().mockReturnValue({ set: mockUpdateSet });
 
 let mockBookingRow: Record<string, unknown> = {};
+// mockSelectResult controls what .limit(1) returns; defaults to mockBookingRow.
+// For getCleaningFee (properties table) we return a property row with cleaningFee.
 const mockSelectLimit = vi.fn().mockImplementation(() => Promise.resolve([mockBookingRow]));
-const mockSelectWhere = vi.fn().mockReturnValue({ limit: mockSelectLimit });
-const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+const mockSelectOrderBy = vi.fn().mockImplementation(() => Promise.resolve([]));
+const mockSelectWhere = vi.fn().mockReturnValue({ limit: mockSelectLimit, orderBy: mockSelectOrderBy });
+// from() is called with different tables; return a chainable object that works for each
+const mockSelectFrom = vi.fn().mockImplementation((table: unknown) => {
+  const tableAny = table as any;
+  // bookings table — has BOTH cleaningFee AND stripePaymentIntentId
+  if (tableAny?.stripePaymentIntentId) {
+    return {
+      where: vi.fn().mockReturnValue({
+        limit: vi.fn().mockImplementation(() => Promise.resolve([mockBookingRow])),
+        orderBy: vi.fn().mockResolvedValue([]),
+      }),
+      orderBy: vi.fn().mockResolvedValue([]),
+    };
+  }
+  // properties table (getCleaningFee) — has cleaningFee but NOT stripePaymentIntentId
+  if (tableAny?.cleaningFee) {
+    return {
+      where: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([{ cleaningFee: "150.00" }]),
+      }),
+    };
+  }
+  // site_settings table (getTaxRate) — has a key column
+  if (tableAny?.key) {
+    return {
+      where: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([{ value: "0.0900" }]),
+      }),
+    };
+  }
+  // custom_fees table (getActiveCustomFeeLines) — fallback, returns empty array
+  return {
+    where: vi.fn().mockReturnValue({
+      orderBy: vi.fn().mockResolvedValue([]),
+      limit: vi.fn().mockResolvedValue([]),
+    }),
+    orderBy: vi.fn().mockResolvedValue([]),
+  };
+});
 const mockSelect = vi.fn().mockReturnValue({ from: mockSelectFrom });
 
 vi.mock("./db", () => ({
@@ -58,67 +104,76 @@ const { bookingRouter } = await import("./routers/booking");
 
 // Helper: call a procedure directly (bypasses tRPC HTTP layer)
 async function callProcedure(
-  procedure: "createPaymentIntent" | "confirmBooking" | "getByPaymentIntent",
-  input: Record<string, unknown>
+  procedure: "createCheckoutSession" | "confirmBooking" | "getByPaymentIntent",
+  input: Record<string, unknown>,
+  ctx: Record<string, unknown> = {}
 ) {
   const proc = bookingRouter[procedure] as any;
   // tRPC procedures expose ._def.resolver for testing
-  return proc._def.resolver({ input, ctx: {} });
+  return proc._def.resolver({ input, ctx });
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-describe("bookingRouter.createPaymentIntent", () => {
+describe("bookingRouter.createCheckoutSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("creates a PaymentIntent and returns clientSecret + totals", async () => {
-    mockPaymentIntentCreate.mockResolvedValue({
-      id: "pi_test_123",
-      client_secret: "pi_test_123_secret",
+  it("creates a Checkout Session and returns checkoutUrl + totals", async () => {
+    mockCheckoutSessionCreate.mockResolvedValue({
+      id: "cs_test_123",
+      url: "https://checkout.stripe.com/pay/cs_test_123",
     });
 
-    const result = await callProcedure("createPaymentIntent", {
-      propertyId: "hollytree-golf-dining",
-      propertyName: "Hollytree Golf",
-      checkIn: "2026-06-01",
-      checkOut: "2026-06-04",
-      nights: 3,
-      nightlyRate: 116,
-      guestCount: 2,
-      guestName: "Jane Doe",
-      guestEmail: "jane@example.com",
-      guestPhone: "555-0100",
-      message: "Early check-in please",
-    });
+    const result = await callProcedure(
+      "createCheckoutSession",
+      {
+        propertyId: "hollytree-golf-dining",
+        propertyName: "Hollytree Golf",
+        checkIn: "2026-06-01",
+        checkOut: "2026-06-04",
+        nights: 3,
+        nightlyRate: 116,
+        guestCount: 2,
+        guestName: "Jane Doe",
+        guestEmail: "jane@example.com",
+        guestPhone: "555-0100",
+        message: "Early check-in please",
+      },
+      { req: { headers: { origin: "https://rosecitystays.com" } } }
+    );
 
-    expect(mockPaymentIntentCreate).toHaveBeenCalledOnce();
-    expect(result.clientSecret).toBe("pi_test_123_secret");
-    expect(result.bookingId).toBe("pi_test_123");
-    // 3 nights × $116 = $348 + $150 cleaning = $498
+    expect(mockCheckoutSessionCreate).toHaveBeenCalledOnce();
+    expect(result.checkoutUrl).toBe("https://checkout.stripe.com/pay/cs_test_123");
+    expect(result.sessionId).toBe("cs_test_123");
+    expect(result.bookingId).toBe(42);
+    // 3 nights × $116 = $348
     expect(result.subtotal).toBe(348);
     expect(result.cleaningFee).toBe(150);
-    expect(result.totalAmount).toBe(498);
   });
 
   it("inserts a pending booking record into the database", async () => {
-    mockPaymentIntentCreate.mockResolvedValue({
-      id: "pi_test_456",
-      client_secret: "pi_test_456_secret",
+    mockCheckoutSessionCreate.mockResolvedValue({
+      id: "cs_test_456",
+      url: "https://checkout.stripe.com/pay/cs_test_456",
     });
 
-    await callProcedure("createPaymentIntent", {
-      propertyId: "the-briar",
-      propertyName: "The Briar",
-      checkIn: "2026-07-10",
-      checkOut: "2026-07-13",
-      nights: 3,
-      nightlyRate: 134,
-      guestCount: 4,
-      guestName: "Bob Smith",
-      guestEmail: "bob@example.com",
-    });
+    await callProcedure(
+      "createCheckoutSession",
+      {
+        propertyId: "the-briar",
+        propertyName: "The Briar",
+        checkIn: "2026-07-10",
+        checkOut: "2026-07-13",
+        nights: 3,
+        nightlyRate: 134,
+        guestCount: 4,
+        guestName: "Bob Smith",
+        guestEmail: "bob@example.com",
+      },
+      { req: { headers: { origin: "https://rosecitystays.com" } } }
+    );
 
     expect(mockInsert).toHaveBeenCalledOnce();
     expect(mockInsertValues).toHaveBeenCalledWith(
@@ -127,24 +182,27 @@ describe("bookingRouter.createPaymentIntent", () => {
         guestName: "Bob Smith",
         guestEmail: "bob@example.com",
         status: "pending",
-        stripePaymentIntentId: "pi_test_456",
       })
     );
   });
 
   it("throws if property is not found in PROPERTY_TO_HOSTAWAY_ID map", async () => {
     await expect(
-      callProcedure("createPaymentIntent", {
-        propertyId: "nonexistent-property",
-        propertyName: "Ghost House",
-        checkIn: "2026-06-01",
-        checkOut: "2026-06-04",
-        nights: 3,
-        nightlyRate: 100,
-        guestCount: 2,
-        guestName: "Ghost",
-        guestEmail: "ghost@example.com",
-      })
+      callProcedure(
+        "createCheckoutSession",
+        {
+          propertyId: "nonexistent-property",
+          propertyName: "Ghost House",
+          checkIn: "2026-06-01",
+          checkOut: "2026-06-04",
+          nights: 3,
+          nightlyRate: 100,
+          guestCount: 2,
+          guestName: "Ghost",
+          guestEmail: "ghost@example.com",
+        },
+        { req: { headers: { origin: "https://rosecitystays.com" } } }
+      )
     ).rejects.toThrow("Property not found: nonexistent-property");
   });
 });

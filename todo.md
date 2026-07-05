@@ -179,3 +179,16 @@
 - [x] Fix blog post detail page blank content (large gap between title and body)
 - [x] Replace About section image with a real property photo
 - [x] Update stats bar "10 Properties" → "11 Properties"
+
+## Checkout Flow Migration (July 2026)
+
+- [x] Migrate checkout from Stripe PaymentIntents (embedded card form) to Stripe Checkout Sessions (hosted page)
+- [x] Enable promo/coupon codes via allow_promotion_codes: true in Stripe Checkout Session
+- [x] Add stripeCheckoutSessionId column to bookings table (DB migration pushed)
+- [x] Fix cancel_url to use /property/:id (singular) instead of /properties/:id
+- [x] Add Stripe webhook handler at /api/stripe/webhook (BEFORE express.json()) to confirm bookings on checkout.session.completed
+- [x] Export confirmStripeCheckoutSession for use by webhook handler
+- [x] Update BookingConfirmation page to support ?session_id=cs_xxx (new flow) and ?pi=pi_xxx (legacy)
+- [x] Update CheckoutModal to redirect to Stripe hosted checkout instead of embedding PaymentElement
+- [x] Update booking.test.ts to test createCheckoutSession instead of removed createPaymentIntent
+- [x] All 19 tests passing, 0 TypeScript errors

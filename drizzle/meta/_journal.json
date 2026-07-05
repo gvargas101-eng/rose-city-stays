@@ -50,6 +50,13 @@
       "when": 1781742309415,
       "tag": "0006_wealthy_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1781927528906,
+      "tag": "0007_loving_jackpot",
+      "breakpoints": true
     }
   ]
 }

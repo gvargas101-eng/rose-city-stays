@@ -1,0 +1,1 @@
+ALTER TABLE `bookings` ADD `stripeCheckoutSessionId` varchar(256);

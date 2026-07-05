@@ -1,13 +1,15 @@
 /**
- * BookingConfirmation — shown after successful payment
- * Fetches booking details by Stripe PaymentIntent ID from URL params
+ * BookingConfirmation — shown after successful Stripe Checkout payment
+ * Supports:
+ *   - ?session_id=cs_xxx  (new Stripe Checkout flow)
+ *   - ?pi=pi_xxx          (legacy PaymentIntent flow — kept for old links)
  */
 
 import { useSearch } from "wouter";
 import { format } from "date-fns";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, CalendarDays, Users, Home, Mail, ArrowRight } from "lucide-react";
+import { CheckCircle2, CalendarDays, Users, Home, Mail, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -16,18 +18,34 @@ import { properties } from "@/lib/properties";
 export default function BookingConfirmation() {
   const search = useSearch();
   const params = new URLSearchParams(search);
+  const sessionId = params.get("session_id") || "";
   const paymentIntentId = params.get("pi") || "";
 
-  const { data: booking, isLoading } = trpc.booking.getByPaymentIntent.useQuery(
-    { paymentIntentId },
-    { enabled: !!paymentIntentId }
-  );
+  // Prefer session_id (new flow), fall back to pi (legacy)
+  const useSession = !!sessionId;
+  const useLegacy = !useSession && !!paymentIntentId;
+
+  const { data: sessionBooking, isLoading: sessionLoading } =
+    trpc.booking.getByCheckoutSession.useQuery(
+      { sessionId },
+      { enabled: useSession }
+    );
+
+  const { data: legacyBooking, isLoading: legacyLoading } =
+    trpc.booking.getByPaymentIntent.useQuery(
+      { paymentIntentId },
+      { enabled: useLegacy }
+    );
+
+  const booking = useSession ? sessionBooking : legacyBooking;
+  const isLoading = useSession ? sessionLoading : legacyLoading;
+  const confirmationRef = useSession ? sessionId : paymentIntentId;
 
   const property = booking
-    ? properties.find(p => p.id === booking.propertyId)
+    ? properties.find((p) => p.id === booking.propertyId)
     : null;
 
-  if (!paymentIntentId) {
+  if (!sessionId && !paymentIntentId) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -45,8 +63,9 @@ export default function BookingConfirmation() {
       <Navbar />
       <main className="max-w-2xl mx-auto px-4 py-20">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="flex flex-col items-center justify-center h-64 gap-4">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-muted-foreground text-sm">Confirming your booking…</p>
           </div>
         ) : !booking ? (
           <div className="text-center py-20">
@@ -71,7 +90,8 @@ export default function BookingConfirmation() {
                 Booking Confirmed!
               </h1>
               <p className="text-muted-foreground">
-                Thank you, <strong className="text-foreground">{booking.guestName}</strong>. Your reservation is confirmed and a receipt has been sent to{" "}
+                Thank you, <strong className="text-foreground">{booking.guestName}</strong>. Your
+                reservation is confirmed and a receipt has been sent to{" "}
                 <strong className="text-foreground">{booking.guestEmail}</strong>.
               </p>
             </div>
@@ -102,7 +122,9 @@ export default function BookingConfirmation() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-muted/40 rounded-xl p-4">
-                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Check-in</div>
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">
+                      Check-in
+                    </div>
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-primary" />
                       <span className="font-medium text-foreground">
@@ -112,7 +134,9 @@ export default function BookingConfirmation() {
                     <div className="text-xs text-muted-foreground mt-1">After 3:00 PM</div>
                   </div>
                   <div className="bg-muted/40 rounded-xl p-4">
-                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Check-out</div>
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">
+                      Check-out
+                    </div>
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-primary" />
                       <span className="font-medium text-foreground">
@@ -125,19 +149,31 @@ export default function BookingConfirmation() {
 
                 <div className="flex items-center gap-3">
                   <Users className="w-4 h-4 text-primary" />
-                  <span className="text-sm text-foreground">{booking.guestCount} guests · {booking.nights} nights</span>
+                  <span className="text-sm text-foreground">
+                    {booking.guestCount} guests · {booking.nights} nights
+                  </span>
                 </div>
 
                 {/* Price breakdown */}
                 <div className="border-t border-border pt-4 space-y-2 text-sm">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>${Number(booking.nightlyRate).toFixed(0)} × {booking.nights} nights</span>
-                    <span>${(Number(booking.nightlyRate) * booking.nights).toLocaleString()}</span>
+                    <span>
+                      ${Number(booking.nightlyRate).toFixed(0)} × {booking.nights} nights
+                    </span>
+                    <span>
+                      ${(Number(booking.nightlyRate) * booking.nights).toLocaleString()}
+                    </span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>Cleaning fee</span>
                     <span>${Number(booking.cleaningFee).toLocaleString()}</span>
                   </div>
+                  {booking.taxAmount && Number(booking.taxAmount) > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Taxes</span>
+                      <span>${Number(booking.taxAmount).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold text-foreground border-t border-border pt-2">
                     <span>Total paid</span>
                     <span>${Number(booking.totalAmount).toLocaleString()}</span>
@@ -146,9 +182,9 @@ export default function BookingConfirmation() {
 
                 {/* Confirmation number */}
                 <div className="bg-primary/10 rounded-xl p-4 text-center">
-                  <div className="text-xs text-muted-foreground mb-1">Confirmation Number</div>
-                  <div className="font-mono text-sm font-medium text-foreground break-all">
-                    {paymentIntentId}
+                  <div className="text-xs text-muted-foreground mb-1">Confirmation Reference</div>
+                  <div className="font-mono text-xs font-medium text-foreground break-all">
+                    {confirmationRef}
                   </div>
                 </div>
               </div>
@@ -160,11 +196,17 @@ export default function BookingConfirmation() {
               <div className="space-y-3 text-sm text-muted-foreground">
                 <div className="flex items-start gap-3">
                   <Mail className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                  <span>You'll receive a confirmation email with check-in instructions and access details within 24 hours.</span>
+                  <span>
+                    You'll receive a confirmation email with check-in instructions and access
+                    details within 24 hours.
+                  </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                  <span>Self check-in is available 24/7. All properties have keypad entry — no need to coordinate arrival times.</span>
+                  <span>
+                    Self check-in is available 24/7. All properties have keypad entry — no need to
+                    coordinate arrival times.
+                  </span>
                 </div>
               </div>
             </div>

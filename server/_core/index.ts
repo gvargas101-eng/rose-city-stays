@@ -9,6 +9,8 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { generateBlogPost } from "../blog-writer";
 import { syncHostawayListings } from "../hostaway-sync";
+import Stripe from "stripe";
+import { confirmStripeCheckoutSession } from "../routers/booking";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -32,6 +34,56 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  // ── Stripe webhook — MUST be registered BEFORE express.json() ──────────────
+  // Stripe requires the raw request body for signature verification.
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2026-04-22.dahlia",
+  });
+
+  app.post(
+    "/api/stripe/webhook",
+    express.raw({ type: "application/json" }),
+    async (req, res) => {
+      const sig = req.headers["stripe-signature"] as string;
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+      let event: Stripe.Event;
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body as Buffer,
+          sig,
+          webhookSecret!
+        );
+      } catch (err: any) {
+        console.error("[Webhook] Signature verification failed:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+      }
+
+      // Test events from the Stripe dashboard — return immediately
+      if (event.id.startsWith("evt_test_")) {
+        console.log("[Webhook] Test event detected, returning verification response");
+        return res.json({ verified: true });
+      }
+
+      console.log(`[Webhook] Received event: ${event.type} (${event.id})`);
+
+      try {
+        if (event.type === "checkout.session.completed") {
+          const session = event.data.object as Stripe.Checkout.Session;
+          await confirmStripeCheckoutSession(session);
+          console.log(`[Webhook] Booking confirmed for session ${session.id}`);
+        }
+      } catch (err: any) {
+        console.error(`[Webhook] Handler error for ${event.type}:`, err.message);
+        // Return 200 so Stripe doesn't retry — the confirmation page fallback handles it
+        return res.json({ received: true, warning: err.message });
+      }
+
+      return res.json({ received: true });
+    }
+  );
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
