@@ -196,3 +196,9 @@
 ## Bug Fixes (July 2026)
 
 - [x] Fix React rules-of-hooks violation in PropertyDetail.tsx — moved all hooks before early returns so DB-only properties (e.g. cozy-3-bedrooms) load correctly
+
+## House Rules Feature (July 2026)
+
+- [x] Add houseRules column to DB schema (properties table)
+- [x] Update hostaway-sync to pull houseRules from Hostaway API
+- [x] Display house rules on property detail page

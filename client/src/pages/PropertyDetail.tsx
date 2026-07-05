@@ -55,6 +55,9 @@ export default function PropertyDetail() {
         highlights: staticProperty?.highlights ?? [],
         priceNote: staticProperty?.priceNote ?? "",
         hostaway_url: dbProperty.hostaway_url || staticProperty?.hostaway_url || "",
+        checkIn: dbProperty.checkInTime || staticProperty?.checkIn || "3:00 PM",
+        checkOut: dbProperty.checkOutTime || staticProperty?.checkOut || "11:00 AM",
+        houseRules: dbProperty.houseRules ?? null,
       } as unknown as Property)
     : (staticProperty ?? null);
 
@@ -369,6 +372,15 @@ export default function PropertyDetail() {
                   </div>
                 ))}
               </div>
+              {/* House Rules from Hostaway */}
+              {(property as any).houseRules && (
+                <div className="mt-4 p-4 bg-muted/40 rounded-lg">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2" style={{ fontFamily: "var(--font-body)" }}>House Rules</div>
+                  <div className="text-sm text-foreground whitespace-pre-line" style={{ fontFamily: "var(--font-body)" }}>
+                    {(property as any).houseRules}
+                  </div>
+                </div>
+              )}
               <div className="mt-4 p-4 bg-accent/30 rounded-lg">
                 <p className="text-sm text-foreground/70" style={{ fontFamily: "var(--font-body)" }}>
                   <strong className="text-foreground">Cancellation Policy:</strong> {property.cancellationPolicy}

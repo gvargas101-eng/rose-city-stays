@@ -34,6 +34,7 @@ interface HostawayListing {
   bathroomsNumber?: number;
   checkInTime?: string;
   checkOutTime?: string;
+  houseRules?: string;
   propertyType?: string;
   listingImages?: { url: string; sortOrder?: number }[];
   amenities?: string[];
@@ -153,6 +154,7 @@ export async function syncHostawayListings(): Promise<SyncResult> {
             bathrooms: String(listing.bathroomsNumber ?? existing.bathrooms) as any,
             checkInTime: listing.checkInTime ?? existing.checkInTime,
             checkOutTime: listing.checkOutTime ?? existing.checkOutTime,
+            houseRules: listing.houseRules ?? existing.houseRules,
             type: mapPropertyType(listing.propertyType),
           })
           .where(eq(properties.id, existing.id));
@@ -195,6 +197,7 @@ export async function syncHostawayListings(): Promise<SyncResult> {
             description: listing.description ?? null,
             checkInTime: listing.checkInTime ?? "3:00 PM",
             checkOutTime: listing.checkOutTime ?? "11:00 AM",
+            houseRules: listing.houseRules ?? null,
             hostawayListingId: listing.id,
             active: 1,
             sortOrder: 99, // New listings go to the bottom; admin can reorder

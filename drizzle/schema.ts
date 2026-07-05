@@ -36,6 +36,7 @@ export const properties = mysqlTable("properties", {
   checkInTime: varchar("checkInTime", { length: 16 }).default("3:00 PM"),
   checkOutTime: varchar("checkOutTime", { length: 16 }).default("11:00 AM"),
   cancellationPolicy: text("cancellationPolicy"),
+  houseRules: text("houseRules"),
   hostawayListingId: int("hostawayListingId"),
   cleaningFee: decimal("cleaningFee", { precision: 8, scale: 2 }).notNull().default("125.00"),
   active: int("active").notNull().default(1),                        // 1 = visible, 0 = hidden
