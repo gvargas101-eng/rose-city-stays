@@ -4,14 +4,14 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, LayoutDashboard } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   // Check standalone admin session for admin link visibility
   const { data: adminSession } = trpc.adminAuth.me.useQuery(undefined, {
     retry: false,
@@ -26,6 +26,47 @@ export default function Navbar() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // After navigating to home, scroll to the target hash section
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (isHome && hash) {
+      // Small delay to allow the page to render before scrolling
+      const timer = setTimeout(() => {
+        const el = document.querySelector(hash);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [isHome]);
+
+  /**
+   * Handle clicks on hash links:
+   * - If already on the home page, smooth-scroll to the section without a full navigation.
+   * - If on another page, navigate to / with the hash so the useEffect above can scroll.
+   */
+  const handleHashLink = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    const hashIndex = href.indexOf("#");
+    if (hashIndex === -1) return; // not a hash link — let default behavior handle it
+
+    e.preventDefault();
+    const hash = href.slice(hashIndex); // e.g. "#about"
+
+    if (isHome) {
+      // Already on home page — just scroll
+      const el = document.querySelector(hash);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    } else {
+      // Navigate to home with hash; the useEffect above will scroll after render
+      navigate("/");
+      // Push the hash into the URL so the effect can read it
+      setTimeout(() => {
+        window.location.hash = hash;
+      }, 50);
+    }
+
+    setMenuOpen(false);
+  };
 
   const navLinks = [
     { href: "/#properties", label: "Properties" },
@@ -77,6 +118,7 @@ export default function Navbar() {
               <a
                 key={link.href}
                 href={link.href}
+                onClick={(e) => handleHashLink(e, link.href)}
                 className={`text-sm font-medium tracking-wide transition-colors hover:text-primary ${
                   transparent ? "text-white/90 hover:text-white" : "text-foreground/70 hover:text-foreground"
                 }`}
@@ -86,7 +128,7 @@ export default function Navbar() {
               </a>
             ))}
 
-            <a href="/#properties">
+            <a href="/#properties" onClick={(e) => handleHashLink(e, "/#properties")}>
               <Button
                 size="sm"
                 className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6 text-sm font-medium tracking-wide"
@@ -120,13 +162,13 @@ export default function Navbar() {
                 href={link.href}
                 className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2"
                 style={{ fontFamily: "var(--font-body)" }}
-                onClick={() => setMenuOpen(false)}
+                onClick={(e) => handleHashLink(e, link.href)}
               >
                 {link.label}
               </a>
             ))}
 
-            <a href="/#properties" onClick={() => setMenuOpen(false)}>
+            <a href="/#properties" onClick={(e) => { handleHashLink(e, "/#properties"); }}>
               <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-medium"
                 style={{ fontFamily: "var(--font-body)" }}
