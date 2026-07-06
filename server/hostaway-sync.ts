@@ -32,8 +32,10 @@ interface HostawayListing {
   personCapacity?: number;
   bedroomsNumber?: number;
   bathroomsNumber?: number;
-  checkInTime?: string;
-  checkOutTime?: string;
+  /** Hostaway returns check-in/out times as 24-hour integers (e.g. 15 = 3 PM, 11 = 11 AM) */
+  checkInTimeStart?: number;
+  checkInTimeEnd?: number;
+  checkOutTime?: number;
   houseRules?: string;
   propertyType?: string;
   listingImages?: { url: string; sortOrder?: number }[];
@@ -76,6 +78,19 @@ async function uniqueSlug(
     slug = `${candidate}-${attempt++}`;
   }
   return slug;
+}
+
+/**
+ * Convert a 24-hour integer (e.g. 15) to a readable 12-hour time string (e.g. "3:00 PM").
+ * Returns null if the value is missing or invalid.
+ */
+function formatHour(hour?: number | null): string | null {
+  if (hour == null || isNaN(hour)) return null;
+  const h = Math.floor(hour);
+  if (h < 0 || h > 23) return null;
+  const period = h >= 12 ? "PM" : "AM";
+  const display = h % 12 === 0 ? 12 : h % 12;
+  return `${display}:00 ${period}`;
 }
 
 /** Map Hostaway propertyType string to our type enum */
@@ -152,8 +167,8 @@ export async function syncHostawayListings(): Promise<SyncResult> {
             guests: listing.personCapacity ?? existing.guests,
             bedrooms: listing.bedroomsNumber ?? existing.bedrooms,
             bathrooms: String(listing.bathroomsNumber ?? existing.bathrooms) as any,
-            checkInTime: listing.checkInTime ?? existing.checkInTime,
-            checkOutTime: listing.checkOutTime ?? existing.checkOutTime,
+            checkInTime: formatHour(listing.checkInTimeStart) ?? existing.checkInTime,
+            checkOutTime: formatHour(listing.checkOutTime) ?? existing.checkOutTime,
             houseRules: listing.houseRules ?? existing.houseRules,
             type: mapPropertyType(listing.propertyType),
           })
@@ -195,8 +210,8 @@ export async function syncHostawayListings(): Promise<SyncResult> {
             bedrooms: listing.bedroomsNumber ?? 2,
             bathrooms: String(listing.bathroomsNumber ?? 1) as any,
             description: listing.description ?? null,
-            checkInTime: listing.checkInTime ?? "3:00 PM",
-            checkOutTime: listing.checkOutTime ?? "11:00 AM",
+            checkInTime: formatHour(listing.checkInTimeStart) ?? "3:00 PM",
+            checkOutTime: formatHour(listing.checkOutTime) ?? "11:00 AM",
             houseRules: listing.houseRules ?? null,
             hostawayListingId: listing.id,
             active: 1,

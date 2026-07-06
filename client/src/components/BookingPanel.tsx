@@ -22,6 +22,8 @@ interface BookingPanelProps {
   minStay?: number;
   /** Per-date minimum stay map from Hostaway: date string -> minimumStay nights */
   minStayMap?: Record<string, number>;
+  /** Maximum number of guests allowed at this property (from Hostaway personCapacity) */
+  maxGuests?: number;
   onBookNow: (booking: BookingSelection) => void;
   onInquiry: () => void;
 }
@@ -56,11 +58,12 @@ export default function BookingPanel({
   calendarDays,
   minStay = 1,
   minStayMap = {},
+  maxGuests = 16,
   onBookNow,
   onInquiry,
 }: BookingPanelProps) {
   const [showPicker, setShowPicker] = useState(false);
-  const [guestCount, setGuestCount] = useState(2);
+  const [guestCount, setGuestCount] = useState(Math.min(2, maxGuests));
   const [selection, setSelection] = useState<{
     checkIn: Date;
     checkOut: Date;
@@ -123,6 +126,14 @@ export default function BookingPanel({
         )}
       </div>
 
+      {/* Max guests notice */}
+      {maxGuests < 16 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+          <Users className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+          <span>Up to <strong className="text-foreground">{maxGuests} guests</strong></span>
+        </div>
+      )}
+
       {/* Minimum stay notice */}
       {effectiveMinStay > 1 && (
         <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-xs text-primary font-medium">
@@ -178,7 +189,7 @@ export default function BookingPanel({
           </button>
           <span className="text-sm font-medium w-4 text-center text-foreground">{guestCount}</span>
           <button
-            onClick={() => setGuestCount(g => Math.min(16, g + 1))}
+            onClick={() => setGuestCount(g => Math.min(maxGuests, g + 1))}
             className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-foreground hover:border-primary transition-colors text-base leading-none"
           >
             +

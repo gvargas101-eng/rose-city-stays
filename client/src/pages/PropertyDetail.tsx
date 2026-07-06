@@ -479,6 +479,7 @@ export default function PropertyDetail() {
                 calendarDays={calendarData?.days || []}
                 minStay={defaultMinStay}
                 minStayMap={minStayMap}
+                maxGuests={property.guests || 16}
                 onBookNow={(booking) => setCheckoutBooking(booking)}
                 onInquiry={() => setShowInquiry(true)}
               />
