@@ -6,7 +6,8 @@ import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getPropertyCalendar, getListingBasePrice, getBatchBasePrices, PROPERTY_TO_HOSTAWAY_ID } from "./hostaway";
 import { getDb } from "./db";
-import { siteSettings, bookings } from "../drizzle/schema";
+import { siteSettings, bookings, corporateInquiries } from "../drizzle/schema";
+import { TRPCError } from "@trpc/server";
 import { eq, and, gte, lte, inArray } from "drizzle-orm";
 import { bookingRouter } from "./routers/booking";
 import { adminRouter } from "./routers/admin";
@@ -183,6 +184,60 @@ export const appRouter = router({
           content: lines,
         });
 
+        return { success: true };
+      }),
+    submitCorporate: publicProcedure
+      .input(
+        z.object({
+          name: z.string().min(1),
+          company: z.string().optional(),
+          email: z.string().email(),
+          phone: z.string().optional(),
+          propertyPreference: z.string().optional(),
+          checkIn: z.string().optional(),
+          checkOut: z.string().optional(),
+          durationMonths: z.number().int().min(1).max(24).optional(),
+          guestCount: z.number().int().min(1).max(20).optional(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.insert(corporateInquiries).values({
+          name: input.name,
+          company: input.company ?? null,
+          email: input.email,
+          phone: input.phone ?? null,
+          propertyPreference: input.propertyPreference ?? null,
+          checkIn: input.checkIn ?? null,
+          checkOut: input.checkOut ?? null,
+          durationMonths: input.durationMonths ?? null,
+          guestCount: input.guestCount ?? null,
+          notes: input.notes ?? null,
+          status: "new",
+        });
+        const lines = [
+          `**Name:** ${input.name}`,
+          input.company ? `**Company:** ${input.company}` : null,
+          `**Email:** ${input.email}`,
+          input.phone ? `**Phone:** ${input.phone}` : null,
+          input.propertyPreference ? `**Property Preference:** ${input.propertyPreference}` : null,
+          input.checkIn ? `**Desired Check-in:** ${input.checkIn}` : null,
+          input.checkOut ? `**Desired Check-out:** ${input.checkOut}` : null,
+          input.durationMonths ? `**Duration:** ${input.durationMonths} month(s)` : null,
+          input.guestCount ? `**Guests:** ${input.guestCount}` : null,
+          input.notes ? `**Notes:** ${input.notes}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        const notified = await notifyOwner({
+          title: `New Corporate/Extended Stay Inquiry from ${input.name}${input.company ? ` (${input.company})` : ""}`,
+          content: lines,
+        });
+        if (!notified) {
+          console.error("[corporate inquiry] owner notification failed for", input.email);
+        }
         return { success: true };
       }),
   }),

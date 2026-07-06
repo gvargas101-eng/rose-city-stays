@@ -188,3 +188,26 @@ export const blogPosts = mysqlTable("blog_posts", {
 
 export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = typeof blogPosts.$inferInsert;
+
+/**
+ * Corporate / Extended Stay Inquiries
+ * Stores 30+ night stay requests from businesses and traveling professionals.
+ */
+export const corporateInquiries = mysqlTable("corporate_inquiries", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  company: varchar("company", { length: 128 }),
+  email: varchar("email", { length: 256 }).notNull(),
+  phone: varchar("phone", { length: 32 }),
+  propertyPreference: varchar("propertyPreference", { length: 128 }),
+  checkIn: varchar("checkIn", { length: 32 }),
+  checkOut: varchar("checkOut", { length: 32 }),
+  durationMonths: int("durationMonths"),
+  guestCount: int("guestCount"),
+  notes: text("notes"),
+  status: varchar("status", { length: 32 }).notNull().default("new"), // new | contacted | booked | closed
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CorporateInquiry = typeof corporateInquiries.$inferSelect;
+export type InsertCorporateInquiry = typeof corporateInquiries.$inferInsert;

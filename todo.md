@@ -214,3 +214,10 @@
 - [x] Display check-in/check-out times from Hostaway on property pages
 - [x] Cap guest counter at property's max occupancy from Hostaway
 - [x] Show max guests notice in booking panel
+
+## Corporate / Extended Stay Inquiry (July 2026)
+
+- [x] Create /corporate-stays page with inquiry form (name, company, email, phone, property preference, dates, duration, notes)
+- [x] Wire form submission to owner notification (notifyOwner) and DB storage
+- [x] Add "Corporate Stays" link to navbar
+- [ ] Add corporate stays CTA section to home page (optional — skipped, navbar link is sufficient)
