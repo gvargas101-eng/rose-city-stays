@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Trash2, Plus, ArrowLeft, GripVertical, ExternalLink, Upload, ImagePlus } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, GripVertical, ExternalLink, Upload, ImagePlus, PawPrint } from "lucide-react";
 import { useRef, useState as useStateAlias } from "react";
 
 export default function AdminPropertyEdit() {
@@ -250,6 +250,31 @@ export default function AdminPropertyEdit() {
                   onChange={(e) => setField("checkOutTime", e.target.value)}
                   placeholder="e.g. 11:00 AM"
                 />
+              </div>
+              <div className="col-span-1 sm:col-span-2">
+                <Label className="text-xs text-muted-foreground mb-2 block flex items-center gap-1">
+                  <PawPrint className="w-3.5 h-3.5" /> Pets Policy
+                </Label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setField("petsAllowed", getValue("petsAllowed", 0) === 1 ? 0 : 1)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                      getValue("petsAllowed", 0) === 1 ? "bg-green-500" : "bg-muted-foreground/30"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        getValue("petsAllowed", 0) === 1 ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-sm font-medium ${
+                    getValue("petsAllowed", 0) === 1 ? "text-green-600" : "text-muted-foreground"
+                  }`}>
+                    {getValue("petsAllowed", 0) === 1 ? "Pets allowed" : "No pets"}
+                  </span>
+                </div>
               </div>
             </div>
           </section>

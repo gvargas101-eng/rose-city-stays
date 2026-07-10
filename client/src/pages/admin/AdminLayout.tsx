@@ -15,6 +15,7 @@ import {
   Settings2,
   Menu,
   X,
+  Briefcase,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/properties", label: "Properties", icon: Building2 },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+  { href: "/admin/corporate-inquiries", label: "Corporate", icon: Briefcase },
   { href: "/admin/settings", label: "Settings", icon: Settings2 },
 ];
 

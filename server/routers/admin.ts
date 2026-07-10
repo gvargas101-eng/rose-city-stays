@@ -7,7 +7,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees } from "../../drizzle/schema";
+import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees, corporateInquiries } from "../../drizzle/schema";
 import { eq, asc, desc } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { syncHostawayListings } from "../hostaway-sync";
@@ -73,6 +73,7 @@ export const adminRouter = router({
         cleaningFee: z.string().optional(),
         active: z.number().int().min(0).max(1).optional(),
         sortOrder: z.number().int().optional(),
+        petsAllowed: z.number().int().min(0).max(1).optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -343,6 +344,28 @@ export const adminRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { blogPosts: blogPostsTable } = await import("../../drizzle/schema");
       await db.delete(blogPostsTable).where(eq(blogPostsTable.id, input.id));
+      return { success: true };
+    }),
+
+  // ── Corporate Inquiries ──────────────────────────────────────────────────
+
+  /** List all corporate / extended-stay inquiries (newest first) */
+  listCorporateInquiries: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    return db.select().from(corporateInquiries).orderBy(desc(corporateInquiries.createdAt));
+  }),
+
+  /** Update the status of a corporate inquiry */
+  updateCorporateInquiryStatus: adminProcedure
+    .input(z.object({
+      id: z.number(),
+      status: z.enum(["new", "contacted", "booked", "closed"]),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.update(corporateInquiries).set({ status: input.status }).where(eq(corporateInquiries.id, input.id));
       return { success: true };
     }),
 

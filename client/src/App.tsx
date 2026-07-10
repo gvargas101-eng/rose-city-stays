@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProperties from "./pages/admin/AdminProperties";
 import AdminPropertyEdit from "./pages/admin/AdminPropertyEdit";
 import AdminBookings from "./pages/admin/AdminBookings";
+import AdminCorporateInquiries from "./pages/admin/AdminCorporateInquiries";
 import AdminSettings from "./pages/admin/AdminSettings";
 
 function Router() {
@@ -36,6 +37,7 @@ function Router() {
       <Route path={"/admin/properties"} component={AdminProperties} />
       <Route path={"/admin/properties/:id"} component={AdminPropertyEdit} />
       <Route path={"/admin/bookings"} component={AdminBookings} />
+      <Route path={"/admin/corporate-inquiries"} component={AdminCorporateInquiries} />
       <Route path={"/admin/settings"} component={AdminSettings} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

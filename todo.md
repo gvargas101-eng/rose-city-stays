@@ -237,3 +237,10 @@
 - [x] Add server-side ID upload endpoint (upload to S3, return secure URL)
 - [x] Add guestIdUrl column to bookings table in DB schema
 - [x] Show uploaded IDs in admin bookings panel (View ID link opens S3 URL in new tab, Agreement Signed timestamp shown)
+
+## Admin Enhancements (July 2026)
+
+- [x] Add /admin/corporate-inquiries page — list all corporate inquiries with status, contact info, dates, notes, and status update buttons (new → contacted → booked → closed)
+- [x] Add Corporate nav link to admin sidebar
+- [x] Add petsAllowed column to properties DB table (migration pushed)
+- [x] Add Pets Policy toggle to admin property editor (green toggle switch, saves to DB via updateProperty)
