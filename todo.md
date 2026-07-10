@@ -230,3 +230,10 @@
 - [x] Build /house-rules standalone page
 - [x] Add hard stop to checkout modal (review link + checkbox before payment)
 - [ ] Store agreement acceptance in DB (timestamp, IP, booking ID) — deferred
+
+## Guest ID Verification (July 2026)
+
+- [ ] Add ID upload field to CheckoutModal (before agreement step, with verification messaging)
+- [ ] Add server-side ID upload endpoint (upload to S3, return secure URL)
+- [ ] Add guestIdUrl column to bookings table in DB schema
+- [ ] Show uploaded IDs in admin bookings panel (secure view link)

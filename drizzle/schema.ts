@@ -107,6 +107,8 @@ export const bookings = mysqlTable("bookings", {
     .notNull(),
 
   message: text("message"),
+  guestIdUrl: varchar("guestIdUrl", { length: 1024 }), // S3 URL of uploaded government ID photo
+  agreementAcceptedAt: bigint("agreementAcceptedAt", { mode: "number" }), // Unix ms timestamp of agreement acceptance
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

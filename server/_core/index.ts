@@ -115,6 +115,36 @@ async function startServer() {
     }
   });
 
+  // ── Guest ID upload endpoint ──────────────────────────────────────────
+  // Accepts multipart/form-data POST with a single file field "idFile".
+  // Returns { url } — the S3 URL of the uploaded ID image.
+  {
+    const multer = (await import("multer")).default;
+    const upload = multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+      fileFilter: (_req, file, cb) => {
+        const allowed = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new Error("Only JPEG, PNG, WEBP, HEIC, or PDF files are accepted."));
+      },
+    });
+    app.post("/api/upload/guest-id", upload.single("idFile"), async (req, res) => {
+      try {
+        if (!req.file) return res.status(400).json({ error: "No file uploaded." });
+        const { storagePut } = await import("../storage");
+        const crypto = await import("crypto");
+        const ext = req.file.originalname.split(".").pop()?.toLowerCase() ?? "jpg";
+        const key = `guest-ids/${Date.now()}-${crypto.randomBytes(8).toString("hex")}.${ext}`;
+        const { url } = await storagePut(key, req.file.buffer, req.file.mimetype);
+        res.json({ url });
+      } catch (err: any) {
+        console.error("[GuestID Upload]", err);
+        res.status(500).json({ error: err.message ?? "Upload failed." });
+      }
+    });
+  }
+
   // tRPC API
   app.use(
     "/api/trpc",

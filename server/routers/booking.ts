@@ -259,6 +259,8 @@ export const bookingRouter = router({
         guestEmail: z.string().email(),
         guestPhone: z.string().optional(),
         message: z.string().optional(),
+        guestIdUrl: z.string().url().optional(),
+        agreementAcceptedAt: z.number().int().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -300,6 +302,8 @@ export const bookingRouter = router({
           totalAmount: String(totalAmount),
           status: "pending",
           message: input.message || null,
+          guestIdUrl: input.guestIdUrl || null,
+          agreementAcceptedAt: input.agreementAcceptedAt || null,
         })
         .$returningId();
 

@@ -2,12 +2,13 @@
  * CheckoutModal — Guest info form that redirects to Stripe Checkout
  * Flow:
  *   Step 1: Guest fills in name/email/phone/message
- *   Step 2: Guest reads and agrees to rental agreement + house rules (HARD STOP)
- *   Step 3: Submit info → createCheckoutSession → redirect to Stripe hosted checkout
- *   Step 4: Stripe handles card + promo codes → redirects to /booking/confirmation?session_id=cs_xxx
+ *   Step 2: Guest uploads a government-issued photo ID (required for verification)
+ *   Step 3: Guest reads and agrees to rental agreement + house rules (HARD STOP)
+ *   Step 4: Submit info → createCheckoutSession → redirect to Stripe hosted checkout
+ *   Step 5: Stripe handles card + promo codes → redirects to /booking/confirmation?session_id=cs_xxx
  */
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { format } from "date-fns";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,11 @@ import {
   AlertTriangle,
   CheckSquare,
   Square,
+  Upload,
+  CheckCircle2,
+  Loader2,
+  IdCard,
+  ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AGREEMENT_ACKNOWLEDGMENT_TEXT } from "@/lib/rentalAgreement";
@@ -60,6 +66,12 @@ interface GuestInfo {
   message: string;
 }
 
+type IdUploadState =
+  | { status: "idle" }
+  | { status: "uploading" }
+  | { status: "done"; url: string; fileName: string }
+  | { status: "error"; message: string };
+
 export default function CheckoutModal(props: CheckoutModalProps) {
   const {
     propertyId,
@@ -79,6 +91,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
   } = props;
 
   const createCheckoutSession = trpc.booking.createCheckoutSession.useMutation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
     name: "",
@@ -89,6 +102,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
   const [initError, setInitError] = useState<string | null>(null);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [agreementTouched, setAgreementTouched] = useState(false);
+  const [idUpload, setIdUpload] = useState<IdUploadState>({ status: "idle" });
+  const [idTouched, setIdTouched] = useState(false);
 
   // Compute custom fee totals for display
   const customFeeLines = customFees.map((f) => ({
@@ -99,9 +114,55 @@ export default function CheckoutModal(props: CheckoutModalProps) {
   const grandTotal = totalAmount + customFeesTotal;
   const taxPct = Math.round(taxRate * 100);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      setIdUpload({ status: "error", message: "Please upload a JPEG, PNG, WEBP, HEIC, or PDF file." });
+      return;
+    }
+
+    // Validate file size (10 MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setIdUpload({ status: "error", message: "File is too large. Maximum size is 10 MB." });
+      return;
+    }
+
+    setIdUpload({ status: "uploading" });
+    try {
+      const formData = new FormData();
+      formData.append("idFile", file);
+      const res = await fetch("/api/upload/guest-id", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(err.error ?? "Upload failed");
+      }
+      const { url } = await res.json();
+      setIdUpload({ status: "done", url, fileName: file.name });
+      setIdTouched(true);
+    } catch (err: any) {
+      setIdUpload({ status: "error", message: err.message ?? "Upload failed. Please try again." });
+    }
+    // Reset file input so the same file can be re-selected if needed
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!guestInfo.name.trim() || !guestInfo.email.trim()) return;
+
+    // Hard stop — must upload ID
+    if (idUpload.status !== "done") {
+      setIdTouched(true);
+      return;
+    }
 
     // Hard stop — must accept agreement
     if (!agreementAccepted) {
@@ -123,6 +184,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
         guestEmail: guestInfo.email.trim(),
         guestPhone: guestInfo.phone.trim() || undefined,
         message: guestInfo.message.trim() || undefined,
+        guestIdUrl: idUpload.status === "done" ? idUpload.url : undefined,
+        agreementAcceptedAt: Date.now(),
       });
 
       if (!result.checkoutUrl) {
@@ -130,7 +193,6 @@ export default function CheckoutModal(props: CheckoutModalProps) {
       }
 
       toast.info("Redirecting to secure checkout…");
-      // Redirect to Stripe hosted checkout (opens in same tab)
       window.location.href = result.checkoutUrl;
     } catch (err) {
       setInitError("Unable to start checkout. Please try again.");
@@ -230,55 +292,164 @@ export default function CheckoutModal(props: CheckoutModalProps) {
             </div>
           )}
 
-          <form onSubmit={handleInfoSubmit} className="space-y-4">
-            <h3 className="text-sm font-medium text-foreground">Your Information</h3>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Full Name *</label>
-                <Input
-                  value={guestInfo.name}
-                  onChange={(e) => setGuestInfo((g) => ({ ...g, name: e.target.value }))}
-                  placeholder="Jane Smith"
-                  required
-                  className="bg-background"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Email Address *</label>
-                <Input
-                  type="email"
-                  value={guestInfo.email}
-                  onChange={(e) => setGuestInfo((g) => ({ ...g, email: e.target.value }))}
-                  placeholder="jane@example.com"
-                  required
-                  className="bg-background"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Phone (optional)</label>
-                <Input
-                  type="tel"
-                  value={guestInfo.phone}
-                  onChange={(e) => setGuestInfo((g) => ({ ...g, phone: e.target.value }))}
-                  placeholder="+1 (555) 000-0000"
-                  className="bg-background"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">
-                  Special Requests (optional)
-                </label>
-                <Textarea
-                  value={guestInfo.message}
-                  onChange={(e) => setGuestInfo((g) => ({ ...g, message: e.target.value }))}
-                  placeholder="Early check-in, late check-out, etc."
-                  rows={2}
-                  className="bg-background resize-none"
-                />
+          <form onSubmit={handleInfoSubmit} className="space-y-5">
+            {/* ── STEP 1: Guest Info ── */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
+                Your Information
+              </h3>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Full Name *</label>
+                  <Input
+                    value={guestInfo.name}
+                    onChange={(e) => setGuestInfo((g) => ({ ...g, name: e.target.value }))}
+                    placeholder="Jane Smith"
+                    required
+                    className="bg-background"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Email Address *</label>
+                  <Input
+                    type="email"
+                    value={guestInfo.email}
+                    onChange={(e) => setGuestInfo((g) => ({ ...g, email: e.target.value }))}
+                    placeholder="jane@example.com"
+                    required
+                    className="bg-background"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Phone (optional)</label>
+                  <Input
+                    type="tel"
+                    value={guestInfo.phone}
+                    onChange={(e) => setGuestInfo((g) => ({ ...g, phone: e.target.value }))}
+                    placeholder="+1 (555) 000-0000"
+                    className="bg-background"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">
+                    Special Requests (optional)
+                  </label>
+                  <Textarea
+                    value={guestInfo.message}
+                    onChange={(e) => setGuestInfo((g) => ({ ...g, message: e.target.value }))}
+                    placeholder="Early check-in, late check-out, etc."
+                    rows={2}
+                    className="bg-background resize-none"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* ── HARD STOP: Agreement Section ── */}
+            {/* ── STEP 2: Government ID Upload ── */}
+            <div
+              className={`rounded-xl border-2 p-4 transition-colors ${
+                idTouched && idUpload.status !== "done"
+                  ? "border-red-400 bg-red-50"
+                  : idUpload.status === "done"
+                  ? "border-green-400 bg-green-50"
+                  : "border-blue-200 bg-blue-50"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                {idUpload.status === "done" ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                ) : (
+                  <IdCard className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    idUpload.status === "done" ? "text-green-800" : "text-blue-800"
+                  }`}
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs inline-flex items-center justify-center font-bold mr-2">2</span>
+                  Government-Issued Photo ID
+                </span>
+              </div>
+
+              <p
+                className={`text-xs leading-relaxed mb-3 ${
+                  idUpload.status === "done" ? "text-green-700" : "text-blue-700"
+                }`}
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                For your security and ours, we require a valid government-issued photo ID (driver's license, passport, or state ID). The name on your ID must match the name on the credit card used for payment. Your ID is stored securely and used solely for verification purposes.
+              </p>
+
+              {idUpload.status === "done" ? (
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <span className="text-xs text-green-800 font-medium truncate flex-1">
+                    {idUpload.fileName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIdUpload({ status: "idle" });
+                      setIdTouched(false);
+                    }}
+                    className="text-xs text-green-600 hover:text-green-800 underline underline-offset-2 flex-shrink-0"
+                  >
+                    Replace
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="guest-id-upload"
+                  />
+                  <label
+                    htmlFor="guest-id-upload"
+                    className={`flex items-center justify-center gap-2 w-full border-2 border-dashed rounded-lg py-3 px-4 cursor-pointer transition-colors text-sm font-medium ${
+                      idUpload.status === "uploading"
+                        ? "border-blue-300 bg-blue-100 text-blue-500 cursor-not-allowed"
+                        : idTouched && (idUpload.status === "idle" || idUpload.status === "error")
+                        ? "border-red-300 bg-red-50 text-red-600 hover:bg-red-100"
+                        : "border-blue-300 bg-white text-blue-700 hover:bg-blue-100"
+                    }`}
+                    style={{ fontFamily: "var(--font-body)" }}
+                  >
+                    {idUpload.status === "uploading" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Uploading…
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Upload Photo ID
+                      </>
+                    )}
+                  </label>
+
+                  {idUpload.status === "error" && (
+                    <p className="mt-2 text-xs text-red-600">{idUpload.message}</p>
+                  )}
+                  {idTouched && (idUpload.status === "idle" || idUpload.status === "uploading") && (
+                    <p className="mt-2 text-xs text-red-600 font-medium">
+                      A government-issued photo ID is required to proceed.
+                    </p>
+                  )}
+
+                  <p className="mt-2 text-xs text-blue-600 opacity-70" style={{ fontFamily: "var(--font-body)" }}>
+                    Accepted: JPEG, PNG, WEBP, HEIC, PDF · Max 10 MB
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* ── STEP 3: Agreement Hard Stop ── */}
             <div
               className={`rounded-xl border-2 p-4 transition-colors ${
                 agreementTouched && !agreementAccepted
@@ -301,6 +472,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                   }`}
                   style={{ fontFamily: "var(--font-display)" }}
                 >
+                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs inline-flex items-center justify-center font-bold mr-2">3</span>
                   Rental Agreement & House Rules
                 </span>
               </div>
@@ -388,18 +560,22 @@ export default function CheckoutModal(props: CheckoutModalProps) {
 
             <Button
               type="submit"
-              disabled={createCheckoutSession.isPending}
+              disabled={createCheckoutSession.isPending || idUpload.status === "uploading"}
               className={`w-full rounded-xl py-5 text-base transition-all ${
-                agreementAccepted
+                agreementAccepted && idUpload.status === "done"
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
               onClick={() => {
+                if (idUpload.status !== "done") setIdTouched(true);
                 if (!agreementAccepted) setAgreementTouched(true);
               }}
             >
               {createCheckoutSession.isPending ? (
-                "Preparing checkout…"
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Preparing checkout…
+                </span>
               ) : (
                 <span className="flex items-center justify-center gap-2">
                   Continue to Secure Checkout
