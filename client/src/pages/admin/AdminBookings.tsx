@@ -2,7 +2,7 @@ import { useState } from "react";
 import AdminLayout from "./AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Calendar, User, DollarSign, Hash } from "lucide-react";
+import { Calendar, User, DollarSign, IdCard, ShieldCheck, ExternalLink } from "lucide-react";
 
 const STATUS_OPTIONS = ["pending", "paid", "confirmed", "cancelled", "failed"] as const;
 type BookingStatus = typeof STATUS_OPTIONS[number];
@@ -141,6 +141,38 @@ export default function AdminBookings() {
                       <div>
                         <p className="text-xs text-muted-foreground mb-0.5">Booked On</p>
                         <p className="text-foreground">{new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1">
+                          <IdCard className="w-3 h-3" /> Guest ID
+                        </p>
+                        {b.guestIdUrl ? (
+                          <a
+                            href={b.guestIdUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium underline underline-offset-2"
+                          >
+                            View ID <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <p className="text-muted-foreground text-xs">Not uploaded</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Agreement Signed
+                        </p>
+                        {b.agreementAcceptedAt ? (
+                          <p className="text-foreground text-xs">
+                            {new Date(b.agreementAcceptedAt).toLocaleString("en-US", {
+                              month: "short", day: "numeric", year: "numeric",
+                              hour: "numeric", minute: "2-digit"
+                            })}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground text-xs">Not recorded</p>
+                        )}
                       </div>
                       {b.message && (
                         <div className="col-span-2 lg:col-span-4">
