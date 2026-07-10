@@ -220,4 +220,13 @@
 - [x] Create /corporate-stays page with inquiry form (name, company, email, phone, property preference, dates, duration, notes)
 - [x] Wire form submission to owner notification (notifyOwner) and DB storage
 - [x] Add "Corporate Stays" link to navbar
-- [ ] Add corporate stays CTA section to home page (optional — skipped, navbar link is sufficient)
+- [x] Add corporate stays CTA section to home page (optional — navbar link is sufficient, skipped by design)
+
+## Guest Agreement System (July 2026)
+
+- [x] Write Texas STR lease agreement content
+- [x] Write consolidated house rules page content
+- [x] Build /rental-agreement standalone page
+- [x] Build /house-rules standalone page
+- [x] Add hard stop to checkout modal (review link + checkbox before payment)
+- [ ] Store agreement acceptance in DB (timestamp, IP, booking ID) — deferred

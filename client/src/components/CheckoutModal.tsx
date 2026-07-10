@@ -2,8 +2,9 @@
  * CheckoutModal — Guest info form that redirects to Stripe Checkout
  * Flow:
  *   Step 1: Guest fills in name/email/phone/message
- *   Step 2: Submit info → createCheckoutSession → redirect to Stripe hosted checkout
- *   Step 3: Stripe handles card + promo codes → redirects to /booking/confirmation?session_id=cs_xxx
+ *   Step 2: Guest reads and agrees to rental agreement + house rules (HARD STOP)
+ *   Step 3: Submit info → createCheckoutSession → redirect to Stripe hosted checkout
+ *   Step 4: Stripe handles card + promo codes → redirects to /booking/confirmation?session_id=cs_xxx
  */
 
 import { useState } from "react";
@@ -12,8 +13,20 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, CalendarDays, Users, Home, ExternalLink } from "lucide-react";
+import {
+  X,
+  CalendarDays,
+  Users,
+  Home,
+  ExternalLink,
+  ShieldCheck,
+  FileText,
+  AlertTriangle,
+  CheckSquare,
+  Square,
+} from "lucide-react";
 import { toast } from "sonner";
+import { AGREEMENT_ACKNOWLEDGMENT_TEXT } from "@/lib/rentalAgreement";
 
 interface CustomFee {
   id: number;
@@ -74,6 +87,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
     message: "",
   });
   const [initError, setInitError] = useState<string | null>(null);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [agreementTouched, setAgreementTouched] = useState(false);
 
   // Compute custom fee totals for display
   const customFeeLines = customFees.map((f) => ({
@@ -87,6 +102,12 @@ export default function CheckoutModal(props: CheckoutModalProps) {
   const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!guestInfo.name.trim() || !guestInfo.email.trim()) return;
+
+    // Hard stop — must accept agreement
+    if (!agreementAccepted) {
+      setAgreementTouched(true);
+      return;
+    }
 
     setInitError(null);
     try {
@@ -257,10 +278,125 @@ export default function CheckoutModal(props: CheckoutModalProps) {
               </div>
             </div>
 
+            {/* ── HARD STOP: Agreement Section ── */}
+            <div
+              className={`rounded-xl border-2 p-4 transition-colors ${
+                agreementTouched && !agreementAccepted
+                  ? "border-red-400 bg-red-50"
+                  : agreementAccepted
+                  ? "border-green-400 bg-green-50"
+                  : "border-amber-300 bg-amber-50"
+              }`}
+            >
+              {/* Section header */}
+              <div className="flex items-center gap-2 mb-3">
+                {agreementAccepted ? (
+                  <ShieldCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    agreementAccepted ? "text-green-800" : "text-amber-800"
+                  }`}
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Rental Agreement & House Rules
+                </span>
+              </div>
+
+              {/* Agreement notice */}
+              <p
+                className={`text-xs leading-relaxed mb-3 ${
+                  agreementAccepted ? "text-green-700" : "text-amber-700"
+                }`}
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                By booking this property, you are entering into a legally binding short-term rental
+                agreement under Texas law. Please review the documents below before proceeding.
+              </p>
+
+              {/* Document links */}
+              <div className="flex flex-col gap-2 mb-4">
+                <a
+                  href="/rental-agreement"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                  Read the Short-Term Rental Agreement (Texas)
+                  <ExternalLink className="w-3 h-3 opacity-60" />
+                </a>
+                <a
+                  href="/house-rules"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                  Read the House Rules
+                  <ExternalLink className="w-3 h-3 opacity-60" />
+                </a>
+              </div>
+
+              {/* Checkbox */}
+              <button
+                type="button"
+                onClick={() => {
+                  setAgreementAccepted((v) => !v);
+                  setAgreementTouched(true);
+                }}
+                className="flex items-start gap-3 w-full text-left group"
+              >
+                <div className="flex-shrink-0 mt-0.5">
+                  {agreementAccepted ? (
+                    <CheckSquare className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Square
+                      className={`w-5 h-5 ${
+                        agreementTouched && !agreementAccepted
+                          ? "text-red-500"
+                          : "text-amber-500 group-hover:text-amber-700"
+                      }`}
+                    />
+                  )}
+                </div>
+                <span
+                  className={`text-xs leading-relaxed ${
+                    agreementAccepted
+                      ? "text-green-800"
+                      : agreementTouched && !agreementAccepted
+                      ? "text-red-700 font-medium"
+                      : "text-amber-800"
+                  }`}
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  {AGREEMENT_ACKNOWLEDGMENT_TEXT}
+                </span>
+              </button>
+
+              {/* Error hint */}
+              {agreementTouched && !agreementAccepted && (
+                <p className="mt-2 text-xs text-red-600 font-medium" style={{ fontFamily: "var(--font-body)" }}>
+                  You must agree to the rental agreement and house rules to proceed.
+                </p>
+              )}
+            </div>
+
             <Button
               type="submit"
               disabled={createCheckoutSession.isPending}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl py-5 text-base"
+              className={`w-full rounded-xl py-5 text-base transition-all ${
+                agreementAccepted
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+              }`}
+              onClick={() => {
+                if (!agreementAccepted) setAgreementTouched(true);
+              }}
             >
               {createCheckoutSession.isPending ? (
                 "Preparing checkout…"

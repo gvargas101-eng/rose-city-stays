@@ -11,6 +11,8 @@ import PropertyDetail from "./pages/PropertyDetail";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import MyBookings from "./pages/MyBookings";
 import CorporateStays from "./pages/CorporateStays";
+import RentalAgreement from "./pages/RentalAgreement";
+import HouseRulesPage from "./pages/HouseRulesPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProperties from "./pages/admin/AdminProperties";
 import AdminPropertyEdit from "./pages/admin/AdminPropertyEdit";
@@ -28,6 +30,8 @@ function Router() {
       <Route path={"/booking/confirmation"} component={BookingConfirmation} />
       <Route path={"/my-bookings"} component={MyBookings} />
       <Route path={"/corporate-stays"} component={CorporateStays} />
+      <Route path={"/rental-agreement"} component={RentalAgreement} />
+      <Route path={"/house-rules"} component={HouseRulesPage} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/properties"} component={AdminProperties} />
       <Route path={"/admin/properties/:id"} component={AdminPropertyEdit} />
