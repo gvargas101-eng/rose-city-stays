@@ -247,11 +247,11 @@
 
 ## Guest-Facing Pets & Security Deposit (July 2026)
 
-- [ ] Show pets badge (Pets OK / No Pets) on property cards and property detail pages
-- [ ] Add Pets OK filter chip to homepage property grid
-- [ ] Improve corporate inquiry owner notification email with direct mailto reply link
-- [ ] Add $500 security deposit hold disclosure to BookingPanel (shown before booking)
-- [ ] Add $500 security deposit hold disclosure to CheckoutModal (step 3 agreement section)
-- [ ] Add Stripe SetupIntent for $500 card authorization hold at checkout (separate from rental charge)
-- [ ] Add depositHoldIntentId column to bookings DB table
-- [ ] Show deposit hold status in admin bookings panel
+- [x] Show pets badge (Pets OK / No Pets) on property cards and property detail pages
+- [x] Add Pets OK filter chip to homepage property grid
+- [x] Improve corporate inquiry owner notification email with direct mailto reply link (also added to regular inquiry notifications)
+- [x] Add $500 security deposit hold disclosure to BookingPanel (shown before booking)
+- [x] Add $500 security deposit hold disclosure to CheckoutModal (step 3 agreement section)
+- [x] Add Stripe PaymentIntent (capture_method: manual) for $500 card authorization hold at checkout (separate from rental charge)
+- [x] Add depositHoldIntentId and depositHoldStatus columns to bookings DB table (migration pushed)
+- [x] Show deposit hold status in admin bookings panel (status badge + View in Stripe link)
