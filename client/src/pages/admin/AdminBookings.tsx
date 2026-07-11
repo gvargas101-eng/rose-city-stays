@@ -6,6 +6,7 @@ import { Calendar, User, DollarSign, IdCard, ShieldCheck, ExternalLink } from "l
 
 const STATUS_OPTIONS = ["pending", "paid", "confirmed", "cancelled", "failed"] as const;
 type BookingStatus = typeof STATUS_OPTIONS[number];
+type DepositHoldStatus = "pending" | "authorized" | "captured" | "released" | "failed";
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
   confirmed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -23,6 +24,14 @@ export default function AdminBookings() {
   const { data: bookings, refetch } = trpc.admin.listBookings.useQuery();
   const updateStatus = trpc.admin.updateBookingStatus.useMutation({
     onSuccess: () => { refetch(); toast.success("Status updated"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const releaseDeposit = trpc.admin.releaseDepositHold.useMutation({
+    onSuccess: () => { refetch(); toast.success("Deposit hold released — the $500 authorization has been cancelled."); },
+    onError: (e) => toast.error(e.message),
+  });
+  const captureDeposit = trpc.admin.captureDepositHold.useMutation({
+    onSuccess: () => { refetch(); toast.success("Deposit captured — $500 has been charged to the guest's card."); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -179,25 +188,54 @@ export default function AdminBookings() {
                           <ShieldCheck className="w-3 h-3 text-amber-500" /> Deposit Hold
                         </p>
                         {b.depositHoldIntentId ? (
-                          <div className="space-y-0.5">
-                            <a
-                              href={`https://dashboard.stripe.com/payments/${b.depositHoldIntentId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium underline underline-offset-2"
-                            >
-                              View in Stripe <ExternalLink className="w-3 h-3" />
-                            </a>
-                            {b.depositHoldStatus && (
-                              <p className={`text-xs font-medium capitalize ${
-                                b.depositHoldStatus === "authorized" ? "text-green-600" :
-                                b.depositHoldStatus === "captured" ? "text-red-600" :
-                                b.depositHoldStatus === "released" ? "text-muted-foreground" :
-                                b.depositHoldStatus === "failed" ? "text-red-500" :
-                                "text-amber-600"
-                              }`}>
-                                {b.depositHoldStatus}
-                              </p>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`https://dashboard.stripe.com/payments/${b.depositHoldIntentId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium underline underline-offset-2"
+                              >
+                                View in Stripe <ExternalLink className="w-3 h-3" />
+                              </a>
+                              {b.depositHoldStatus && (
+                                <span className={`text-xs font-medium capitalize px-1.5 py-0.5 rounded-full ${
+                                  b.depositHoldStatus === "authorized" ? "bg-green-100 text-green-700" :
+                                  b.depositHoldStatus === "captured" ? "bg-red-100 text-red-700" :
+                                  b.depositHoldStatus === "released" ? "bg-muted text-muted-foreground" :
+                                  b.depositHoldStatus === "failed" ? "bg-red-100 text-red-500" :
+                                  "bg-amber-100 text-amber-700"
+                                }`}>
+                                  {b.depositHoldStatus}
+                                </span>
+                              )}
+                            </div>
+                            {/* Release / Capture actions — only show when hold is actionable */}
+                            {(b.depositHoldStatus === "authorized" || b.depositHoldStatus === "pending") && (
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Release the $500 deposit hold for ${b.guestName}? The authorization will be cancelled and no charge will be made.`)) {
+                                      releaseDeposit.mutate({ bookingId: b.id });
+                                    }
+                                  }}
+                                  disabled={releaseDeposit.isPending || captureDeposit.isPending}
+                                  className="text-xs px-2 py-1 rounded border border-muted-foreground/30 text-muted-foreground hover:border-green-500 hover:text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50"
+                                >
+                                  Release Hold
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Capture (charge) the $500 deposit from ${b.guestName}? This will immediately charge their card $500.`)) {
+                                      captureDeposit.mutate({ bookingId: b.id });
+                                    }
+                                  }}
+                                  disabled={releaseDeposit.isPending || captureDeposit.isPending}
+                                  className="text-xs px-2 py-1 rounded border border-muted-foreground/30 text-muted-foreground hover:border-red-500 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                >
+                                  Capture $500
+                                </button>
+                              </div>
                             )}
                           </div>
                         ) : (

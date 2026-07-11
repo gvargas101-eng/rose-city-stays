@@ -255,3 +255,9 @@
 - [x] Add Stripe PaymentIntent (capture_method: manual) for $500 card authorization hold at checkout (separate from rental charge)
 - [x] Add depositHoldIntentId and depositHoldStatus columns to bookings DB table (migration pushed)
 - [x] Show deposit hold status in admin bookings panel (status badge + View in Stripe link)
+
+## Deposit Hold Admin Controls & Confirmation Page (July 2026)
+
+- [x] Add releaseDepositHold and captureDepositHold admin mutations (call Stripe API, update DB status)
+- [x] Add Release Hold / Capture Hold buttons to AdminBookings expanded detail row (confirm dialog, status badge, disabled when already actioned)
+- [x] Add $500 deposit hold reminder to BookingConfirmation page (amber card explaining hold, release timeline, damage policy)

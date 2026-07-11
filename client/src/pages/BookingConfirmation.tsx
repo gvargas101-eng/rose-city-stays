@@ -9,7 +9,7 @@ import { useSearch } from "wouter";
 import { format } from "date-fns";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, CalendarDays, Users, Home, Mail, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle2, CalendarDays, Users, Home, Mail, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -187,6 +187,17 @@ export default function BookingConfirmation() {
                     {confirmationRef}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* $500 Security Deposit Hold Reminder */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800">
+                <p className="font-semibold mb-1">$500 security deposit hold placed</p>
+                <p className="leading-relaxed">
+                  A <strong>$500 authorization hold</strong> has been placed on your card. This is <em>not</em> a charge — it is a temporary hold that will appear as a pending transaction. The hold will be <strong>released within 3–5 business days after your checkout date</strong> if no damages are reported. If any damages occur, you will be contacted before any amount is captured.
+                </p>
               </div>
             </div>
 

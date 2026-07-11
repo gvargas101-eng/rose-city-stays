@@ -3,6 +3,7 @@
  * All procedures are protected and require admin role.
  */
 
+import Stripe from "stripe";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { adminProcedure, router } from "../_core/trpc";
@@ -12,6 +13,10 @@ import { eq, asc, desc } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { syncHostawayListings } from "../hostaway-sync";
 import { generateBlogPost } from "../blog-writer";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2026-04-22.dahlia",
+});
 
 // Helper: random suffix for file keys
 function randomSuffix() {
@@ -384,6 +389,94 @@ export const adminRouter = router({
         .update(bookings)
         .set({ status: input.status })
         .where(eq(bookings.id, input.id));
+      return { success: true };
+    }),
+
+  /**
+   * Release (cancel) the $500 security deposit hold.
+   * Calls stripe.paymentIntents.cancel() on the deposit PaymentIntent.
+   */
+  releaseDepositHold: adminProcedure
+    .input(z.object({ bookingId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [booking] = await db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, input.bookingId))
+        .limit(1);
+
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
+      if (!booking.depositHoldIntentId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No deposit hold on this booking" });
+      }
+      if (booking.depositHoldStatus === "released") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Deposit hold already released" });
+      }
+      if (booking.depositHoldStatus === "captured") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Deposit has already been captured (charged)" });
+      }
+
+      try {
+        await stripe.paymentIntents.cancel(booking.depositHoldIntentId);
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Stripe error: ${err?.message ?? "Unknown error"}`,
+        });
+      }
+
+      await db
+        .update(bookings)
+        .set({ depositHoldStatus: "released" })
+        .where(eq(bookings.id, input.bookingId));
+
+      return { success: true };
+    }),
+
+  /**
+   * Capture (charge) the $500 security deposit hold.
+   * Calls stripe.paymentIntents.capture() on the deposit PaymentIntent.
+   */
+  captureDepositHold: adminProcedure
+    .input(z.object({ bookingId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [booking] = await db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, input.bookingId))
+        .limit(1);
+
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
+      if (!booking.depositHoldIntentId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No deposit hold on this booking" });
+      }
+      if (booking.depositHoldStatus === "captured") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Deposit already captured" });
+      }
+      if (booking.depositHoldStatus === "released") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Deposit hold was already released" });
+      }
+
+      try {
+        await stripe.paymentIntents.capture(booking.depositHoldIntentId);
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Stripe error: ${err?.message ?? "Unknown error"}`,
+        });
+      }
+
+      await db
+        .update(bookings)
+        .set({ depositHoldStatus: "captured" })
+        .where(eq(bookings.id, input.bookingId));
+
       return { success: true };
     }),
 });
