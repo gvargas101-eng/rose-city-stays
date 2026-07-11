@@ -2,7 +2,7 @@
 // Design: Rose City Luxe — clean card with hover lift, mauve rating badge
 
 import { Link } from "wouter";
-import { Star, Users, BedDouble, Bath } from "lucide-react";
+import { Star, Users, BedDouble, Bath, PawPrint } from "lucide-react";
 import type { Property } from "@/lib/properties";
 
 interface PropertyCardProps {
@@ -72,7 +72,7 @@ export default function PropertyCard({ property, index = 0, nightlyPrice }: Prop
             </span>
           </div>
 
-          {/* Amenity pills */}
+          {/* Amenity pills + pets badge */}
           <div className="flex flex-wrap gap-1.5 mb-4">
             {property.amenities.slice(0, 3).map((amenity) => (
               <span
@@ -83,6 +83,24 @@ export default function PropertyCard({ property, index = 0, nightlyPrice }: Prop
                 {amenity}
               </span>
             ))}
+            {/* Pets badge — derived from DB petsAllowed field */}
+            {(property as any).petsAllowed === 1 ? (
+              <span
+                className="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                <PawPrint className="w-2.5 h-2.5" />
+                Pets OK
+              </span>
+            ) : (property as any).petsAllowed === 0 && (property as any).petsAllowed !== undefined && (property as any).petsAllowed !== null ? (
+              <span
+                className="text-[11px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full flex items-center gap-1"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                <PawPrint className="w-2.5 h-2.5 opacity-40" />
+                No Pets
+              </span>
+            ) : null}
           </div>
 
           {/* CTA */}

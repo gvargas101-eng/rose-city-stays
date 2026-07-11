@@ -174,6 +174,36 @@ export default function AdminBookings() {
                           <p className="text-muted-foreground text-xs">Not recorded</p>
                         )}
                       </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-amber-500" /> Deposit Hold
+                        </p>
+                        {b.depositHoldIntentId ? (
+                          <div className="space-y-0.5">
+                            <a
+                              href={`https://dashboard.stripe.com/payments/${b.depositHoldIntentId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium underline underline-offset-2"
+                            >
+                              View in Stripe <ExternalLink className="w-3 h-3" />
+                            </a>
+                            {b.depositHoldStatus && (
+                              <p className={`text-xs font-medium capitalize ${
+                                b.depositHoldStatus === "authorized" ? "text-green-600" :
+                                b.depositHoldStatus === "captured" ? "text-red-600" :
+                                b.depositHoldStatus === "released" ? "text-muted-foreground" :
+                                b.depositHoldStatus === "failed" ? "text-red-500" :
+                                "text-amber-600"
+                              }`}>
+                                {b.depositHoldStatus}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-muted-foreground text-xs">Not created</p>
+                        )}
+                      </div>
                       {b.message && (
                         <div className="col-span-2 lg:col-span-4">
                           <p className="text-xs text-muted-foreground mb-0.5">Special Requests</p>

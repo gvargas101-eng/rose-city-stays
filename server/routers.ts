@@ -167,14 +167,17 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
+        const subject = encodeURIComponent(`Re: Inquiry from ${input.name}`);
+        const mailtoLink = `mailto:${input.email}?subject=${subject}`;
         const lines = [
           `**Name:** ${input.name}`,
-          `**Email:** ${input.email}`,
+          `**Email:** [${input.email}](${mailtoLink})`,
           input.phone ? `**Phone:** ${input.phone}` : null,
           input.dates ? `**Dates:** ${input.dates}` : null,
           input.guests ? `**Guests:** ${input.guests}` : null,
           input.property ? `**Property:** ${input.property}` : null,
           input.message ? `**Message:** ${input.message}` : null,
+          `\n**Reply directly:** [Click to email ${input.name}](${mailtoLink})`,
         ]
           .filter(Boolean)
           .join("\n");
@@ -217,10 +220,12 @@ export const appRouter = router({
           notes: input.notes ?? null,
           status: "new",
         });
+        const subject = encodeURIComponent(`Re: Corporate Stay Inquiry from ${input.name}${input.company ? ` (${input.company})` : ""}`);
+        const mailtoLink = `mailto:${input.email}?subject=${subject}`;
         const lines = [
           `**Name:** ${input.name}`,
           input.company ? `**Company:** ${input.company}` : null,
-          `**Email:** ${input.email}`,
+          `**Email:** [${input.email}](${mailtoLink})`,
           input.phone ? `**Phone:** ${input.phone}` : null,
           input.propertyPreference ? `**Property Preference:** ${input.propertyPreference}` : null,
           input.checkIn ? `**Desired Check-in:** ${input.checkIn}` : null,
@@ -228,6 +233,7 @@ export const appRouter = router({
           input.durationMonths ? `**Duration:** ${input.durationMonths} month(s)` : null,
           input.guestCount ? `**Guests:** ${input.guestCount}` : null,
           input.notes ? `**Notes:** ${input.notes}` : null,
+          `\n**Reply directly:** [Click to email ${input.name}](${mailtoLink})`,
         ]
           .filter(Boolean)
           .join("\n");

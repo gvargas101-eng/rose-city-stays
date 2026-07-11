@@ -285,9 +285,21 @@ export default function PropertyDetail() {
           <div className="lg:col-span-2">
             {/* Header */}
             <div className="mb-8">
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-3 mb-3 flex-wrap">
                 <span className="badge-mauve">{property.type}</span>
                 <span className="badge-mauve">{property.neighborhood}</span>
+                {/* Pets badge from DB */}
+                {(property as any).petsAllowed === 1 ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium" style={{ fontFamily: "var(--font-body)" }}>
+                    <PawPrint className="w-3 h-3" />
+                    Pets Welcome
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] bg-muted text-muted-foreground px-2.5 py-1 rounded-full" style={{ fontFamily: "var(--font-body)" }}>
+                    <PawPrint className="w-3 h-3 opacity-40" />
+                    No Pets
+                  </span>
+                )}
               </div>
               <h1
                 className="text-3xl lg:text-4xl font-light text-foreground mb-3"

@@ -23,6 +23,7 @@ import {
   Users,
   BedDouble,
   Home as HomeIcon,
+  PawPrint,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -115,6 +116,7 @@ export default function Home() {
   const [filterGuests, setFilterGuests] = useState("any");
   const [filterBedrooms, setFilterBedrooms] = useState("any");
   const [filterType, setFilterType] = useState("any");
+  const [filterPets, setFilterPets] = useState(false);
 
   // Merge DB data with static data — DB wins for fields it has
   const allProperties: Property[] = (dbProperties ?? staticProperties).map((p) => {
@@ -137,6 +139,7 @@ export default function Home() {
     if (filterGuests !== "any" && p.guests < parseInt(filterGuests)) return false;
     if (filterBedrooms !== "any" && p.bedrooms < parseInt(filterBedrooms)) return false;
     if (filterType !== "any" && p.type !== filterType) return false;
+    if (filterPets && (p as any).petsAllowed !== 1) return false;
     return true;
   });
 
@@ -380,10 +383,24 @@ export default function Home() {
                 </select>
               </div>
 
+              {/* Pets OK filter chip */}
+              <button
+                onClick={() => setFilterPets(v => !v)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm transition-colors ${
+                  filterPets
+                    ? "bg-green-100 border-green-400 text-green-700 font-medium"
+                    : "bg-muted/60 border-border text-muted-foreground hover:border-green-300"
+                }`}
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                <PawPrint className="w-4 h-4" />
+                Pets OK
+              </button>
+
               {/* Clear filters */}
-              {(filterGuests !== "any" || filterBedrooms !== "any" || filterType !== "any") && (
+              {(filterGuests !== "any" || filterBedrooms !== "any" || filterType !== "any" || filterPets) && (
                 <button
-                  onClick={() => { setFilterGuests("any"); setFilterBedrooms("any"); setFilterType("any"); }}
+                  onClick={() => { setFilterGuests("any"); setFilterBedrooms("any"); setFilterType("any"); setFilterPets(false); }}
                   className="text-sm text-primary hover:text-primary/80 underline underline-offset-2 transition-colors"
                   style={{ fontFamily: "var(--font-body)" }}
                 >

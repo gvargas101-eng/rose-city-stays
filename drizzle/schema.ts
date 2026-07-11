@@ -110,6 +110,8 @@ export const bookings = mysqlTable("bookings", {
   message: text("message"),
   guestIdUrl: varchar("guestIdUrl", { length: 1024 }), // S3 URL of uploaded government ID photo
   agreementAcceptedAt: bigint("agreementAcceptedAt", { mode: "number" }), // Unix ms timestamp of agreement acceptance
+  depositHoldIntentId: varchar("depositHoldIntentId", { length: 256 }), // Stripe PaymentIntent ID for $500 security deposit hold
+  depositHoldStatus: mysqlEnum("depositHoldStatus", ["pending", "authorized", "captured", "released", "failed"]), // Current state of the deposit hold
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

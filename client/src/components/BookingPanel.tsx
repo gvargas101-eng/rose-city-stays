@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Users, Star, ChevronDown, ChevronUp, Moon } from "lucide-react";
+import { CalendarDays, Users, Star, ChevronDown, ChevronUp, Moon, ShieldCheck } from "lucide-react";
 import DateRangePicker from "@/components/DateRangePicker";
 import type { CalendarDay } from "@/lib/calendar-types";
 
@@ -214,6 +214,14 @@ export default function BookingPanel({
           </div>
         </div>
       )}
+
+      {/* $500 Security Deposit Hold Notice */}
+      <div className="flex items-start gap-2.5 px-3 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800" style={{ fontFamily: "var(--font-body)" }}>
+        <ShieldCheck className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-semibold">$500 security deposit hold</span> — A temporary authorization hold of $500 will be placed on your card at checkout. This is <em>not</em> a charge; it will be released within 3–5 business days after checkout if no damages are reported.
+        </div>
+      </div>
 
       {/* Book Now CTA */}
       <Button
