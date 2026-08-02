@@ -268,4 +268,4 @@
 - [x] Fix footer links for Privacy Policy and Terms & Conditions
 - [x] Fix sitemap.xml with correct property slugs and live domain (all 10 real slugs, rosecitystays.com domain, new pages added)
 - [x] Add favicon (rose icon, dark charcoal + rose-gold, 32x32 ICO + apple-touch-icon)
-- [ ] Update social media links — NEEDS USER INPUT: provide real Instagram and Facebook profile URLs
+- [x] Update social media links — Instagram: instagram.com/rosecitystays, Facebook: facebook.com/rosecitystays
