@@ -261,3 +261,11 @@
 - [x] Add releaseDepositHold and captureDepositHold admin mutations (call Stripe API, update DB status)
 - [x] Add Release Hold / Capture Hold buttons to AdminBookings expanded detail row (confirm dialog, status badge, disabled when already actioned)
 - [x] Add $500 deposit hold reminder to BookingConfirmation page (amber card explaining hold, release timeline, damage policy)
+
+## Go-Live Blockers (Aug 2026)
+- [x] Create Privacy Policy page (/privacy-policy route)
+- [x] Create Terms & Conditions page (/terms route)
+- [x] Fix footer links for Privacy Policy and Terms & Conditions
+- [x] Fix sitemap.xml with correct property slugs and live domain (all 10 real slugs, rosecitystays.com domain, new pages added)
+- [x] Add favicon (rose icon, dark charcoal + rose-gold, 32x32 ICO + apple-touch-icon)
+- [ ] Update social media links — NEEDS USER INPUT: provide real Instagram and Facebook profile URLs

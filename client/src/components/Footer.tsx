@@ -116,11 +116,11 @@ export default function Footer() {
             © {new Date().getFullYear()} Rose City Stays. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
-            <a href="#" className="text-xs text-background/40 hover:text-background/70 transition-colors" style={{ fontFamily: "var(--font-body)" }}>
+            <a href="/privacy-policy" className="text-xs text-background/40 hover:text-background/70 transition-colors" style={{ fontFamily: "var(--font-body)" }}>
               Privacy Policy
             </a>
-            <a href="#" className="text-xs text-background/40 hover:text-background/70 transition-colors" style={{ fontFamily: "var(--font-body)" }}>
-              Terms & Conditions
+            <a href="/terms" className="text-xs text-background/40 hover:text-background/70 transition-colors" style={{ fontFamily: "var(--font-body)" }}>
+              Terms &amp; Conditions
             </a>
           </div>
         </div>

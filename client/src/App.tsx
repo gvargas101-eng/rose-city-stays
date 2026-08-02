@@ -13,6 +13,8 @@ import MyBookings from "./pages/MyBookings";
 import CorporateStays from "./pages/CorporateStays";
 import RentalAgreement from "./pages/RentalAgreement";
 import HouseRulesPage from "./pages/HouseRulesPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProperties from "./pages/admin/AdminProperties";
 import AdminPropertyEdit from "./pages/admin/AdminPropertyEdit";
@@ -33,6 +35,8 @@ function Router() {
       <Route path={"/corporate-stays"} component={CorporateStays} />
       <Route path={"/rental-agreement"} component={RentalAgreement} />
       <Route path={"/house-rules"} component={HouseRulesPage} />
+      <Route path={"/privacy-policy"} component={PrivacyPolicy} />
+      <Route path={"/terms"} component={TermsAndConditions} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/properties"} component={AdminProperties} />
       <Route path={"/admin/properties/:id"} component={AdminPropertyEdit} />
