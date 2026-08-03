@@ -279,11 +279,11 @@
 - [ ] Add overage fee per night setting to admin settings (configurable) — deferred, currently hardcoded at $25/night
 
 ## Manual Booking Link Tool (Aug 2026)
-- [ ] Add manualBookingLinks table to DB schema (token, propertyId, dates, guestCount, customRate, discountAmount, totalAmount, bypass flags, expiry, status)
-- [ ] Add createManualBookingLink, listManualBookingLinks, revokeManualBookingLink mutations to admin router
-- [ ] Build /admin/manual-booking page — form with property, dates, guests, custom rate, discount, per-hard-stop bypass toggles, generates shareable link
-- [ ] Add Manual Bookings to admin sidebar nav
-- [ ] Build /booking/pay/:token guest page — shows quoted price, conditionally shows each hard stop (camera, guest count, T&C) based on bypass flags set by admin
-- [ ] Wire Stripe checkout for manual booking token (uses custom total, not Hostaway pricing)
-- [ ] Push Hostaway calendar reservation on payment confirmation for manual bookings
-- [ ] Add route for /booking/pay/:token in App.tsx
+- [x] Add manualBookingLinks table to DB schema (token, propertyId, dates, guestCount, customRate, discountAmount, totalAmount, bypass flags, expiry, status)
+- [x] Add createManualBookingLink, listManualBookingLinks, revokeManualBookingLink mutations to admin router
+- [x] Build /admin/manual-bookings page — form with property, dates, guests, custom rate, discount, per-hard-stop bypass toggles, generates shareable link
+- [x] Add Manual Bookings to admin sidebar nav
+- [x] Build /booking/pay/:token guest page — shows quoted price, conditionally shows each hard stop (camera, guest count, T&C, ID upload) based on bypass flags set by admin
+- [x] Wire Stripe checkout for manual booking token (uses custom total, not Hostaway pricing)
+- [x] Push Hostaway calendar reservation on payment confirmation for manual bookings
+- [x] Add route for /booking/pay/:token and /booking/manual-confirm in App.tsx
