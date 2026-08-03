@@ -40,6 +40,7 @@ function fmt(n: number | string | null | undefined) {
 function fmtDate(ms: number | null | undefined) {
   if (!ms) return "—";
   return new Date(ms).toLocaleDateString("en-US", {
+    timeZone: "UTC",
     month: "short", day: "numeric", year: "numeric",
   });
 }

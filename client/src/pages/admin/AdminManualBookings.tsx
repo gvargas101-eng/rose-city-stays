@@ -57,6 +57,7 @@ function fmt(n: number | string) {
 
 function fmtDate(ms: number) {
   return new Date(ms).toLocaleDateString("en-US", {
+    timeZone: "UTC",
     month: "short", day: "numeric", year: "numeric",
   });
 }
@@ -715,8 +716,8 @@ export default function AdminManualBookings() {
         {generatedToken && (() => {
           const bookingUrl = `${window.location.origin}/booking/pay/${generatedToken}`;
           const propertyLabel = allProperties.find(p => p.slug === form.propertySlug)?.name || form.propertySlug;
-          const checkInLabel = form.checkIn ? new Date(form.checkIn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
-          const checkOutLabel = form.checkOut ? new Date(form.checkOut).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+          const checkInLabel = form.checkIn ? new Date(form.checkIn).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }) : "";
+          const checkOutLabel = form.checkOut ? new Date(form.checkOut).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }) : "";
           const emailSubject = encodeURIComponent(`Your booking link — ${propertyLabel}`);
           const emailBody = encodeURIComponent(
             `Hi${form.guestName ? ` ${form.guestName.split(" ")[0]}` : ""},\n\nHere is your secure payment link for ${propertyLabel}${checkInLabel ? ` (${checkInLabel} – ${checkOutLabel})` : ""}:\n\n${bookingUrl}\n\nThis link will expire on ${generatedExpiry ? fmtDateTime(generatedExpiry) : "the date shown on the page"}.\n\nPlease let me know if you have any questions.\n\nThank you!`
@@ -959,8 +960,8 @@ export default function AdminManualBookings() {
                             </a>
                           )}
                           {isActionable && (() => {
-                            const checkInLabel = new Date(link.checkIn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-                            const checkOutLabel = new Date(link.checkOut).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                            const checkInLabel = new Date(link.checkIn).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
+                            const checkOutLabel = new Date(link.checkOut).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
                             const emailSubject = encodeURIComponent(`Your booking link — ${link.propertyName}`);
                             const emailBody = encodeURIComponent(
                               `Hi${link.guestName ? ` ${link.guestName.split(" ")[0]}` : ""},\n\nHere is your secure payment link for ${link.propertyName} (${checkInLabel} – ${checkOutLabel}):\n\n${url}\n\nThis link expires on ${fmtDateTime(link.expiresAt)}.\n\nPlease let me know if you have any questions.\n\nThank you!`

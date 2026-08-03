@@ -29,7 +29,7 @@ function statusBadge(status: string) {
 }
 
 function formatDate(ts: number) {
-  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(ts).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
 }
 
 function getPropertyName(propertyId: string) {

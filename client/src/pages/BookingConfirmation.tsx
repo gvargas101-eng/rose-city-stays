@@ -6,7 +6,14 @@
  */
 
 import { useSearch } from "wouter";
-import { format } from "date-fns";
+// date-fns format() uses local timezone which shifts UTC-midnight dates back 1 day in CDT
+// Use toLocaleDateString with timeZone: 'UTC' instead
+function fmtBookingDate(ms: number) {
+  return new Date(ms).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    weekday: "short", month: "short", day: "numeric", year: "numeric",
+  });
+}
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, CalendarDays, Users, Home, Mail, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
@@ -131,7 +138,7 @@ export default function BookingConfirmation() {
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-primary" />
                       <span className="font-medium text-foreground">
-                        {format(new Date(booking.checkIn), "EEE, MMM d, yyyy")}
+                        {fmtBookingDate(booking.checkIn)}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">After 3:00 PM</div>
@@ -143,7 +150,7 @@ export default function BookingConfirmation() {
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-primary" />
                       <span className="font-medium text-foreground">
-                        {format(new Date(booking.checkOut), "EEE, MMM d, yyyy")}
+                        {fmtBookingDate(booking.checkOut)}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">By 11:00 AM</div>

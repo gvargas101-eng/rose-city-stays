@@ -336,5 +336,7 @@
 - [x] Register /tyler-guide route in App.tsx
 
 ## Availability & Admin Fixes (Aug 2026)
-- [ ] Fix availability check in createCheckoutSession — blocked Hostaway dates are not being enforced
-- [ ] Add manual booking links list to admin bookings page (or a dedicated tab) so admin can see all created manual reservation links
+- [x] Fix availability check in createCheckoutSession — hardened to check status !== 'available' in addition to isAvailable === false (covers owner-blocked dates)
+- [x] Add manual booking links list to admin bookings page — added as second tab 'Manual Links' in AdminBookings.tsx
+- [x] Fix date display timezone bug — all booking dates stored as UTC midnight ms shift back 1 day in CDT; fixed by adding timeZone: 'UTC' to all toLocaleDateString calls across AdminBookings, AdminManualBookings, AdminDeposits, ManualBookingPay, ManualBookingConfirm, MyBookings, BookingConfirmation
+- [x] Harden availability check in createManualBookingCheckout — same status !== 'available' fix applied to manual booking token checkout path

@@ -17,6 +17,7 @@ function fmt(n: number | string) {
 
 function fmtDate(ms: number) {
   return new Date(ms).toLocaleDateString("en-US", {
+    timeZone: "UTC",
     weekday: "short", month: "long", day: "numeric", year: "numeric",
   });
 }

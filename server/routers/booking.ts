@@ -396,10 +396,13 @@ export const bookingRouter = router({
           cur = d.toISOString().slice(0, 10);
         }
         console.log(`[Booking] Stay dates:`, Array.from(stayDates));
+        // A day is unavailable if isAvailable is false OR if status is not "available"
+        // (Hostaway may return isAvailable: 1 for owner-blocked dates in some configurations,
+        //  so checking status directly is the more reliable signal)
         const blockedDays = calendarDays.filter(
-          d => stayDates.has(d.date) && !d.isAvailable
+          d => stayDates.has(d.date) && (!d.isAvailable || d.status !== "available")
         );
-        console.log(`[Booking] Blocked days found: ${blockedDays.length}`, blockedDays.map(d => d.date));
+        console.log(`[Booking] Blocked days found: ${blockedDays.length}`, blockedDays.map(d => ({ date: d.date, isAvailable: d.isAvailable, status: d.status })));
         if (blockedDays.length > 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -808,14 +811,17 @@ export const bookingRouter = router({
           const checkOutDate = new Date(link.checkOut).toISOString().split("T")[0];
           // Use property slug to look up calendar (getPropertyCalendar needs slug)
           const calendarDays = await getPropertyCalendar(link.propertySlug, checkInDate, checkOutDate);
+          // Build stay nights using UTC-safe string arithmetic to avoid timezone shifts
           const stayDates = new Set<string>();
-          let cur = new Date(link.checkIn);
-          const end = new Date(link.checkOut);
-          while (cur < end) {
-            stayDates.add(cur.toISOString().split("T")[0]);
-            cur = new Date(cur.getTime() + 86400000);
+          let cur = checkInDate;
+          while (cur < checkOutDate) {
+            stayDates.add(cur);
+            const d = new Date(cur + "T12:00:00Z");
+            d.setUTCDate(d.getUTCDate() + 1);
+            cur = d.toISOString().slice(0, 10);
           }
-          const blockedDays = calendarDays.filter(d => stayDates.has(d.date) && !d.isAvailable);
+          // Block if isAvailable is false OR status is not "available" (covers owner-blocked dates)
+          const blockedDays = calendarDays.filter(d => stayDates.has(d.date) && (!d.isAvailable || d.status !== "available"));
           if (blockedDays.length > 0) {
             throw new TRPCError({
               code: "BAD_REQUEST",
