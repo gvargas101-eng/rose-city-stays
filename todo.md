@@ -289,11 +289,11 @@
 - [x] Add route for /booking/pay/:token and /booking/manual-confirm in App.tsx
 
 ## Configurable Security Deposit (Aug 2026)
-- [ ] Add securityDepositAmount field to site_settings DB table (default 500)
-- [ ] Add Security Deposit field to Admin Settings page (number input, saves to DB)
-- [ ] Expose securityDepositAmount via public tRPC query (read by BookingPanel and CheckoutModal)
-- [ ] Update BookingPanel deposit notice to show dynamic amount from settings
-- [ ] Update CheckoutModal deposit notice to show dynamic amount from settings
-- [ ] Update Stripe deposit hold PaymentIntent to use dynamic amount from DB
-- [ ] Update BookingConfirmation deposit notice to show dynamic amount
-- [ ] Update manual booking link deposit hold to use dynamic amount from DB
+- [x] Add securityDepositAmount field to site_settings DB table (default 500) — seeded via SQL
+- [x] Add Security Deposit field to Admin Settings page (number input, saves to DB)
+- [x] Expose securityDepositAmount via public tRPC query (trpc.settings.getSecurityDeposit)
+- [x] Update BookingPanel deposit notice to show dynamic amount from settings
+- [x] Update CheckoutModal deposit notice to show dynamic amount from settings
+- [x] Update Stripe deposit hold PaymentIntent to use dynamic amount from DB (reads securityDepositAmount from site_settings, defaults to 500)
+- [x] Update BookingConfirmation deposit notice to show dynamic amount
+- [x] Update manual booking link deposit hold to use dynamic amount from DB (same confirmStripeCheckoutSession function)
