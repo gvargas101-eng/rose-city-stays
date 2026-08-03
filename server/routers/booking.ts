@@ -379,21 +379,27 @@ export const bookingRouter = router({
 
       // ── Availability guard: check Hostaway calendar before accepting payment ──
       try {
-        const checkInDate = new Date(input.checkIn).toISOString().split("T")[0];
-        // endDate is exclusive in Hostaway (checkout day is not a stay night)
-        const checkOutDate = new Date(input.checkOut).toISOString().split("T")[0];
+        // Use the input strings directly — they are already yyyy-MM-dd from the frontend
+        const checkInDate = input.checkIn.slice(0, 10);
+        const checkOutDate = input.checkOut.slice(0, 10);
+        console.log(`[Booking] Availability check: property=${input.propertyId} checkIn=${checkInDate} checkOut=${checkOutDate}`);
         const calendarDays = await getPropertyCalendar(input.propertyId, checkInDate, checkOutDate);
+        console.log(`[Booking] Calendar returned ${calendarDays.length} days:`, JSON.stringify(calendarDays.map(d => ({ date: d.date, isAvailable: d.isAvailable, status: d.status }))));
         // Build set of stay nights (check-in inclusive, check-out exclusive)
         const stayDates = new Set<string>();
-        let cur = new Date(input.checkIn);
-        const end = new Date(input.checkOut);
-        while (cur < end) {
-          stayDates.add(cur.toISOString().split("T")[0]);
-          cur = new Date(cur.getTime() + 86400000);
+        let cur = checkInDate;
+        while (cur < checkOutDate) {
+          stayDates.add(cur);
+          // Advance by one day using string arithmetic
+          const d = new Date(cur + "T12:00:00Z");
+          d.setUTCDate(d.getUTCDate() + 1);
+          cur = d.toISOString().slice(0, 10);
         }
+        console.log(`[Booking] Stay dates:`, Array.from(stayDates));
         const blockedDays = calendarDays.filter(
           d => stayDates.has(d.date) && !d.isAvailable
         );
+        console.log(`[Booking] Blocked days found: ${blockedDays.length}`, blockedDays.map(d => d.date));
         if (blockedDays.length > 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",

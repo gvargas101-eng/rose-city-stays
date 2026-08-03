@@ -334,3 +334,7 @@
 - [x] Add SEO meta title and description via useSeoMeta hook
 - [x] Add Tyler Guide link to Navbar navLinks
 - [x] Register /tyler-guide route in App.tsx
+
+## Availability & Admin Fixes (Aug 2026)
+- [ ] Fix availability check in createCheckoutSession — blocked Hostaway dates are not being enforced
+- [ ] Add manual booking links list to admin bookings page (or a dedicated tab) so admin can see all created manual reservation links
