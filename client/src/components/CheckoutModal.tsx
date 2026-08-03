@@ -92,6 +92,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
 
   const createCheckoutSession = trpc.booking.createCheckoutSession.useMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { data: depositData } = trpc.settings.getSecurityDeposit.useQuery();
+  const depositAmount = depositData?.amount ?? 500;
 
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
     name: "",
@@ -453,7 +455,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
             <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800" style={{ fontFamily: "var(--font-body)" }}>
               <ShieldCheck className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold">$500 security deposit hold</span> — A temporary authorization hold of $500 will be placed on your card at checkout. This is <em>not</em> a charge and will <strong>not</strong> appear as a payment. It will be released within 3–5 business days after your checkout date if no damages are reported. The hold name on your statement will match the name on your credit card.
+                <span className="font-semibold">${depositAmount} security deposit hold</span> — A temporary authorization hold of ${depositAmount} will be placed on your card at checkout. This is <em>not</em> a charge and will <strong>not</strong> appear as a payment. It will be released within 3–5 business days after your checkout date if no damages are reported. The hold name on your statement will match the name on your credit card.
               </div>
             </div>
 

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, Users, Star, ChevronDown, ChevronUp, Moon, ShieldCheck } from "lucide-react";
 import DateRangePicker from "@/components/DateRangePicker";
 import type { CalendarDay } from "@/lib/calendar-types";
+import { trpc } from "@/lib/trpc";
 
 interface BookingPanelProps {
   propertyId: string;
@@ -73,6 +74,9 @@ export default function BookingPanel({
 
   const EXTRA_GUEST_FEE_PER_NIGHT = 10;
   const MAX_INCLUDED_GUESTS = 4;
+
+  const { data: depositData } = trpc.settings.getSecurityDeposit.useQuery();
+  const depositAmount = depositData?.amount ?? 500;
 
   const cleaningFee = CLEANING_FEES[propertyId] ?? 125;
   const nightlyRate = selection?.avgNightlyRate || basePrice || 0;
@@ -241,11 +245,11 @@ export default function BookingPanel({
         </div>
       )}
 
-      {/* $500 Security Deposit Hold Notice */}
+      {/* Security Deposit Hold Notice */}
       <div className="flex items-start gap-2.5 px-3 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800" style={{ fontFamily: "var(--font-body)" }}>
         <ShieldCheck className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
         <div>
-          <span className="font-semibold">$500 security deposit hold</span> — A temporary authorization hold of $500 will be placed on your card at checkout. This is <em>not</em> a charge; it will be released within 3–5 business days after checkout if no damages are reported.
+          <span className="font-semibold">${depositAmount} security deposit hold</span> — A temporary authorization hold of ${depositAmount} will be placed on your card at checkout. This is <em>not</em> a charge; it will be released within 3–5 business days after checkout if no damages are reported.
         </div>
       </div>
 

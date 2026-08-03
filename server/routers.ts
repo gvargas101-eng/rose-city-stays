@@ -132,6 +132,15 @@ export const appRouter = router({
       return { taxRate };
     }),
 
+    // Public: get the current security deposit amount
+    getSecurityDeposit: publicProcedure.query(async () => {
+      const db0 = await getDb();
+      if (!db0) return { amount: 500 };
+      const [row] = await db0.select().from(siteSettings).where(eq(siteSettings.key, "securityDepositAmount")).limit(1);
+      const amount = row ? parseFloat(row.value) : 500;
+      return { amount };
+    }),
+
     // Public: get all active custom fees for the booking quote
     getActiveFees: publicProcedure.query(async () => {
       const db0 = await getDb();

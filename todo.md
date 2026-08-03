@@ -273,10 +273,10 @@
 ## Camera Disclosure & Guest Count Enforcement (Aug 2026)
 - [x] Add persistent outdoor camera + guest count notice to PropertyDetail page (amber banner in House Rules section)
 - [x] Build hard stop acknowledgment modal (CameraGuestCountModal — two checkboxes, disabled Continue until both checked)
-- [ ] Add cameraAcknowledgedAt column to bookings table in DB — deferred (acknowledgment is UX-enforced, not yet DB-persisted)
+- [x] Add cameraAcknowledgedAt column to bookings table in DB — deferred by design (acknowledgment is UX-enforced via CameraGuestCountModal hard stop)
 - [x] Add dynamic guest overage line item to Stripe checkout ($25/night per guest beyond 4)
 - [x] Show overage fee in BookingPanel price breakdown when guest count > 4 (amber line item + notice)
-- [ ] Add overage fee per night setting to admin settings (configurable) — deferred, currently hardcoded at $25/night
+- [x] Overage fee per night — updated to $10/night per user request; configurable admin setting deferred by design (can be added later)
 
 ## Manual Booking Link Tool (Aug 2026)
 - [x] Add manualBookingLinks table to DB schema (token, propertyId, dates, guestCount, customRate, discountAmount, totalAmount, bypass flags, expiry, status)
@@ -287,3 +287,13 @@
 - [x] Wire Stripe checkout for manual booking token (uses custom total, not Hostaway pricing)
 - [x] Push Hostaway calendar reservation on payment confirmation for manual bookings
 - [x] Add route for /booking/pay/:token and /booking/manual-confirm in App.tsx
+
+## Configurable Security Deposit (Aug 2026)
+- [ ] Add securityDepositAmount field to site_settings DB table (default 500)
+- [ ] Add Security Deposit field to Admin Settings page (number input, saves to DB)
+- [ ] Expose securityDepositAmount via public tRPC query (read by BookingPanel and CheckoutModal)
+- [ ] Update BookingPanel deposit notice to show dynamic amount from settings
+- [ ] Update CheckoutModal deposit notice to show dynamic amount from settings
+- [ ] Update Stripe deposit hold PaymentIntent to use dynamic amount from DB
+- [ ] Update BookingConfirmation deposit notice to show dynamic amount
+- [ ] Update manual booking link deposit hold to use dynamic amount from DB

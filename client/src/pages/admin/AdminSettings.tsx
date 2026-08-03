@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
   DollarSign,
+  ShieldCheck,
   X,
   Check,
   RefreshCw,
@@ -105,6 +106,29 @@ export default function AdminSettings() {
 
   const [taxRateInput, setTaxRateInput] = useState<string>("");
   const [taxDirty, setTaxDirty] = useState(false);
+
+  // ── Security Deposit ──────────────────────────────────────────────────────
+  const [depositInput, setDepositInput] = useState<string>("");
+  const [depositDirty, setDepositDirty] = useState(false);
+  const updateDepositSetting = trpc.admin.updateSetting.useMutation({
+    onSuccess: () => {
+      toast.success("Security deposit amount saved!");
+      utils.admin.getSettings.invalidate();
+      utils.settings.getSecurityDeposit.invalidate();
+      setDepositDirty(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const dbDeposit = settings?.securityDepositAmount ? parseFloat(settings.securityDepositAmount) : 500;
+  const displayedDeposit = depositDirty ? depositInput : String(dbDeposit);
+  const handleDepositSave = () => {
+    const val = parseFloat(depositInput);
+    if (isNaN(val) || val < 0 || val > 10000) {
+      toast.error("Enter a valid deposit amount between $0 and $10,000");
+      return;
+    }
+    updateDepositSetting.mutate({ key: "securityDepositAmount", value: String(val) });
+  };
 
   const dbTaxRate = settings?.taxRate ? parseFloat(settings.taxRate) : 0.09;
   const displayedTaxRate = taxDirty ? taxRateInput : String(Math.round(dbTaxRate * 10000) / 100);
@@ -228,6 +252,50 @@ export default function AdminSettings() {
                 <Button
                   onClick={handleTaxSave}
                   disabled={!taxDirty || updateSetting.isPending}
+                  className="shrink-0"
+                >
+                  Save
+                </Button>
+              </div>
+            )}
+          </section>
+
+          {/* ── Security Deposit ── */}
+          <section className="bg-background rounded-xl border border-border p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <h2 className="text-base font-semibold text-foreground">Security Deposit Hold</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              A temporary authorization hold placed on the guest’s card after checkout. This is not a charge — it is released within 3–5 business days if no damages are reported. Shown to guests in the booking flow and confirmation page.
+            </p>
+            {settingsLoading ? (
+              <div className="h-10 bg-muted animate-pulse rounded-md" />
+            ) : (
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <Label htmlFor="depositAmount" className="text-sm mb-1.5 block">Deposit Amount ($)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                    <Input
+                      id="depositAmount"
+                      type="number"
+                      min="0"
+                      max="10000"
+                      step="25"
+                      value={displayedDeposit}
+                      onChange={(e) => { setDepositInput(e.target.value); setDepositDirty(true); }}
+                      className="pl-7"
+                      placeholder="500"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Current stored amount: ${dbDeposit.toFixed(0)}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleDepositSave}
+                  disabled={!depositDirty || updateDepositSetting.isPending}
                   className="shrink-0"
                 >
                   Save

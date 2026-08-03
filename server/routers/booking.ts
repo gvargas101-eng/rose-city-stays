@@ -244,9 +244,10 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
 
   // ── $500 Security Deposit Hold (post-checkout) ──
   // After the rental payment succeeds, retrieve the payment method from the
-  // completed checkout session and create + confirm a $500 authorization hold
+  // completed checkout session and create + confirm a deposit authorization hold
   // using capture_method: manual. This places a real hold on the guest's card
   // that the owner can later capture (charge) or cancel (release).
+  let depositAmountDollars = 500; // default, overwritten from DB below
   try {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
@@ -259,6 +260,15 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
 
     if (!booking) throw new Error("Booking not found for deposit hold");
 
+    // Read configurable deposit amount from site_settings (default $500)
+    const [depositSetting] = await db
+      .select()
+      .from(siteSettings)
+      .where(eq(siteSettings.key, "securityDepositAmount"))
+      .limit(1);
+    depositAmountDollars = depositSetting ? parseFloat(depositSetting.value) : 500;
+    const depositAmountCents = Math.round(depositAmountDollars * 100);
+
     // Expand the checkout session to get the payment intent + payment method
     const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
       expand: ["payment_intent.payment_method"],
@@ -270,9 +280,9 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
     if (!pm?.id) {
       console.warn("[deposit hold] No payment method found on checkout session — skipping hold");
     } else {
-      // Create and confirm the $500 hold in one step
+      // Create and confirm the deposit hold in one step
       const depositIntent = await stripe.paymentIntents.create({
-        amount: 50000, // $500.00 in cents
+        amount: depositAmountCents, // configurable via admin settings
         currency: "usd",
         capture_method: "manual",
         confirm: true,
@@ -301,7 +311,7 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
         .set({ depositHoldIntentId: depositIntent.id, depositHoldStatus: holdStatus })
         .where(eq(bookings.id, bookingId));
 
-      console.log(`[deposit hold] $500 hold created: ${depositIntent.id} (${holdStatus})`);
+      console.log(`[deposit hold] $${depositAmountDollars} hold created: ${depositIntent.id} (${holdStatus})`);
     }
   } catch (depositErr: any) {
     // Non-fatal: log and notify owner but don't fail the booking confirmation
@@ -309,7 +319,7 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
     try {
       await notifyOwner({
         title: `⚠️ Deposit Hold Failed — Booking #${bookingId}`,
-        content: `The $500 security deposit hold could not be placed after checkout.\n\nError: ${depositErr?.message}\n\nPlease manually create the hold in the Stripe dashboard or contact the guest.`,
+        content: `The $${depositAmountDollars} security deposit hold could not be placed after checkout.\n\nError: ${depositErr?.message}\n\nPlease manually create the hold in the Stripe dashboard or contact the guest.`,
       });
     } catch (_) { /* ignore notification failure */ }
   }
