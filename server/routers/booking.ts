@@ -17,7 +17,7 @@ import {
   siteSettings,
   manualBookingLinks,
 } from "../../drizzle/schema";
-import { PROPERTY_TO_HOSTAWAY_ID } from "../hostaway";
+import { PROPERTY_TO_HOSTAWAY_ID, getPropertyCalendar } from "../hostaway";
 import { createHostawayReservation } from "../hostaway-booking";
 import { notifyOwner } from "../_core/notification";
 
@@ -354,6 +354,36 @@ export const bookingRouter = router({
       const hostawayListingId = PROPERTY_TO_HOSTAWAY_ID[input.propertyId];
       if (!hostawayListingId) {
         throw new Error(`Property not found: ${input.propertyId}`);
+      }
+
+      // ── Availability guard: check Hostaway calendar before accepting payment ──
+      try {
+        const checkInDate = new Date(input.checkIn).toISOString().split("T")[0];
+        // endDate is exclusive in Hostaway (checkout day is not a stay night)
+        const checkOutDate = new Date(input.checkOut).toISOString().split("T")[0];
+        const calendarDays = await getPropertyCalendar(input.propertyId, checkInDate, checkOutDate);
+        // Build set of stay nights (check-in inclusive, check-out exclusive)
+        const stayDates = new Set<string>();
+        let cur = new Date(input.checkIn);
+        const end = new Date(input.checkOut);
+        while (cur < end) {
+          stayDates.add(cur.toISOString().split("T")[0]);
+          cur = new Date(cur.getTime() + 86400000);
+        }
+        const blockedDays = calendarDays.filter(
+          d => stayDates.has(d.date) && !d.isAvailable
+        );
+        if (blockedDays.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Sorry, ${blockedDays.length === 1 ? `${blockedDays[0].date} is` : `${blockedDays.length} dates are`} no longer available for ${input.propertyName}. Please select different dates.`,
+          });
+        }
+      } catch (err) {
+        // Re-throw TRPCErrors (availability blocks); swallow Hostaway API errors
+        // so a calendar fetch failure never prevents a valid booking
+        if (err instanceof TRPCError) throw err;
+        console.warn("[Booking] Availability pre-check failed (non-fatal):", err);
       }
 
       const EXTRA_GUEST_FEE_PER_NIGHT = 10;
@@ -725,6 +755,36 @@ export const bookingRouter = router({
       if (!link) throw new TRPCError({ code: "NOT_FOUND" });
       if (link.status !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "This booking link is no longer active" });
       if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
+
+      // ── Availability guard for manual booking checkout ──
+      // The admin intentionally created this link, but we still block payment
+      // if Hostaway shows the dates are no longer available (e.g. another booking
+      // came in after the link was created).
+      if (link.hostawayListingId) {
+        try {
+          const checkInDate = new Date(link.checkIn).toISOString().split("T")[0];
+          const checkOutDate = new Date(link.checkOut).toISOString().split("T")[0];
+          // Use property slug to look up calendar (getPropertyCalendar needs slug)
+          const calendarDays = await getPropertyCalendar(link.propertySlug, checkInDate, checkOutDate);
+          const stayDates = new Set<string>();
+          let cur = new Date(link.checkIn);
+          const end = new Date(link.checkOut);
+          while (cur < end) {
+            stayDates.add(cur.toISOString().split("T")[0]);
+            cur = new Date(cur.getTime() + 86400000);
+          }
+          const blockedDays = calendarDays.filter(d => stayDates.has(d.date) && !d.isAvailable);
+          if (blockedDays.length > 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `These dates are no longer available for ${link.propertyName}. Please contact us to arrange alternative dates.`,
+            });
+          }
+        } catch (err) {
+          if (err instanceof TRPCError) throw err;
+          console.warn("[ManualBooking] Availability pre-check failed (non-fatal):", err);
+        }
+      }
 
       const lineItems: any[] = [
         {

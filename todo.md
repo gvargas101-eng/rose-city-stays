@@ -307,3 +307,9 @@
 - [x] Show custom line items on ManualBookingPay price breakdown and in Stripe checkout
 - [x] Add security deposit override to ManualBookingPay deposit notice and Stripe hold
 - [x] Add guest note display to ManualBookingPay page (amber info box)
+
+## Availability Enforcement & Share Link (Aug 2026)
+- [x] Add Hostaway calendar availability check to createCheckoutSession — block checkout if any date in range is reserved/blocked in Hostaway
+- [x] Add Hostaway calendar availability check to createManualBookingCheckout — same guard for manual booking token payment
+- [x] Add availability check to createManualBookingLink (admin form) — warn admin if dates are unavailable in Hostaway when generating the link
+- [x] Add Email/SMS share section to AdminManualBookings after link creation (mailto: link for email, sms: link for SMS on mobile)

@@ -30,6 +30,27 @@ vi.mock("./hostaway-booking", () => ({
   createHostawayReservation: mockCreateHostawayReservation,
 }));
 
+// ── Mock Hostaway calendar (availability check) ───────────────────────────────
+// Default: all days available so tests pass the availability guard.
+// Individual tests can override mockGetPropertyCalendar to simulate blocked dates.
+const mockGetPropertyCalendar = vi.fn().mockResolvedValue([]);
+vi.mock("./hostaway", () => ({
+  PROPERTY_TO_HOSTAWAY_ID: {
+    "the-briar": 329641,
+    "hospital-district": 329642,
+    "hollytree-golf-dining": 329643,
+    "alamo-house": 329644,
+    "green-acres": 329645,
+    "legacy-house": 329646,
+    "azalea-spring-cottage": 329647,
+    "noir-hollytree": 329648,
+    "hollytree-king-bed": 329649,
+    "hollytree-townhouse": 366803,
+    "cozy-3-bedrooms-walk-to-hospitals-downtown-stanleys": 560227,
+  },
+  getPropertyCalendar: mockGetPropertyCalendar,
+}));
+
 // ── Mock DB ──────────────────────────────────────────────────────────────────
 const mockInsertReturningId = vi.fn().mockResolvedValue([{ id: 42 }]);
 const mockInsertValues = vi.fn().mockReturnValue({ $returningId: mockInsertReturningId });
