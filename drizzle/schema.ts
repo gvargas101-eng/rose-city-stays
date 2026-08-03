@@ -216,3 +216,64 @@ export const corporateInquiries = mysqlTable("corporate_inquiries", {
 });
 export type CorporateInquiry = typeof corporateInquiries.$inferSelect;
 export type InsertCorporateInquiry = typeof corporateInquiries.$inferInsert;
+
+/**
+ * Manual Booking Links — admin-generated one-time payment links sent to guests.
+ * Allows the owner to set a custom rate, apply discounts, and bypass individual
+ * hard-stop steps (camera disclosure, guest count, T&C) per booking.
+ */
+export const manualBookingLinks = mysqlTable("manual_booking_links", {
+  id: int("id").autoincrement().primaryKey(),
+
+  // Unique token used in the guest-facing URL: /booking/pay/:token
+  token: varchar("token", { length: 64 }).notNull().unique(),
+
+  // Property
+  propertySlug: varchar("propertySlug", { length: 64 }).notNull(),
+  propertyName: varchar("propertyName", { length: 256 }).notNull(),
+  hostawayListingId: int("hostawayListingId"),
+
+  // Dates & guests
+  checkIn: bigint("checkIn", { mode: "number" }).notNull(),   // Unix ms
+  checkOut: bigint("checkOut", { mode: "number" }).notNull(),  // Unix ms
+  nights: int("nights").notNull(),
+  guestCount: int("guestCount").notNull().default(1),
+
+  // Pricing (all in USD)
+  nightlyRate: decimal("nightlyRate", { precision: 10, scale: 2 }).notNull(),
+  cleaningFee: decimal("cleaningFee", { precision: 10, scale: 2 }).notNull().default("0"),
+  discountAmount: decimal("discountAmount", { precision: 10, scale: 2 }).notNull().default("0"),
+  extraGuestFee: decimal("extraGuestFee", { precision: 10, scale: 2 }).notNull().default("0"),
+  taxAmount: decimal("taxAmount", { precision: 10, scale: 2 }).notNull().default("0"),
+  totalAmount: decimal("totalAmount", { precision: 10, scale: 2 }).notNull(),
+
+  // Per-hard-stop bypass flags (1 = bypassed by admin, guest skips that step)
+  bypassCameraDisclosure: int("bypassCameraDisclosure").notNull().default(0),
+  bypassGuestCount: int("bypassGuestCount").notNull().default(0),
+  bypassTermsAcceptance: int("bypassTermsAcceptance").notNull().default(0),
+  bypassIdUpload: int("bypassIdUpload").notNull().default(0),
+
+  // Admin notes (internal, not shown to guest)
+  adminNotes: text("adminNotes"),
+
+  // Guest info (pre-filled if admin knows it)
+  guestName: varchar("guestName", { length: 256 }),
+  guestEmail: varchar("guestEmail", { length: 320 }),
+
+  // Status lifecycle
+  status: mysqlEnum("status", ["active", "paid", "expired", "revoked"]).notNull().default("active"),
+  expiresAt: bigint("expiresAt", { mode: "number" }).notNull(), // Unix ms — link expires after this
+
+  // Stripe & Hostaway references (populated after payment)
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
+  hostawayReservationId: varchar("hostawayReservationId", { length: 64 }),
+
+  // Booking record created after payment
+  bookingId: int("bookingId"),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ManualBookingLink = typeof manualBookingLinks.$inferSelect;
+export type InsertManualBookingLink = typeof manualBookingLinks.$inferInsert;

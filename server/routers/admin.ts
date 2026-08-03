@@ -8,7 +8,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees, corporateInquiries } from "../../drizzle/schema";
+import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees, corporateInquiries, manualBookingLinks } from "../../drizzle/schema";
 import { eq, asc, desc } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { syncHostawayListings } from "../hostaway-sync";
@@ -472,11 +472,102 @@ export const adminRouter = router({
         });
       }
 
-      await db
+            await db
         .update(bookings)
         .set({ depositHoldStatus: "captured" })
         .where(eq(bookings.id, input.bookingId));
+      return { success: true };
+    }),
 
+  // ── Manual Booking Links ───────────────────────────────────────────────────
+
+  /** Create a one-time manual booking link with custom pricing and per-step bypass flags */
+  createManualBookingLink: adminProcedure
+    .input(
+      z.object({
+        propertySlug: z.string(),
+        propertyName: z.string(),
+        hostawayListingId: z.number().optional(),
+        checkIn: z.number(),   // Unix ms
+        checkOut: z.number(),  // Unix ms
+        nights: z.number().int().positive(),
+        guestCount: z.number().int().positive(),
+        nightlyRate: z.number().nonnegative(),
+        cleaningFee: z.number().nonnegative().default(0),
+        discountAmount: z.number().nonnegative().default(0),
+        extraGuestFee: z.number().nonnegative().default(0),
+        taxAmount: z.number().nonnegative().default(0),
+        totalAmount: z.number().positive(),
+        bypassCameraDisclosure: z.boolean().default(false),
+        bypassGuestCount: z.boolean().default(false),
+        bypassTermsAcceptance: z.boolean().default(false),
+        bypassIdUpload: z.boolean().default(false),
+        adminNotes: z.string().optional(),
+        guestName: z.string().optional(),
+        guestEmail: z.string().email().optional(),
+        expiryDays: z.number().int().positive().default(7),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      // Generate a cryptographically random token
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      const expiresAt = Date.now() + input.expiryDays * 24 * 60 * 60 * 1000;
+
+      await db.insert(manualBookingLinks).values({
+        token,
+        propertySlug: input.propertySlug,
+        propertyName: input.propertyName,
+        hostawayListingId: input.hostawayListingId ?? null,
+        checkIn: input.checkIn,
+        checkOut: input.checkOut,
+        nights: input.nights,
+        guestCount: input.guestCount,
+        nightlyRate: String(input.nightlyRate),
+        cleaningFee: String(input.cleaningFee),
+        discountAmount: String(input.discountAmount),
+        extraGuestFee: String(input.extraGuestFee),
+        taxAmount: String(input.taxAmount),
+        totalAmount: String(input.totalAmount),
+        bypassCameraDisclosure: input.bypassCameraDisclosure ? 1 : 0,
+        bypassGuestCount: input.bypassGuestCount ? 1 : 0,
+        bypassTermsAcceptance: input.bypassTermsAcceptance ? 1 : 0,
+        bypassIdUpload: input.bypassIdUpload ? 1 : 0,
+        adminNotes: input.adminNotes ?? null,
+        guestName: input.guestName ?? null,
+        guestEmail: input.guestEmail ?? null,
+        expiresAt,
+        status: "active",
+      });
+
+      return { token, expiresAt };
+    }),
+
+  /** List all manual booking links (newest first) */
+  listManualBookingLinks: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    return db
+      .select()
+      .from(manualBookingLinks)
+      .orderBy(desc(manualBookingLinks.createdAt));
+  }),
+
+  /** Revoke a manual booking link (marks it as revoked so guest can no longer pay) */
+  revokeManualBookingLink: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db
+        .update(manualBookingLinks)
+        .set({ status: "revoked" })
+        .where(eq(manualBookingLinks.id, input.id));
       return { success: true };
     }),
 });

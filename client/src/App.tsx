@@ -21,6 +21,9 @@ import AdminPropertyEdit from "./pages/admin/AdminPropertyEdit";
 import AdminBookings from "./pages/admin/AdminBookings";
 import AdminCorporateInquiries from "./pages/admin/AdminCorporateInquiries";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminManualBookings from "./pages/admin/AdminManualBookings";
+import ManualBookingPay from "./pages/ManualBookingPay";
+import ManualBookingConfirm from "./pages/ManualBookingConfirm";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -43,6 +46,9 @@ function Router() {
       <Route path={"/admin/bookings"} component={AdminBookings} />
       <Route path={"/admin/corporate-inquiries"} component={AdminCorporateInquiries} />
       <Route path={"/admin/settings"} component={AdminSettings} />
+      <Route path={"/admin/manual-bookings"} component={AdminManualBookings} />
+      <Route path={"/booking/pay/:token"} component={ManualBookingPay} />
+      <Route path={"/booking/manual-confirm"} component={ManualBookingConfirm} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

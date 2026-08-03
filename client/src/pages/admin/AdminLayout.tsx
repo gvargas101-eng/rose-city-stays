@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Briefcase,
+  Link2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/admin/properties", label: "Properties", icon: Building2 },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
   { href: "/admin/corporate-inquiries", label: "Corporate", icon: Briefcase },
+  { href: "/admin/manual-bookings", label: "Manual Bookings", icon: Link2 },
   { href: "/admin/settings", label: "Settings", icon: Settings2 },
 ];
 

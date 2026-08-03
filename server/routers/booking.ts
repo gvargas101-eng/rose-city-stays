@@ -7,6 +7,7 @@
 import Stripe from "stripe";
 import { z } from "zod";
 import { asc, eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { publicProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import {
@@ -14,6 +15,7 @@ import {
   customFees,
   properties,
   siteSettings,
+  manualBookingLinks,
 } from "../../drizzle/schema";
 import { PROPERTY_TO_HOSTAWAY_ID } from "../hostaway";
 import { createHostawayReservation } from "../hostaway-booking";
@@ -641,6 +643,231 @@ export const bookingRouter = router({
         hostawayReservationId: booking.hostawayReservationId,
         stripePaymentIntentId: booking.stripePaymentIntentId,
         checkoutSessionId: session.id,
+      };
+    }),
+
+  /** Get a manual booking link by token (public — used by guest payment page) */
+  getManualBookingLink: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [link] = await db
+        .select()
+        .from(manualBookingLinks)
+        .where(eq(manualBookingLinks.token, input.token))
+        .limit(1);
+      if (!link) throw new TRPCError({ code: "NOT_FOUND", message: "Booking link not found" });
+      if (link.status === "revoked") throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has been revoked" });
+      if (link.status === "paid") throw new TRPCError({ code: "FORBIDDEN", message: "This booking has already been paid" });
+      if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
+      // Return safe fields only (no internal IDs)
+      return {
+        id: link.id,
+        propertySlug: link.propertySlug,
+        propertyName: link.propertyName,
+        checkIn: link.checkIn,
+        checkOut: link.checkOut,
+        nights: link.nights,
+        guestCount: link.guestCount,
+        nightlyRate: link.nightlyRate,
+        cleaningFee: link.cleaningFee,
+        discountAmount: link.discountAmount,
+        extraGuestFee: link.extraGuestFee,
+        taxAmount: link.taxAmount,
+        totalAmount: link.totalAmount,
+        bypassCameraDisclosure: Boolean(link.bypassCameraDisclosure),
+        bypassGuestCount: Boolean(link.bypassGuestCount),
+        bypassTermsAcceptance: Boolean(link.bypassTermsAcceptance),
+        bypassIdUpload: Boolean(link.bypassIdUpload),
+        guestName: link.guestName,
+        guestEmail: link.guestEmail,
+        expiresAt: link.expiresAt,
+        status: link.status,
+      };
+    }),
+
+  /** Create a Stripe Checkout Session for a manual booking link */
+  createManualBookingCheckout: publicProcedure
+    .input(
+      z.object({
+        token: z.string(),
+        guestName: z.string().min(1),
+        guestEmail: z.string().email(),
+        guestIdUrl: z.string().url().optional(),
+        origin: z.string(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [link] = await db
+        .select()
+        .from(manualBookingLinks)
+        .where(eq(manualBookingLinks.token, input.token))
+        .limit(1);
+      if (!link) throw new TRPCError({ code: "NOT_FOUND" });
+      if (link.status !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "This booking link is no longer active" });
+      if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
+
+      const lineItems: any[] = [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: `${link.propertyName} \u2014 ${link.nights} night${link.nights !== 1 ? "s" : ""}` },
+            unit_amount: dollarsToCents(Number(link.nightlyRate) * link.nights),
+          },
+          quantity: 1,
+        },
+      ];
+      if (Number(link.cleaningFee) > 0) {
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Cleaning fee" },
+            unit_amount: dollarsToCents(Number(link.cleaningFee)),
+          },
+          quantity: 1,
+        });
+      }
+      if (Number(link.extraGuestFee) > 0) {
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Extra guest fee" },
+            unit_amount: dollarsToCents(Number(link.extraGuestFee)),
+          },
+          quantity: 1,
+        });
+      }
+      if (Number(link.taxAmount) > 0) {
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Taxes & fees" },
+            unit_amount: dollarsToCents(Number(link.taxAmount)),
+          },
+          quantity: 1,
+        });
+      }
+      // Apply discount as a negative line item if present
+      if (Number(link.discountAmount) > 0) {
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Discount" },
+            unit_amount: -dollarsToCents(Number(link.discountAmount)),
+          },
+          quantity: 1,
+        });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: lineItems,
+        mode: "payment",
+        customer_email: input.guestEmail,
+        success_url: `${input.origin}/booking/manual-confirm?token=${input.token}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${input.origin}/booking/pay/${input.token}`,
+        metadata: {
+          manual_booking_token: input.token,
+          guest_name: input.guestName,
+          guest_email: input.guestEmail,
+          guest_id_url: input.guestIdUrl ?? "",
+          property_slug: link.propertySlug,
+          property_name: link.propertyName,
+        },
+        allow_promotion_codes: true,
+      });
+
+      // Store the checkout session ID on the link
+      await db
+        .update(manualBookingLinks)
+        .set({ stripeCheckoutSessionId: session.id })
+        .where(eq(manualBookingLinks.id, link.id));
+
+      return { checkoutUrl: session.url! };
+    }),
+
+  /** Confirm a paid manual booking (called from confirmation page) */
+  confirmManualBooking: publicProcedure
+    .input(z.object({ token: z.string(), sessionId: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [link] = await db
+        .select()
+        .from(manualBookingLinks)
+        .where(eq(manualBookingLinks.token, input.token))
+        .limit(1);
+      if (!link) throw new TRPCError({ code: "NOT_FOUND" });
+      if (link.status === "paid") return { alreadyConfirmed: true };
+
+      // Verify with Stripe
+      const session = await stripe.checkout.sessions.retrieve(input.sessionId);
+      if (session.payment_status !== "paid") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Payment not completed" });
+      }
+
+      const guestName = session.metadata?.guest_name ?? link.guestName ?? "Guest";
+      const guestEmail = session.metadata?.guest_email ?? link.guestEmail ?? "";
+      const guestIdUrl = session.metadata?.guest_id_url || null;
+
+      // Mark link as paid
+      await db
+        .update(manualBookingLinks)
+        .set({ status: "paid", stripeCheckoutSessionId: session.id })
+        .where(eq(manualBookingLinks.id, link.id));
+
+      // Create Hostaway reservation if listing ID is available
+      let hostawayReservationId: number | null = null;
+      if (link.hostawayListingId) {
+        try {
+          const checkInDate = new Date(link.checkIn).toISOString().split("T")[0];
+          const checkOutDate = new Date(link.checkOut).toISOString().split("T")[0];
+          const res = await createHostawayReservation({
+            hostawayListingId: link.hostawayListingId!,
+            guestName,
+            guestEmail,
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
+            adults: link.guestCount,
+            totalPrice: Number(link.totalAmount),
+            stripePaymentIntentId: session.payment_intent as string ?? "",
+          });
+          hostawayReservationId = res?.id ? Number(res.id) : null;
+          await db
+            .update(manualBookingLinks)
+            .set({ hostawayReservationId: hostawayReservationId ? String(hostawayReservationId) : null })
+            .where(eq(manualBookingLinks.id, link.id));
+        } catch (err) {
+          console.error("[ManualBooking] Hostaway sync failed:", err);
+          await notifyOwner({
+            title: "Manual Booking — Hostaway Sync Failed",
+            content: `Guest: ${guestName} (${guestEmail})\nProperty: ${link.propertyName}\nDates: ${new Date(link.checkIn).toLocaleDateString()} – ${new Date(link.checkOut).toLocaleDateString()}\nTotal: $${link.totalAmount}\n\nHostaway calendar was NOT updated. Please add manually.`,
+          });
+        }
+      }
+
+      // Notify owner
+      await notifyOwner({
+        title: `New Manual Booking — ${link.propertyName}`,
+        content: `Guest: ${guestName}\nEmail: ${guestEmail}\nDates: ${new Date(link.checkIn).toLocaleDateString()} – ${new Date(link.checkOut).toLocaleDateString()}\nGuests: ${link.guestCount}\nTotal: $${link.totalAmount}${hostawayReservationId ? `\nHostaway #${hostawayReservationId}` : ""}\n\nReply: mailto:${guestEmail}`,
+      });
+
+      return {
+        alreadyConfirmed: false,
+        propertyName: link.propertyName,
+        propertySlug: link.propertySlug,
+        guestName,
+        checkIn: link.checkIn,
+        checkOut: link.checkOut,
+        nights: link.nights,
+        guestCount: link.guestCount,
+        totalAmount: link.totalAmount,
+        hostawayReservationId,
       };
     }),
 });
