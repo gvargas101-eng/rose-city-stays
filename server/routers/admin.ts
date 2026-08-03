@@ -8,7 +8,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees, corporateInquiries, manualBookingLinks } from "../../drizzle/schema";
+import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees, corporateInquiries, manualBookingLinks, upsellAddons } from "../../drizzle/schema";
 import { eq, asc, desc } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { syncHostawayListings } from "../hostaway-sync";
@@ -574,6 +574,71 @@ export const adminRouter = router({
         .update(manualBookingLinks)
         .set({ status: "revoked" })
         .where(eq(manualBookingLinks.id, input.id));
+      return { success: true };
+    }),
+
+  // ── Upsell Add-Ons ──────────────────────────────────────────────────────────────────────
+
+  /** List all upsell add-ons (admin view — includes inactive) */
+  listUpsellAddons: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    return db.select().from(upsellAddons).orderBy(asc(upsellAddons.sortOrder));
+  }),
+
+  /** Create a new upsell add-on */
+  createUpsellAddon: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(128),
+      description: z.string().max(512).optional(),
+      price: z.number().min(0),
+      active: z.boolean().default(true),
+      sortOrder: z.number().int().default(0),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const result = await db.insert(upsellAddons).values({
+        name: input.name,
+        description: input.description,
+        price: String(input.price),
+        active: input.active ? 1 : 0,
+        sortOrder: input.sortOrder,
+      }).$returningId();
+      return { id: result[0].id };
+    }),
+
+  /** Update an existing upsell add-on */
+  updateUpsellAddon: adminProcedure
+    .input(z.object({
+      id: z.number(),
+      name: z.string().min(1).max(128).optional(),
+      description: z.string().max(512).optional(),
+      price: z.number().min(0).optional(),
+      active: z.boolean().optional(),
+      sortOrder: z.number().int().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { id, ...rest } = input;
+      const patch: Record<string, unknown> = {};
+      if (rest.name !== undefined) patch.name = rest.name;
+      if (rest.description !== undefined) patch.description = rest.description;
+      if (rest.price !== undefined) patch.price = String(rest.price);
+      if (rest.active !== undefined) patch.active = rest.active ? 1 : 0;
+      if (rest.sortOrder !== undefined) patch.sortOrder = rest.sortOrder;
+      await db.update(upsellAddons).set(patch).where(eq(upsellAddons.id, id));
+      return { success: true };
+    }),
+
+  /** Delete a upsell add-on */
+  deleteUpsellAddon: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(upsellAddons).where(eq(upsellAddons.id, input.id));
       return { success: true };
     }),
 });

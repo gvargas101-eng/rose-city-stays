@@ -283,3 +283,20 @@ export const manualBookingLinks = mysqlTable("manual_booking_links", {
 
 export type ManualBookingLink = typeof manualBookingLinks.$inferSelect;
 export type InsertManualBookingLink = typeof manualBookingLinks.$inferInsert;
+
+/**
+ * Upsell add-ons — optional paid upgrades guests can select at checkout.
+ * Examples: Early Check-In ($50), Late Checkout ($50), Mid-Stay Cleaning ($75).
+ */
+export const upsellAddons = mysqlTable("upsell_addons", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),           // "Early Check-In"
+  description: varchar("description", { length: 512 }),       // "Check in as early as 10 AM"
+  price: decimal("price", { precision: 8, scale: 2 }).notNull(), // "50.00"
+  active: int("active").notNull().default(1),                  // 1 = shown at checkout
+  sortOrder: int("sortOrder").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type UpsellAddon = typeof upsellAddons.$inferSelect;
+export type InsertUpsellAddon = typeof upsellAddons.$inferInsert;

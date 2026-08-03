@@ -313,3 +313,24 @@
 - [x] Add Hostaway calendar availability check to createManualBookingCheckout — same guard for manual booking token payment
 - [x] Add availability check to createManualBookingLink (admin form) — warn admin if dates are unavailable in Hostaway when generating the link
 - [x] Add Email/SMS share section to AdminManualBookings after link creation (mailto: link for email, sms: link for SMS on mobile)
+
+## Damage Deposit Dashboard (Aug 2026)
+- [x] Add AdminDeposits page at /admin/deposits listing all bookings with deposit holds (status, amount, guest, property, dates)
+- [x] Add Release Deposit button (cancels Stripe PaymentIntent hold)
+- [x] Add Capture Deposit button (captures Stripe PaymentIntent hold — charges guest)
+- [x] Add deposit hold status filter (all / authorized / captured / released / failed)
+- [x] Register /admin/deposits route in App.tsx and add to admin sidebar nav
+
+## Upsell Add-Ons at Checkout (Aug 2026)
+- [x] Add upsell_addons table to schema (id, name, description, price, active, sort_order)
+- [x] Seed default add-ons: Early Check-In ($50), Late Checkout ($50)
+- [x] Add admin UI to manage add-ons at /admin/upsell-addons (create/edit/delete/toggle active)
+- [x] Add add-on selection step to standard booking checkout (CheckoutModal)
+- [x] Pass selected add-ons as extra Stripe line items in createCheckoutSession
+- [x] Show selected add-ons in price breakdown in CheckoutModal
+
+## SEO Local Area Guide Pages (Aug 2026)
+- [x] Create /tyler-guide comprehensive page (attractions, dining, neighborhoods, events, medical/corporate, final CTA)
+- [x] Add SEO meta title and description via useSeoMeta hook
+- [x] Add Tyler Guide link to Navbar navLinks
+- [x] Register /tyler-guide route in App.tsx

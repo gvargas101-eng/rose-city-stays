@@ -22,6 +22,9 @@ import AdminBookings from "./pages/admin/AdminBookings";
 import AdminCorporateInquiries from "./pages/admin/AdminCorporateInquiries";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminManualBookings from "./pages/admin/AdminManualBookings";
+import TylerGuide from "./pages/TylerGuide";
+import AdminDeposits from "./pages/admin/AdminDeposits";
+import AdminUpsellAddons from "./pages/admin/AdminUpsellAddons";
 import ManualBookingPay from "./pages/ManualBookingPay";
 import ManualBookingConfirm from "./pages/ManualBookingConfirm";
 
@@ -35,6 +38,7 @@ function Router() {
       <Route path={"/property/:id"} component={PropertyDetail} />
       <Route path={"/booking/confirmation"} component={BookingConfirmation} />
       <Route path={"/my-bookings"} component={MyBookings} />
+      <Route path={"/tyler-guide"} component={TylerGuide} />
       <Route path={"/corporate-stays"} component={CorporateStays} />
       <Route path={"/rental-agreement"} component={RentalAgreement} />
       <Route path={"/house-rules"} component={HouseRulesPage} />
@@ -46,6 +50,8 @@ function Router() {
       <Route path={"/admin/bookings"} component={AdminBookings} />
       <Route path={"/admin/corporate-inquiries"} component={AdminCorporateInquiries} />
       <Route path={"/admin/settings"} component={AdminSettings} />
+      <Route path={"/admin/deposits"} component={AdminDeposits} />
+      <Route path={"/admin/upsell-addons"} component={AdminUpsellAddons} />
       <Route path={"/admin/manual-bookings"} component={AdminManualBookings} />
       <Route path={"/booking/pay/:token"} component={ManualBookingPay} />
       <Route path={"/booking/manual-confirm"} component={ManualBookingConfirm} />

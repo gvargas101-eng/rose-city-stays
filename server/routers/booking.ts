@@ -16,6 +16,7 @@ import {
   properties,
   siteSettings,
   manualBookingLinks,
+  upsellAddons,
 } from "../../drizzle/schema";
 import { PROPERTY_TO_HOSTAWAY_ID, getPropertyCalendar } from "../hostaway";
 import { createHostawayReservation } from "../hostaway-booking";
@@ -117,6 +118,25 @@ async function getActiveCustomFeeLines(subtotal: number): Promise<Array<{ id: nu
       amount: roundCurrency(computed),
     };
   });
+}
+
+async function getActiveUpsellAddonLines(addonIds: number[]): Promise<Array<{ id: number; name: string; price: number }>> {
+  if (!addonIds || addonIds.length === 0) return [];
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select()
+    .from(upsellAddons)
+    .where(eq(upsellAddons.active, 1));
+
+  return rows
+    .filter(r => addonIds.includes(r.id))
+    .map(r => ({
+      id: r.id,
+      name: r.name,
+      price: roundCurrency(parseFloat(String(r.price))),
+    }));
 }
 
 async function confirmStoredBooking(params: {
@@ -348,6 +368,7 @@ export const bookingRouter = router({
         message: z.string().optional(),
         guestIdUrl: z.string().url().optional(),
         agreementAcceptedAt: z.number().int().optional(),
+        selectedAddonIds: z.array(z.number().int()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -398,8 +419,12 @@ export const bookingRouter = router({
       const customFeesTotal = roundCurrency(
         activeCustomFeeLines.reduce((sum, fee) => sum + fee.amount, 0)
       );
+      const upsellAddonLines = await getActiveUpsellAddonLines(input.selectedAddonIds ?? []);
+      const upsellAddonsTotal = roundCurrency(
+        upsellAddonLines.reduce((sum, a) => sum + a.price, 0)
+      );
       const taxAmount = roundCurrency(subtotal * taxRate);
-      const totalAmount = roundCurrency(subtotal + cleaningFee + taxAmount + customFeesTotal + overageFee);
+      const totalAmount = roundCurrency(subtotal + cleaningFee + taxAmount + customFeesTotal + overageFee + upsellAddonsTotal);
 
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -510,6 +535,16 @@ export const bookingRouter = router({
             },
             quantity: 1,
           })),
+          ...upsellAddonLines.map((addon) => ({
+            price_data: {
+              currency: "usd" as const,
+              product_data: {
+                name: addon.name,
+              },
+              unit_amount: dollarsToCents(addon.price),
+            },
+            quantity: 1,
+          })),
         ],
       });
 
@@ -522,6 +557,7 @@ export const bookingRouter = router({
         taxAmount,
         taxRate,
         customFeesTotal,
+        upsellAddonsTotal,
         totalAmount,
       };
     }),

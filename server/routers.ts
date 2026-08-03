@@ -141,6 +141,25 @@ export const appRouter = router({
       return { amount };
     }),
 
+    // Public: get all active upsell add-ons for the booking checkout
+    getActiveUpsellAddons: publicProcedure.query(async () => {
+      const db0 = await getDb();
+      if (!db0) return [];
+      const { upsellAddons: upsellAddonsTable } = await import("../drizzle/schema");
+      const { asc } = await import("drizzle-orm");
+      const rows = await db0
+        .select()
+        .from(upsellAddonsTable)
+        .where(eq(upsellAddonsTable.active, 1))
+        .orderBy(asc(upsellAddonsTable.sortOrder));
+      return rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description ?? null,
+        price: parseFloat(r.price),
+      }));
+    }),
+
     // Public: get all active custom fees for the booking quote
     getActiveFees: publicProcedure.query(async () => {
       const db0 = await getDb();

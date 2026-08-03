@@ -30,6 +30,8 @@ import {
   Loader2,
   IdCard,
   ImageIcon,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AGREEMENT_ACKNOWLEDGMENT_TEXT } from "@/lib/rentalAgreement";
@@ -40,6 +42,13 @@ interface CustomFee {
   description?: string | null;
   type: "flat" | "percent";
   amount: number;
+}
+
+interface UpsellAddon {
+  id: number;
+  name: string;
+  description?: string | null;
+  price: number;
 }
 
 interface CheckoutModalProps {
@@ -58,6 +67,7 @@ interface CheckoutModalProps {
   customFees?: CustomFee[];
   onClose: () => void;
 }
+
 
 interface GuestInfo {
   name: string;
@@ -94,6 +104,9 @@ export default function CheckoutModal(props: CheckoutModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: depositData } = trpc.settings.getSecurityDeposit.useQuery();
   const depositAmount = depositData?.amount ?? 500;
+  const { data: upsellAddonsData } = trpc.settings.getActiveUpsellAddons.useQuery();
+  const availableAddons: UpsellAddon[] = upsellAddonsData ?? [];
+  const [selectedAddonIds, setSelectedAddonIds] = useState<number[]>([]);
 
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
     name: "",
@@ -113,7 +126,15 @@ export default function CheckoutModal(props: CheckoutModalProps) {
     computed: f.type === "flat" ? f.amount : (subtotal * f.amount) / 100,
   }));
   const customFeesTotal = customFeeLines.reduce((s, f) => s + f.computed, 0);
-  const grandTotal = totalAmount + customFeesTotal;
+  const selectedAddons = availableAddons.filter(a => selectedAddonIds.includes(a.id));
+  const upsellAddonsTotal = selectedAddons.reduce((s, a) => s + a.price, 0);
+  const grandTotal = totalAmount + customFeesTotal + upsellAddonsTotal;
+
+  const toggleAddon = (id: number) => {
+    setSelectedAddonIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
   const taxPct = Math.round(taxRate * 100);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,6 +209,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
         message: guestInfo.message.trim() || undefined,
         guestIdUrl: idUpload.status === "done" ? idUpload.url : undefined,
         agreementAcceptedAt: Date.now(),
+        selectedAddonIds: selectedAddonIds.length > 0 ? selectedAddonIds : undefined,
       });
 
       if (!result.checkoutUrl) {
@@ -277,6 +299,12 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                 </span>
               </div>
             ))}
+            {selectedAddons.map((a) => (
+              <div key={a.id} className="flex justify-between text-emerald-700">
+                <span>+ {a.name}</span>
+                <span>${a.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            ))}
             <div className="flex justify-between font-semibold text-foreground pt-2 border-t border-border mt-1">
               <span>Total (USD)</span>
               <span>
@@ -347,6 +375,50 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                 </div>
               </div>
             </div>
+
+            {/* ── UPSELL ADD-ONS ── */}
+            {availableAddons.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">+</span>
+                  Optional Add-Ons
+                </h3>
+                <div className="space-y-2">
+                  {availableAddons.map((addon) => {
+                    const selected = selectedAddonIds.includes(addon.id);
+                    return (
+                      <button
+                        key={addon.id}
+                        type="button"
+                        onClick={() => toggleAddon(addon.id)}
+                        className={`w-full flex items-center justify-between rounded-xl border-2 px-4 py-3 text-left transition-colors ${
+                          selected
+                            ? "border-emerald-400 bg-emerald-50"
+                            : "border-border bg-background hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            selected ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground"
+                          }`}>
+                            {selected ? <Minus className="w-3 h-3 text-white" /> : <Plus className="w-3 h-3 text-muted-foreground" />}
+                          </div>
+                          <div>
+                            <div className={`text-sm font-medium ${selected ? "text-emerald-800" : "text-foreground"}`}>{addon.name}</div>
+                            {addon.description && (
+                              <div className="text-xs text-muted-foreground">{addon.description}</div>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`text-sm font-semibold flex-shrink-0 ml-3 ${selected ? "text-emerald-700" : "text-foreground"}`}>
+                          +${addon.price.toFixed(2)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* ── STEP 2: Government ID Upload ── */}
             <div
