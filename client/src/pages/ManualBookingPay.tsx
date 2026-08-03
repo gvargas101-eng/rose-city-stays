@@ -5,13 +5,17 @@
  *
  * Flow:
  *  1. Load booking details from token
- *  2. Show price breakdown
- *  3. Conditionally show each hard stop (camera, guest count, T&C, ID upload)
+ *  2. Show price breakdown (including custom line items)
+ *  3. Show guest note (if any) in an amber info box
+ *  4. Conditionally show each hard stop (camera, guest count, T&C, ID upload)
  *     based on bypass flags set by the admin
- *  4. On "Pay Now", create Stripe Checkout Session and redirect
+ *  5. On "Pay Now", create Stripe Checkout Session and redirect
+ *
+ * Bug fix: guestName/guestEmail inputs are pre-filled from link.guestName/link.guestEmail
+ * so the Pay Now button is not greyed out when the admin has pre-filled them.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -31,6 +35,7 @@ import {
   AlertTriangle,
   ExternalLink,
   Tag,
+  MessageSquare,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -53,9 +58,10 @@ export default function ManualBookingPay() {
   const { token } = useParams<{ token: string }>();
   const [, navigate] = useLocation();
 
-  // Form state
+  // Form state — pre-filled once link data loads
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [prefilled, setPrefilled] = useState(false);
 
   // Hard-stop acknowledgment state
   const [ackCamera, setAckCamera] = useState(false);
@@ -76,6 +82,15 @@ export default function ManualBookingPay() {
     { token: token! },
     { enabled: !!token, retry: false }
   );
+
+  // Pre-fill guest name/email from link data once loaded
+  useEffect(() => {
+    if (link && !prefilled) {
+      if (link.guestName) setGuestName(link.guestName);
+      if (link.guestEmail) setGuestEmail(link.guestEmail);
+      setPrefilled(true);
+    }
+  }, [link, prefilled]);
 
   // Checkout mutation
   const checkoutMutation = trpc.booking.createManualBookingCheckout.useMutation({
@@ -191,6 +206,9 @@ export default function ManualBookingPay() {
   const requireTerms = !link.bypassTermsAcceptance;
   const requireId = !link.bypassIdUpload;
 
+  // Security deposit amount for this booking (override or global)
+  const depositAmount = link.securityDepositOverride ?? 500;
+
   // Can submit?
   const canSubmit =
     guestName.trim() &&
@@ -219,6 +237,17 @@ export default function ManualBookingPay() {
             {link.propertyName}
           </p>
         </div>
+
+        {/* ── Guest Note (if present) ── */}
+        {link.guestNote && (
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-900">
+            <MessageSquare className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="text-sm font-semibold mb-1">Note from your host</div>
+              <p className="text-sm leading-relaxed whitespace-pre-line">{link.guestNote}</p>
+            </div>
+          </div>
+        )}
 
         {/* ── Booking Summary ── */}
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
@@ -273,6 +302,13 @@ export default function ManualBookingPay() {
                 <span>{fmt(link.extraGuestFee)}</span>
               </div>
             )}
+            {/* Custom line items */}
+            {link.customLineItems && link.customLineItems.length > 0 && link.customLineItems.map((item, i) => (
+              <div key={i} className="flex justify-between text-muted-foreground">
+                <span>{item.label}</span>
+                <span>{fmt(item.amount)}</span>
+              </div>
+            ))}
             {Number(link.discountAmount) > 0 && (
               <div className="flex justify-between text-green-700">
                 <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> Discount</span>
@@ -291,10 +327,12 @@ export default function ManualBookingPay() {
             </div>
           </div>
 
-          {/* Security deposit notice */}
+          {/* Security deposit notice — uses override if set */}
           <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
             <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <span>A <strong>$500 security deposit hold</strong> will be placed on your card after payment. This is an authorization only — not a charge — and will be released within 3–5 business days after checkout if no damages are reported.</span>
+            <span>
+              A <strong>{fmt(depositAmount)} security deposit hold</strong> will be placed on your card after payment. This is an authorization only — not a charge — and will be released within 3–5 business days after checkout if no damages are reported.
+            </span>
           </div>
         </div>
 
@@ -308,7 +346,7 @@ export default function ManualBookingPay() {
                 <Input
                   value={guestName}
                   onChange={e => setGuestName(e.target.value)}
-                  placeholder={link.guestName ?? "Jane Smith"}
+                  placeholder="Jane Smith"
                   required
                 />
               </div>
@@ -318,11 +356,16 @@ export default function ManualBookingPay() {
                   type="email"
                   value={guestEmail}
                   onChange={e => setGuestEmail(e.target.value)}
-                  placeholder={link.guestEmail ?? "jane@example.com"}
+                  placeholder="jane@example.com"
                   required
                 />
               </div>
             </div>
+            {(link.guestName || link.guestEmail) && (
+              <p className="text-xs text-muted-foreground">
+                Your information has been pre-filled by your host. Please verify it is correct before proceeding.
+              </p>
+            )}
           </div>
 
           {/* ── Hard Stops ── */}

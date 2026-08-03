@@ -297,3 +297,13 @@
 - [x] Update Stripe deposit hold PaymentIntent to use dynamic amount from DB (reads securityDepositAmount from site_settings, defaults to 500)
 - [x] Update BookingConfirmation deposit notice to show dynamic amount
 - [x] Update manual booking link deposit hold to use dynamic amount from DB (same confirmStripeCheckoutSession function)
+
+## Manual Booking Link Fixes & Enhancements (Aug 2026)
+- [x] Fix Pay Now button greyed out — auto-populate name/email fields if admin pre-filled them, so guest doesn't have to retype
+- [x] Fix hardcoded $500 deposit notice on ManualBookingPay — read from settings (uses securityDepositOverride if set, else 500)
+- [x] Add security deposit override field to manual booking form (per-booking override of global setting)
+- [x] Add guest note field to manual booking form (shown to guest on payment page, e.g. "Thank you for booking with us! Your rate includes a 10% loyalty discount.")
+- [x] Add custom line items to manual booking form (add/remove arbitrary fee lines, e.g. "Pet fee $50", "Early check-in $25")
+- [x] Show custom line items on ManualBookingPay price breakdown and in Stripe checkout
+- [x] Add security deposit override to ManualBookingPay deposit notice and Stripe hold
+- [x] Add guest note display to ManualBookingPay page (amber info box)

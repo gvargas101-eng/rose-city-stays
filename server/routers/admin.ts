@@ -506,6 +506,9 @@ export const adminRouter = router({
         guestName: z.string().optional(),
         guestEmail: z.string().email().optional(),
         expiryDays: z.number().int().positive().default(7),
+        securityDepositOverride: z.number().nonnegative().optional(), // null = use global setting
+        guestNote: z.string().optional(), // shown to guest on payment page
+        customLineItems: z.array(z.object({ label: z.string(), amount: z.number() })).optional(), // extra fee lines
       })
     )
     .mutation(async ({ input }) => {
@@ -538,6 +541,9 @@ export const adminRouter = router({
         bypassGuestCount: input.bypassGuestCount ? 1 : 0,
         bypassTermsAcceptance: input.bypassTermsAcceptance ? 1 : 0,
         bypassIdUpload: input.bypassIdUpload ? 1 : 0,
+        securityDepositOverride: input.securityDepositOverride != null ? String(input.securityDepositOverride) : null,
+        guestNote: input.guestNote ?? null,
+        customLineItems: input.customLineItems ? JSON.stringify(input.customLineItems) : null,
         adminNotes: input.adminNotes ?? null,
         guestName: input.guestName ?? null,
         guestEmail: input.guestEmail ?? null,

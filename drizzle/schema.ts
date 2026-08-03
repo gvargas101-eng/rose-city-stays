@@ -253,6 +253,12 @@ export const manualBookingLinks = mysqlTable("manual_booking_links", {
   bypassTermsAcceptance: int("bypassTermsAcceptance").notNull().default(0),
   bypassIdUpload: int("bypassIdUpload").notNull().default(0),
 
+  // Security deposit override — null means use global site setting
+  securityDepositOverride: decimal("securityDepositOverride", { precision: 10, scale: 2 }),
+  // Guest-facing note shown on the payment page (e.g. "Your rate includes a 10% loyalty discount.")
+  guestNote: text("guestNote"),
+  // Custom line items — JSON array: [{label: string, amount: number}]
+  customLineItems: text("customLineItems"),
   // Admin notes (internal, not shown to guest)
   adminNotes: text("adminNotes"),
 

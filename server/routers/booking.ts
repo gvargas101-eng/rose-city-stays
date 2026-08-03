@@ -694,6 +694,11 @@ export const bookingRouter = router({
         guestEmail: link.guestEmail,
         expiresAt: link.expiresAt,
         status: link.status,
+        securityDepositOverride: link.securityDepositOverride ? Number(link.securityDepositOverride) : null,
+        guestNote: link.guestNote ?? null,
+        customLineItems: link.customLineItems
+          ? (JSON.parse(link.customLineItems) as { label: string; amount: number }[])
+          : [],
       };
     }),
 
@@ -760,6 +765,24 @@ export const bookingRouter = router({
           },
           quantity: 1,
         });
+      }
+      // Add custom line items (admin-defined per-booking fees)
+      if (link.customLineItems) {
+        try {
+          const customItems = JSON.parse(link.customLineItems) as { label: string; amount: number }[];
+          for (const item of customItems) {
+            if (item.amount > 0) {
+              lineItems.push({
+                price_data: {
+                  currency: "usd",
+                  product_data: { name: item.label },
+                  unit_amount: dollarsToCents(item.amount),
+                },
+                quantity: 1,
+              });
+            }
+          }
+        } catch { /* ignore parse errors */ }
       }
       // Apply discount as a negative line item if present
       if (Number(link.discountAmount) > 0) {
