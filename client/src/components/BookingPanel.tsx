@@ -71,7 +71,7 @@ export default function BookingPanel({
     avgNightlyRate: number;
   } | null>(null);
 
-  const EXTRA_GUEST_FEE_PER_NIGHT = 25;
+  const EXTRA_GUEST_FEE_PER_NIGHT = 10;
   const MAX_INCLUDED_GUESTS = 4;
 
   const cleaningFee = CLEANING_FEES[propertyId] ?? 125;

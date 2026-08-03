@@ -344,7 +344,7 @@ export const bookingRouter = router({
         throw new Error(`Property not found: ${input.propertyId}`);
       }
 
-      const EXTRA_GUEST_FEE_PER_NIGHT = 25;
+      const EXTRA_GUEST_FEE_PER_NIGHT = 10;
       const MAX_INCLUDED_GUESTS = 4;
       const extraGuests = Math.max(0, input.guestCount - MAX_INCLUDED_GUESTS);
       const overageFee = roundCurrency(extraGuests * EXTRA_GUEST_FEE_PER_NIGHT * input.nights);

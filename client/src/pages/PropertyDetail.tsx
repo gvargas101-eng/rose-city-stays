@@ -492,7 +492,7 @@ export default function PropertyDetail() {
                     This property has <strong>outdoor security cameras</strong> at entry points (front door, driveway,
                     and/or backyard entrance) for security and guest count verification. Cameras are exterior only.
                     The base rate covers up to <strong>4 guests</strong> — additional guests are{" "}
-                    <strong>$25/night per extra guest</strong>. Please ensure your guest count is accurate;
+                    <strong>$10/night per extra guest</strong>. Please ensure your guest count is accurate;
                     undisclosed guests may result in additional charges or cancellation without refund.
                   </p>
                 </div>
@@ -604,7 +604,7 @@ export default function PropertyDetail() {
         <CameraGuestCountModal
           guestCount={pendingBooking.guestCount}
           maxIncludedGuests={4}
-          overageFeePerNight={25}
+          overageFeePerNight={10}
           nights={pendingBooking.nights}
           onConfirm={() => {
             setShowCameraModal(false);
@@ -625,7 +625,7 @@ export default function PropertyDetail() {
         const subtotal = Math.round(checkoutBooking.avgNightlyRate * checkoutBooking.nights * 100) / 100;
         const taxAmount = Math.round(subtotal * liveTaxRate * 100) / 100;
         // Extra guest overage fee — must match server-side calculation in booking.ts
-        const EXTRA_GUEST_FEE_PER_NIGHT = 25;
+        const EXTRA_GUEST_FEE_PER_NIGHT = 10;
         const MAX_INCLUDED_GUESTS = 4;
         const extraGuests = Math.max(0, checkoutBooking.guestCount - MAX_INCLUDED_GUESTS);
         const overageFee = Math.round(extraGuests * EXTRA_GUEST_FEE_PER_NIGHT * checkoutBooking.nights * 100) / 100;
