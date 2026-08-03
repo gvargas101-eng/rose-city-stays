@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Home as HomeIcon,
   Fingerprint,
+  Camera,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -38,6 +39,7 @@ import { propertyReviews } from "@/lib/reviews";
 import { trpc } from "@/lib/trpc";
 import BookingPanel, { type BookingSelection } from "@/components/BookingPanel";
 import CheckoutModal from "@/components/CheckoutModal";
+import CameraGuestCountModal from "@/components/CameraGuestCountModal";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -73,6 +75,8 @@ export default function PropertyDetail() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [checkoutBooking, setCheckoutBooking] = useState<BookingSelection | null>(null);
   const [showInquiry, setShowInquiry] = useState(false);
+  const [pendingBooking, setPendingBooking] = useState<BookingSelection | null>(null);
+  const [showCameraModal, setShowCameraModal] = useState(false);
 
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
@@ -476,6 +480,23 @@ export default function PropertyDetail() {
                   <strong className="text-foreground">Cancellation Policy:</strong> {property.cancellationPolicy}
                 </p>
               </div>
+
+              {/* Outdoor Camera & Guest Count Notice */}
+              <div className="mt-5 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <Camera className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-amber-900" style={{ fontFamily: "var(--font-body)" }}>
+                    Outdoor Security Cameras &amp; Guest Count Policy
+                  </p>
+                  <p className="text-xs text-amber-800 leading-relaxed" style={{ fontFamily: "var(--font-body)" }}>
+                    This property has <strong>outdoor security cameras</strong> at entry points (front door, driveway,
+                    and/or backyard entrance) for security and guest count verification. Cameras are exterior only.
+                    The base rate covers up to <strong>4 guests</strong> — additional guests are{" "}
+                    <strong>$25/night per extra guest</strong>. Please ensure your guest count is accurate;
+                    undisclosed guests may result in additional charges or cancellation without refund.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -492,7 +513,10 @@ export default function PropertyDetail() {
                 minStay={defaultMinStay}
                 minStayMap={minStayMap}
                 maxGuests={property.guests || 16}
-                onBookNow={(booking) => setCheckoutBooking(booking)}
+                onBookNow={(booking) => {
+                  setPendingBooking(booking);
+                  setShowCameraModal(true);
+                }}
                 onInquiry={() => setShowInquiry(true)}
               />
 
@@ -575,13 +599,37 @@ export default function PropertyDetail() {
         </div>
       </div>
 
+      {/* Camera & Guest Count Acknowledgment Modal — hard stop before checkout */}
+      {showCameraModal && pendingBooking && (
+        <CameraGuestCountModal
+          guestCount={pendingBooking.guestCount}
+          maxIncludedGuests={4}
+          overageFeePerNight={25}
+          nights={pendingBooking.nights}
+          onConfirm={() => {
+            setShowCameraModal(false);
+            setCheckoutBooking(pendingBooking);
+            setPendingBooking(null);
+          }}
+          onClose={() => {
+            setShowCameraModal(false);
+            setPendingBooking(null);
+          }}
+        />
+      )}
+
       {/* Checkout Modal */}
       {checkoutBooking && property && (() => {
         const CLEANING: Record<string, number> = { "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 };
         const cleaningFee = (CLEANING[propertySlug] ?? 125);
         const subtotal = Math.round(checkoutBooking.avgNightlyRate * checkoutBooking.nights * 100) / 100;
         const taxAmount = Math.round(subtotal * liveTaxRate * 100) / 100;
-        const totalAmount = Math.round((subtotal + cleaningFee + taxAmount) * 100) / 100;
+        // Extra guest overage fee — must match server-side calculation in booking.ts
+        const EXTRA_GUEST_FEE_PER_NIGHT = 25;
+        const MAX_INCLUDED_GUESTS = 4;
+        const extraGuests = Math.max(0, checkoutBooking.guestCount - MAX_INCLUDED_GUESTS);
+        const overageFee = Math.round(extraGuests * EXTRA_GUEST_FEE_PER_NIGHT * checkoutBooking.nights * 100) / 100;
+        const totalAmount = Math.round((subtotal + cleaningFee + taxAmount + overageFee) * 100) / 100;
         return (
           <CheckoutModal
             propertyId={propertySlug}

@@ -269,3 +269,11 @@
 - [x] Fix sitemap.xml with correct property slugs and live domain (all 10 real slugs, rosecitystays.com domain, new pages added)
 - [x] Add favicon (rose icon, dark charcoal + rose-gold, 32x32 ICO + apple-touch-icon)
 - [x] Update social media links — Instagram: instagram.com/rosecitystays, Facebook: facebook.com/rosecitystays
+
+## Camera Disclosure & Guest Count Enforcement (Aug 2026)
+- [x] Add persistent outdoor camera + guest count notice to PropertyDetail page (amber banner in House Rules section)
+- [x] Build hard stop acknowledgment modal (CameraGuestCountModal — two checkboxes, disabled Continue until both checked)
+- [ ] Add cameraAcknowledgedAt column to bookings table in DB — deferred (acknowledgment is UX-enforced, not yet DB-persisted)
+- [x] Add dynamic guest overage line item to Stripe checkout ($25/night per guest beyond 4)
+- [x] Show overage fee in BookingPanel price breakdown when guest count > 4 (amber line item + notice)
+- [ ] Add overage fee per night setting to admin settings (configurable) — deferred, currently hardcoded at $25/night

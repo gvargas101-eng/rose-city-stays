@@ -344,6 +344,11 @@ export const bookingRouter = router({
         throw new Error(`Property not found: ${input.propertyId}`);
       }
 
+      const EXTRA_GUEST_FEE_PER_NIGHT = 25;
+      const MAX_INCLUDED_GUESTS = 4;
+      const extraGuests = Math.max(0, input.guestCount - MAX_INCLUDED_GUESTS);
+      const overageFee = roundCurrency(extraGuests * EXTRA_GUEST_FEE_PER_NIGHT * input.nights);
+
       const subtotal = roundCurrency(input.nightlyRate * input.nights);
       const cleaningFee = await getCleaningFee(input.propertyId);
       const taxRate = await getTaxRate();
@@ -352,7 +357,7 @@ export const bookingRouter = router({
         activeCustomFeeLines.reduce((sum, fee) => sum + fee.amount, 0)
       );
       const taxAmount = roundCurrency(subtotal * taxRate);
-      const totalAmount = roundCurrency(subtotal + cleaningFee + taxAmount + customFeesTotal);
+      const totalAmount = roundCurrency(subtotal + cleaningFee + taxAmount + customFeesTotal + overageFee);
 
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -441,6 +446,17 @@ export const bookingRouter = router({
             },
             quantity: 1,
           },
+          ...(overageFee > 0 ? [{
+            price_data: {
+              currency: "usd" as const,
+              product_data: {
+                name: `Extra guests (${extraGuests} guest${extraGuests > 1 ? 's' : ''} × $${EXTRA_GUEST_FEE_PER_NIGHT}/night)`,
+                description: `Base rate covers up to ${MAX_INCLUDED_GUESTS} guests. $${EXTRA_GUEST_FEE_PER_NIGHT}/night per additional guest.`,
+              },
+              unit_amount: dollarsToCents(roundCurrency(extraGuests * EXTRA_GUEST_FEE_PER_NIGHT)),
+            },
+            quantity: input.nights,
+          }] : []),
           ...activeCustomFeeLines.map((fee) => ({
             price_data: {
               currency: "usd" as const,

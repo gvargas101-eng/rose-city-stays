@@ -71,10 +71,15 @@ export default function BookingPanel({
     avgNightlyRate: number;
   } | null>(null);
 
+  const EXTRA_GUEST_FEE_PER_NIGHT = 25;
+  const MAX_INCLUDED_GUESTS = 4;
+
   const cleaningFee = CLEANING_FEES[propertyId] ?? 125;
   const nightlyRate = selection?.avgNightlyRate || basePrice || 0;
   const subtotal = nightlyRate * (selection?.nights || 0);
-  const total = subtotal + cleaningFee;
+  const extraGuests = Math.max(0, guestCount - MAX_INCLUDED_GUESTS);
+  const overageFee = extraGuests * EXTRA_GUEST_FEE_PER_NIGHT * (selection?.nights || 0);
+  const total = subtotal + cleaningFee + overageFee;
 
   // When a check-in date is selected, use its specific minimum stay from Hostaway
   const [pendingCheckIn, setPendingCheckIn] = useState<string | null>(null);
@@ -204,6 +209,15 @@ export default function BookingPanel({
             <span>${nightlyRate} × {selection.nights} nights</span>
             <span>${subtotal.toLocaleString()}</span>
           </div>
+          {overageFee > 0 && (
+            <div className="flex justify-between text-amber-700">
+              <span className="flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" />
+                {extraGuests} extra guest{extraGuests > 1 ? 's' : ''} × ${EXTRA_GUEST_FEE_PER_NIGHT}/night × {selection.nights} nights
+              </span>
+              <span>+${overageFee.toLocaleString()}</span>
+            </div>
+          )}
           <div className="flex justify-between text-foreground">
             <span>Cleaning fee</span>
             <span>${cleaningFee}</span>
@@ -212,6 +226,18 @@ export default function BookingPanel({
             <span>Total</span>
             <span>${total.toLocaleString()}</span>
           </div>
+        </div>
+      )}
+
+      {/* Guest overage notice — shown when guest count exceeds base */}
+      {guestCount > MAX_INCLUDED_GUESTS && (
+        <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+          <Users className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <span>
+            Base rate covers up to <strong>{MAX_INCLUDED_GUESTS} guests</strong>. You have{" "}
+            <strong>{extraGuests} extra guest{extraGuests > 1 ? 's' : ''}</strong> — an additional{" "}
+            <strong>${EXTRA_GUEST_FEE_PER_NIGHT}/night per guest</strong> will be added.
+          </span>
         </div>
       )}
 
