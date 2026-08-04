@@ -44,6 +44,12 @@ import CameraGuestCountModal from "@/components/CameraGuestCountModal";
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
 
+  // Load DB reviews for this property
+  const { data: dbReviews = [] } = trpc.reviews.byProperty.useQuery(
+    { propertySlug: id || "" },
+    { enabled: !!id, staleTime: 2 * 60 * 1000 }
+  );
+
   // Load property from DB (falls back to static data while loading)
   const { data: dbProperty, isLoading: dbLoading } = trpc.properties.bySlug.useQuery(
     { slug: id || "" },
@@ -650,16 +656,68 @@ export default function PropertyDetail() {
         );
       })()}
 
-      {/* Guest Reviews */}
+      {/* Guest Reviews — DB reviews take priority; fall back to static Hostaway reviews */}
       <div className="bg-background py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-light text-foreground mb-2" style={{ fontFamily: "var(--font-display)" }}>
-            Guest Reviews
-          </h2>
-          <ReviewsSection
-            reviews={propertyReviews[String(property.id)] || []}
-            propertyName={property.name}
-          />
+          <div className="flex flex-wrap items-baseline gap-4 mb-4">
+            <h2 className="text-3xl font-light text-foreground" style={{ fontFamily: "var(--font-display)" }}>
+              Guest Reviews
+            </h2>
+            {dbReviews.length > 0 && (() => {
+              const avg = dbReviews.reduce((s, r) => s + r.rating, 0) / dbReviews.length;
+              return (
+                <div className="flex items-center gap-1.5">
+                  {[1,2,3,4,5].map(n => (
+                    <Star key={n} className={`w-4 h-4 ${n <= Math.round(avg) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                  ))}
+                  <span className="text-sm text-muted-foreground ml-1">
+                    {avg.toFixed(1)} ({dbReviews.length} review{dbReviews.length !== 1 ? "s" : ""})
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+          {dbReviews.length > 0 ? (
+            <div className="space-y-5">
+              {dbReviews.map(review => (
+                <div key={review.id} className="border border-border rounded-xl p-5 bg-card">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-semibold text-foreground">{review.guestName}</span>
+                        <span className="flex gap-0.5">
+                          {[1,2,3,4,5].map(n => (
+                            <Star key={n} className={`w-3.5 h-3.5 ${n <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                          ))}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(review.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", timeZone: "UTC" })}
+                      </p>
+                    </div>
+                  </div>
+                  {review.title && <p className="font-medium text-foreground/90 mb-1 text-sm">{review.title}</p>}
+                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{review.body}</p>
+                  {review.hostResponse && (
+                    <div className="mt-3 bg-muted/40 border border-border/50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Response from Host</p>
+                      <p className="text-sm text-foreground/80 leading-relaxed">{review.hostResponse}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="pt-2">
+                <a href={`/leave-a-review?property=${id}`} className="text-sm text-primary hover:text-primary/80 underline underline-offset-2">
+                  Leave a review for this property
+                </a>
+              </div>
+            </div>
+          ) : (
+            <ReviewsSection
+              reviews={propertyReviews[String(property.id)] || []}
+              propertyName={property.name}
+            />
+          )}
         </div>
       </div>
 

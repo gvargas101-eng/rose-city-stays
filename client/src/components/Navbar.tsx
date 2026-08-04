@@ -72,6 +72,7 @@ export default function Navbar() {
     { href: "/#properties", label: "Properties" },
     { href: "/tyler-guide", label: "Tyler Guide" },
     { href: "/blog", label: "Blog" },
+    { href: "/reviews", label: "Reviews" },
     { href: "/corporate-stays", label: "Corporate Stays" },
     { href: "/my-bookings", label: "My Bookings" },
     { href: "/#about", label: "About" },

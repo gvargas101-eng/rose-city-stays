@@ -367,7 +367,7 @@
 - [x] Add Reviews nav item to AdminLayout.tsx sidebar
 - [x] Register /admin/reviews route in App.tsx
 - [x] Create public /reviews page showing all reviews across properties
-- [ ] Embed reviews section on PropertyDetail.tsx
-- [ ] Show aggregate star rating on PropertyCard and PropertyDetail
+- [x] Embed reviews section on PropertyDetail.tsx
+- [x] Show aggregate star rating on PropertyCard and PropertyDetail
 - [x] Add review submission form at /leave-a-review
-- [ ] Add Reviews link in Navbar
+- [x] Add Reviews link in Navbar
