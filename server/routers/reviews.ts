@@ -5,6 +5,7 @@ import { getDb } from "../db";
 import { reviews } from "../../drizzle/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { adminProcedure } from "../_core/trpc";
+import { notifyOwner } from "../_core/notification";
 
 export const reviewsRouter = router({
   // ─── Public: get visible reviews for a specific property ───────────────────
@@ -75,6 +76,22 @@ export const reviewsRouter = router({
         body: input.body,
         isVisible: 1,
       });
+      // Notify owner of new review submission
+      const stars = "★".repeat(input.rating) + "☆".repeat(5 - input.rating);
+      const propertyLabel = input.propertySlug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      try {
+        await notifyOwner({
+          title: `⭐ New ${input.rating}-Star Review — ${propertyLabel}`,
+          content: [
+            `**Guest:** ${input.guestName}${input.guestEmail ? ` <${input.guestEmail}>` : ""}`,
+            `**Property:** ${propertyLabel}`,
+            `**Rating:** ${stars} (${input.rating}/5)`,
+            input.title ? `**Title:** ${input.title}` : null,
+            `**Review:**\n${input.body}`,
+            `\nView & respond at: /admin/reviews`,
+          ].filter(Boolean).join("\n"),
+        });
+      } catch (_) { /* non-fatal — don't block the review submission */ }
       return { success: true };
     }),
 

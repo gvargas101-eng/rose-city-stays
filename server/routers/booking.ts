@@ -695,12 +695,40 @@ export const bookingRouter = router({
 
       if (!bookingBefore) return null;
 
+      // ── Payment gate ──────────────────────────────────────────────────────────
+      // Only confirm (create Hostaway reservation + mark confirmed) when Stripe
+      // reports the session as fully paid. For any other status (unpaid, expired)
+      // we mark the booking as failed and return paymentStatus so the frontend
+      // can show the correct error screen instead of a success message.
       if (session.payment_status === "paid" && bookingBefore.status !== "confirmed") {
         try {
           await confirmStripeCheckoutSession(session);
         } catch (err) {
           console.error("[Booking] Confirmation fallback from confirmation page failed:", err);
         }
+      } else if (session.payment_status !== "paid" && bookingBefore.status === "pending") {
+        // Payment was not completed — mark the booking as failed so it doesn't
+        // linger as pending and cannot be accidentally confirmed later.
+        await db
+          .update(bookings)
+          .set({ status: "failed" })
+          .where(eq(bookings.id, bookingId));
+        console.warn(`[Booking] Session ${session.id} payment_status=${session.payment_status} — booking #${bookingId} marked failed`);
+        // Notify owner so they are aware a guest attempted but did not complete payment
+        try {
+          await notifyOwner({
+            title: `⚠️ Payment Failed — Booking #${bookingId} (${bookingBefore.propertyId})`,
+            content: [
+              `A guest reached the confirmation page but payment was NOT completed.`,
+              `**Guest:** ${bookingBefore.guestName} <${bookingBefore.guestEmail}>`,
+              `**Property:** ${bookingBefore.propertyId}`,
+              `**Dates:** ${new Date(bookingBefore.checkIn).toLocaleDateString("en-US", { timeZone: "UTC" })} – ${new Date(bookingBefore.checkOut).toLocaleDateString("en-US", { timeZone: "UTC" })}`,
+              `**Stripe Session:** ${session.id}`,
+              `**Payment Status:** ${session.payment_status}`,
+              `The booking record has been marked as failed. No Hostaway reservation was created.`,
+            ].join("\n"),
+          });
+        } catch (_) { /* non-fatal */ }
       }
 
       const [booking] = await db
@@ -728,6 +756,10 @@ export const bookingRouter = router({
         hostawayReservationId: booking.hostawayReservationId,
         stripePaymentIntentId: booking.stripePaymentIntentId,
         checkoutSessionId: session.id,
+        // Expose the Stripe-level payment status so the frontend can distinguish
+        // a confirmed booking from a failed/unpaid one without relying solely on
+        // the DB status field.
+        paymentStatus: session.payment_status as string,
       };
     }),
 

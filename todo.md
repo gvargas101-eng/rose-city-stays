@@ -371,3 +371,14 @@
 - [x] Show aggregate star rating on PropertyCard and PropertyDetail
 - [x] Add review submission form at /leave-a-review
 - [x] Add Reviews link in Navbar
+
+## Payment & Review Improvements (Aug 2026)
+- [x] Fix direct-booking: only create Hostaway reservation after Stripe payment succeeds
+- [x] Add owner notification (notifyOwner) when a new review is submitted
+- [x] Embed top 3 recent 5-star reviews in homepage testimonials section
+
+## Critical Payment Bug Fix (Aug 2026)
+- [x] Fix: booking confirmation shown and Hostaway reservation created even when Stripe payment is rejected
+- [x] Gate getByCheckoutSession — only confirm if payment_status === "paid", return failed state otherwise
+- [x] Update BookingConfirmation page to show payment-failed error state (not success) when payment rejected
+- [x] Add owner alert when a payment fails but confirmation page is visited (so manual cleanup can happen)

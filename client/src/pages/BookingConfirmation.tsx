@@ -16,7 +16,7 @@ function fmtBookingDate(ms: number) {
 }
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, CalendarDays, Users, Home, Mail, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
+import { CheckCircle2, XCircle, CalendarDays, Users, Home, Mail, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -83,6 +83,42 @@ export default function BookingConfirmation() {
             <Link href="/">
               <Button>Back to Home</Button>
             </Link>
+          </div>
+        ) : booking.status === "failed" || ("paymentStatus" in booking && booking.paymentStatus !== "paid") ? (
+          /* ── Payment failed / not completed ── */
+          <div className="space-y-8">
+            <div className="text-center space-y-3">
+              <div className="flex justify-center">
+                <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+                  <XCircle className="w-9 h-9 text-red-600" />
+                </div>
+              </div>
+              <h1
+                className="text-3xl font-light text-foreground"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Payment Not Completed
+              </h1>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Your payment was <strong className="text-red-600">not processed</strong> and no
+                reservation has been created. Your card has not been charged.
+              </p>
+            </div>
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 space-y-3 text-sm text-red-800">
+              <p className="font-semibold">What happened?</p>
+              <p>This can happen if your card was declined, the payment timed out, or you closed the payment window before completing checkout.</p>
+              <p>Please try again — your dates are still available. If your card continues to be declined, try a different payment method or contact your bank.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href={`/property/${booking.propertyId}`} className="flex-1">
+                <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                  Try Again <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+              <Link href="/" className="flex-1">
+                <Button variant="outline" className="w-full">Back to Home</Button>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="space-y-8">

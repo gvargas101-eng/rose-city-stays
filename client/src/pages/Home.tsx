@@ -166,6 +166,14 @@ export default function Home() {
 
   const blogArticles = getAllBlogArticles().slice(0, 3);
 
+  // Load top recent 5-star reviews from DB to show in testimonials section
+  const { data: dbReviews = [] } = trpc.reviews.all.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const topReviews = dbReviews
+    .filter(r => r.rating === 5)
+    .slice(0, 4); // show up to 4 in the 2-col grid
+
   const submitInquiry = trpc.inquiry.submit.useMutation({
     onSuccess: () => {
       toast.success("Message sent! We'll be in touch within 24 hours.", {
@@ -729,11 +737,27 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {testimonials.map((t, i) => (
+            {(topReviews.length > 0 ? topReviews.map((r, i) => ({
+              key: String(r.id),
+              name: r.guestName,
+              date: new Date(r.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", timeZone: "UTC" }),
+              property: r.propertySlug.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+              text: r.body,
+              rating: r.rating,
+              index: i,
+            })) : testimonials.map((t, i) => ({
+              key: String(i),
+              name: t.name,
+              date: t.date,
+              property: t.property,
+              text: t.text,
+              rating: t.rating,
+              index: i,
+            }))).map((t) => (
               <div
-                key={i}
+                key={t.key}
                 className={`bg-card border border-border rounded-lg p-8 transition-all duration-700 ${testimonialsSection.inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-                style={{ transitionDelay: `${i * 100}ms` }}
+                style={{ transitionDelay: `${t.index * 100}ms` }}
               >
                 {/* Stars */}
                 <div className="flex gap-1 mb-4">
@@ -761,6 +785,17 @@ export default function Home() {
               </div>
             ))}
           </div>
+          {topReviews.length > 0 && (
+            <div className="text-center mt-10">
+              <a
+                href="/reviews"
+                className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 underline underline-offset-2 transition-colors"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                Read all guest reviews <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          )}
         </div>
       </section>
 
