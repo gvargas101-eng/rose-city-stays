@@ -341,3 +341,4 @@
 - [x] Fix date display timezone bug — all booking dates stored as UTC midnight ms shift back 1 day in CDT; fixed by adding timeZone: 'UTC' to all toLocaleDateString calls across AdminBookings, AdminManualBookings, AdminDeposits, ManualBookingPay, ManualBookingConfirm, MyBookings, BookingConfirmation
 - [x] Harden availability check in createManualBookingCheckout — same status !== 'available' fix applied to manual booking token checkout path
 - [x] Add real-time availability warning on admin manual booking form — when property + checkIn + checkOut are all filled, query Hostaway calendar and show a red warning banner listing blocked nights, before the admin even generates the link
+- [x] Update sitemap.xml — added /tyler-guide, 11th property (cozy-3-bedrooms), updated all lastmod dates to 2026-08-04
