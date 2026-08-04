@@ -156,6 +156,36 @@ export default function AdminManualBookings() {
   // List all manual booking links
   const { data: links, isLoading: linksLoading } = trpc.admin.listManualBookingLinks.useQuery();
 
+  // ── Real-time availability check ──────────────────────────────────────────
+  // Fires as soon as property + checkIn + checkOut are all filled in.
+  // Uses the same calendar procedure the booking calendar uses, which overlays
+  // both Hostaway data and recent DB bookings.
+  const canCheckAvailability = !!(form.propertySlug && form.checkIn && form.checkOut && form.checkIn < form.checkOut);
+  const { data: availData, isFetching: availFetching } = trpc.hostaway.calendar.useQuery(
+    {
+      propertyId: form.propertySlug,
+      startDate: form.checkIn,
+      endDate: form.checkOut,
+    },
+    { enabled: canCheckAvailability, staleTime: 30_000 }
+  );
+
+  const blockedStayDates = useMemo(() => {
+    if (!availData?.days || !form.checkIn || !form.checkOut) return [];
+    const stayDates = new Set<string>();
+    let cur = form.checkIn;
+    while (cur < form.checkOut) {
+      stayDates.add(cur);
+      const d = new Date(cur + "T12:00:00Z");
+      d.setUTCDate(d.getUTCDate() + 1);
+      cur = d.toISOString().slice(0, 10);
+    }
+    return availData.days.filter(
+      (d: { date: string; isAvailable: boolean; status: string }) =>
+        stayDates.has(d.date) && (!d.isAvailable || d.status !== "available")
+    );
+  }, [availData, form.checkIn, form.checkOut]);
+
   // Create mutation
   const createMutation = trpc.admin.createManualBookingLink.useMutation({
     onSuccess: (data) => {
@@ -386,6 +416,44 @@ export default function AdminManualBookings() {
                 />
               </div>
 
+            </div>
+
+            {/* ── Availability Warning Banner ── */}
+            {canCheckAvailability && (
+              <div>
+                {availFetching && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Checking availability in Hostaway…
+                  </div>
+                )}
+                {!availFetching && blockedStayDates.length > 0 && (
+                  <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    <p className="font-semibold mb-1">⚠️ Dates have conflicts in Hostaway</p>
+                    <p className="text-xs text-red-700 mb-2">
+                      The following nights are already reserved or blocked. You can still generate the link, but the guest will be blocked from paying.
+                    </p>
+                    <ul className="text-xs space-y-0.5">
+                      {blockedStayDates.map((d: { date: string; status: string }) => (
+                        <li key={d.date}>
+                          {new Date(d.date + "T12:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" })}
+                          {" "}<span className="opacity-70">({d.status})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {!availFetching && blockedStayDates.length === 0 && availData?.days && (
+                  <div className="flex items-center gap-2 text-xs text-green-700 py-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    All dates are available in Hostaway
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Guests + Expiry */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Guests *</label>
                 <Input
