@@ -345,11 +345,15 @@
 - [x] Fix ID upload bug in ManualBookingPay.tsx — form field was named "file" but server multer expected "idFile"; also added credentials: "include" to the fetch call
 
 ## ID Upload & Admin Improvements (Aug 2026)
-- [ ] Add accept="image/*,application/pdf" and capture="environment" to file inputs in ManualBookingPay.tsx and CheckoutModal.tsx for better mobile camera experience
-- [ ] Add "View ID" button to admin bookings expanded row — opens the guestIdUrl in a new tab (or a lightbox if it is an image)
-- [ ] Add "View ID" link to admin manual booking links expanded row
-- [ ] Add "Bypass availability check" toggle to manual booking form — when checked, skips the hard block at payment time for that specific link
+- [x] Add accept="image/*,application/pdf" and capture="environment" to file inputs in ManualBookingPay.tsx and CheckoutModal.tsx for better mobile camera experience
+- [x] Add "View ID" button to admin bookings expanded row — opens the guestIdUrl in a new tab (or a lightbox if it is an image)
+- [x] Add "View ID" link to admin manual booking links expanded row
+- [x] Add "Bypass availability check" toggle to manual booking form — when checked, skips the hard block at payment time for that specific link
 - [x] Add camera capture hint to ID upload inputs (accept="image/*,application/pdf" capture="environment") in ManualBookingPay.tsx and CheckoutModal.tsx
 - [x] Add inline Guest ID image preview to admin bookings expanded row and manual links expanded row
 - [x] Add guestIdUrl column to manual_booking_links table (DB migration pushed) and save on payment confirmation
 - [x] Add bypassAvailabilityCheck toggle to manual booking form — skips Hostaway availability block at payment time for owner-overridden dates
+
+## SEO Blog Posts (Aug 2026)
+- [x] Publish "Discover Tyler, TX: Your Guide to Exceptional Short-Term Rentals" — targets "short-term rentals Tyler TX", slug: discover-tyler-tx-your-guide-to-exceptional-short-term-rentals
+- [x] Publish "Your Guide to Furnished Housing & Travel Nurse Housing in Tyler, TX" — targets "furnished housing Tyler TX medical" and "travel nurse housing Tyler TX", slug: your-guide-to-furnished-housing-travel-nurse-housing-in-tyler-tx
