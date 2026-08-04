@@ -1,0 +1,1 @@
+ALTER TABLE `manual_booking_links` ADD `bypassAvailabilityCheck` int DEFAULT 0 NOT NULL;

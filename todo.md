@@ -343,3 +343,13 @@
 - [x] Add real-time availability warning on admin manual booking form — when property + checkIn + checkOut are all filled, query Hostaway calendar and show a red warning banner listing blocked nights, before the admin even generates the link
 - [x] Update sitemap.xml — added /tyler-guide, 11th property (cozy-3-bedrooms), updated all lastmod dates to 2026-08-04
 - [x] Fix ID upload bug in ManualBookingPay.tsx — form field was named "file" but server multer expected "idFile"; also added credentials: "include" to the fetch call
+
+## ID Upload & Admin Improvements (Aug 2026)
+- [ ] Add accept="image/*,application/pdf" and capture="environment" to file inputs in ManualBookingPay.tsx and CheckoutModal.tsx for better mobile camera experience
+- [ ] Add "View ID" button to admin bookings expanded row — opens the guestIdUrl in a new tab (or a lightbox if it is an image)
+- [ ] Add "View ID" link to admin manual booking links expanded row
+- [ ] Add "Bypass availability check" toggle to manual booking form — when checked, skips the hard block at payment time for that specific link
+- [x] Add camera capture hint to ID upload inputs (accept="image/*,application/pdf" capture="environment") in ManualBookingPay.tsx and CheckoutModal.tsx
+- [x] Add inline Guest ID image preview to admin bookings expanded row and manual links expanded row
+- [x] Add guestIdUrl column to manual_booking_links table (DB migration pushed) and save on payment confirmation
+- [x] Add bypassAvailabilityCheck toggle to manual booking form — skips Hostaway availability block at payment time for owner-overridden dates

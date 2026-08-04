@@ -252,6 +252,8 @@ export const manualBookingLinks = mysqlTable("manual_booking_links", {
   bypassGuestCount: int("bypassGuestCount").notNull().default(0),
   bypassTermsAcceptance: int("bypassTermsAcceptance").notNull().default(0),
   bypassIdUpload: int("bypassIdUpload").notNull().default(0),
+  // 1 = skip Hostaway availability check at payment time (admin override for owner-blocked dates)
+  bypassAvailabilityCheck: int("bypassAvailabilityCheck").notNull().default(0),
 
   // Security deposit override — null means use global site setting
   securityDepositOverride: decimal("securityDepositOverride", { precision: 10, scale: 2 }),
@@ -273,6 +275,9 @@ export const manualBookingLinks = mysqlTable("manual_booking_links", {
   // Stripe & Hostaway references (populated after payment)
   stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
   hostawayReservationId: varchar("hostawayReservationId", { length: 64 }),
+
+  // Guest ID photo — S3 URL uploaded during payment flow
+  guestIdUrl: varchar("guestIdUrl", { length: 1024 }),
 
   // Booking record created after payment
   bookingId: int("bookingId"),

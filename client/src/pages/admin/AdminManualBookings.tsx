@@ -106,6 +106,7 @@ interface FormState {
   bypassGuestCount: boolean;
   bypassTermsAcceptance: boolean;
   bypassIdUpload: boolean;
+  bypassAvailabilityCheck: boolean;
   adminNotes: string;
   guestName: string;
   guestEmail: string;
@@ -129,6 +130,7 @@ const INITIAL_FORM: FormState = {
   bypassGuestCount: false,
   bypassTermsAcceptance: false,
   bypassIdUpload: false,
+  bypassAvailabilityCheck: false,
   adminNotes: "",
   guestName: "",
   guestEmail: "",
@@ -307,6 +309,7 @@ export default function AdminManualBookings() {
       bypassGuestCount: form.bypassGuestCount,
       bypassTermsAcceptance: form.bypassTermsAcceptance,
       bypassIdUpload: form.bypassIdUpload,
+      bypassAvailabilityCheck: form.bypassAvailabilityCheck,
       adminNotes: form.adminNotes || undefined,
       guestName: form.guestName || undefined,
       guestEmail: form.guestEmail || undefined,
@@ -679,6 +682,7 @@ export default function AdminManualBookings() {
                   { key: "bypassGuestCount" as const, icon: Users, label: "Guest Count Acknowledgment", desc: "Guest count is verified and agreed upon" },
                   { key: "bypassTermsAcceptance" as const, icon: FileText, label: "Terms & Conditions / House Rules", desc: "Guest has already signed or accepted the agreement" },
                   { key: "bypassIdUpload" as const, icon: CreditCard, label: "Government ID Upload", desc: "You already have a copy of the guest's ID on file" },
+                  { key: "bypassAvailabilityCheck" as const, icon: Shield, label: "Availability Check (Override)", desc: "Skip the Hostaway availability block — use for owner-blocked dates you are intentionally overriding" },
                 ].map(({ key, icon: Icon, label, desc }) => (
                   <label
                     key={key}

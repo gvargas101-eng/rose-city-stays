@@ -802,10 +802,11 @@ export const bookingRouter = router({
       if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
 
       // ── Availability guard for manual booking checkout ──
-      // Always run — use DB hostawayListingId if present, otherwise fall back to
+      // Skipped if admin explicitly set bypassAvailabilityCheck = 1 (e.g. for owner-blocked dates).
+      // Otherwise always run — use DB hostawayListingId if present, otherwise fall back to
       // the hardcoded PROPERTY_TO_HOSTAWAY_ID map so the check never silently skips.
       const hasHostawayId = link.hostawayListingId || PROPERTY_TO_HOSTAWAY_ID[link.propertySlug];
-      if (hasHostawayId) {
+      if (hasHostawayId && !link.bypassAvailabilityCheck) {
         try {
           const checkInDate = new Date(link.checkIn).toISOString().split("T")[0];
           const checkOutDate = new Date(link.checkOut).toISOString().split("T")[0];
@@ -959,10 +960,10 @@ export const bookingRouter = router({
       const guestEmail = session.metadata?.guest_email ?? link.guestEmail ?? "";
       const guestIdUrl = session.metadata?.guest_id_url || null;
 
-      // Mark link as paid
+      // Mark link as paid and save guest ID URL
       await db
         .update(manualBookingLinks)
-        .set({ status: "paid", stripeCheckoutSessionId: session.id })
+        .set({ status: "paid", stripeCheckoutSessionId: session.id, guestIdUrl })
         .where(eq(manualBookingLinks.id, link.id));
 
       // Create Hostaway reservation if listing ID is available

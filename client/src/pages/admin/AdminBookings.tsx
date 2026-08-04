@@ -224,10 +224,15 @@ export default function AdminBookings() {
                               <IdCard className="w-3 h-3" /> Guest ID
                             </p>
                             {b.guestIdUrl ? (
-                              <a href={b.guestIdUrl} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium underline underline-offset-2">
-                                View ID <ExternalLink className="w-3 h-3" />
-                              </a>
+                              <div className="space-y-2">
+                                <a href={b.guestIdUrl} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium underline underline-offset-2">
+                                  View ID <ExternalLink className="w-3 h-3" />
+                                </a>
+                                {/\.(jpe?g|png|webp|heic)$/i.test(b.guestIdUrl) && (
+                                  <img src={b.guestIdUrl} alt="Guest ID" className="max-h-48 rounded border border-border object-contain" />
+                                )}
+                              </div>
                             ) : (
                               <p className="text-muted-foreground text-xs">Not uploaded</p>
                             )}
@@ -412,6 +417,22 @@ export default function AdminBookings() {
                               <p className="text-foreground text-xs bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-2 py-1">{link.guestNote}</p>
                             </div>
                           )}
+                          <div className="col-span-2 lg:col-span-4">
+                            <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><IdCard className="w-3 h-3" /> Guest ID</p>
+                            {link.guestIdUrl ? (
+                              <div className="space-y-2">
+                                <a href={link.guestIdUrl} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium underline underline-offset-2">
+                                  View ID <ExternalLink className="w-3 h-3" />
+                                </a>
+                                {/\.(jpe?g|png|webp|heic)$/i.test(link.guestIdUrl) && (
+                                  <img src={link.guestIdUrl} alt="Guest ID" className="max-h-48 rounded border border-border object-contain" />
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-muted-foreground text-xs">{link.status === 'paid' ? 'Not uploaded' : 'Pending payment'}</p>
+                            )}
+                          </div>
                         </div>
 
                         {/* Actions */}

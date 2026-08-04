@@ -478,7 +478,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+                    accept="image/*,application/pdf"
+                    capture="environment"
                     onChange={handleFileChange}
                     className="hidden"
                     id="guest-id-upload"

@@ -401,7 +401,8 @@ export default function ManualBookingPay() {
                       {idError && <span className="text-xs text-red-600">{idError}</span>}
                       <input
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+                        accept="image/*,application/pdf"
+                        capture="environment"
                         className="hidden"
                         onChange={e => {
                           const f = e.target.files?.[0];
