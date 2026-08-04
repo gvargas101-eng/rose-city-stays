@@ -802,15 +802,17 @@ export const bookingRouter = router({
       if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
 
       // ── Availability guard for manual booking checkout ──
-      // The admin intentionally created this link, but we still block payment
-      // if Hostaway shows the dates are no longer available (e.g. another booking
-      // came in after the link was created).
-      if (link.hostawayListingId) {
+      // Always run — use DB hostawayListingId if present, otherwise fall back to
+      // the hardcoded PROPERTY_TO_HOSTAWAY_ID map so the check never silently skips.
+      const hasHostawayId = link.hostawayListingId || PROPERTY_TO_HOSTAWAY_ID[link.propertySlug];
+      if (hasHostawayId) {
         try {
           const checkInDate = new Date(link.checkIn).toISOString().split("T")[0];
           const checkOutDate = new Date(link.checkOut).toISOString().split("T")[0];
-          // Use property slug to look up calendar (getPropertyCalendar needs slug)
+          console.log(`[ManualBooking] Availability check: property=${link.propertySlug} checkIn=${checkInDate} checkOut=${checkOutDate}`);
+          // getPropertyCalendar uses the hardcoded PROPERTY_TO_HOSTAWAY_ID map internally
           const calendarDays = await getPropertyCalendar(link.propertySlug, checkInDate, checkOutDate);
+          console.log(`[ManualBooking] Calendar returned ${calendarDays.length} days:`, JSON.stringify(calendarDays.map(d => ({ date: d.date, isAvailable: d.isAvailable, status: d.status }))));
           // Build stay nights using UTC-safe string arithmetic to avoid timezone shifts
           const stayDates = new Set<string>();
           let cur = checkInDate;
@@ -822,6 +824,7 @@ export const bookingRouter = router({
           }
           // Block if isAvailable is false OR status is not "available" (covers owner-blocked dates)
           const blockedDays = calendarDays.filter(d => stayDates.has(d.date) && (!d.isAvailable || d.status !== "available"));
+          console.log(`[ManualBooking] Blocked days: ${blockedDays.length}`, blockedDays.map(d => ({ date: d.date, isAvailable: d.isAvailable, status: d.status })));
           if (blockedDays.length > 0) {
             throw new TRPCError({
               code: "BAD_REQUEST",
