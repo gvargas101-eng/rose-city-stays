@@ -69,7 +69,7 @@ function getBaseUrl(req: { headers: Record<string, unknown> | any }): string {
     return `${proto}://${host}`;
   }
 
-  return "https://rosecitystay-bn23yppa.manus.space";
+  return "https://www.rosecitystays.com";
 }
 
 async function getTaxRate(): Promise<number> {
