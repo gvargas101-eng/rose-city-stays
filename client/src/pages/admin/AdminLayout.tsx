@@ -19,6 +19,7 @@ import {
   Link2,
   Shield,
   Tag,
+  Star,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/admin/corporate-inquiries", label: "Corporate", icon: Briefcase },
   { href: "/admin/manual-bookings", label: "Manual Bookings", icon: Link2 },
   { href: "/admin/upsell-addons", label: "Upsell Add-Ons", icon: Tag },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/settings", label: "Settings", icon: Settings2 },
 ];
 

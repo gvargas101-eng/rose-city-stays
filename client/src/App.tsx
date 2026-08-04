@@ -25,6 +25,9 @@ import AdminManualBookings from "./pages/admin/AdminManualBookings";
 import TylerGuide from "./pages/TylerGuide";
 import AdminDeposits from "./pages/admin/AdminDeposits";
 import AdminUpsellAddons from "./pages/admin/AdminUpsellAddons";
+import AdminReviews from "./pages/admin/AdminReviews";
+import ReviewsPage from "./pages/ReviewsPage";
+import LeaveReview from "./pages/LeaveReview";
 import ManualBookingPay from "./pages/ManualBookingPay";
 import ManualBookingConfirm from "./pages/ManualBookingConfirm";
 
@@ -53,6 +56,9 @@ function Router() {
       <Route path={"/admin/deposits"} component={AdminDeposits} />
       <Route path={"/admin/upsell-addons"} component={AdminUpsellAddons} />
       <Route path={"/admin/manual-bookings"} component={AdminManualBookings} />
+      <Route path={"/admin/reviews"} component={AdminReviews} />
+      <Route path={"/reviews"} component={ReviewsPage} />
+      <Route path={"/leave-a-review"} component={LeaveReview} />
       <Route path={"/booking/pay/:token"} component={ManualBookingPay} />
       <Route path={"/booking/manual-confirm"} component={ManualBookingConfirm} />
       <Route path={"/404"} component={NotFound} />

@@ -305,3 +305,21 @@ export const upsellAddons = mysqlTable("upsell_addons", {
 });
 export type UpsellAddon = typeof upsellAddons.$inferSelect;
 export type InsertUpsellAddon = typeof upsellAddons.$inferInsert;
+
+/**
+ * Guest reviews — submitted by guests, visible publicly, manageable by admin.
+ */
+export const reviews = mysqlTable("reviews", {
+  id: int("id").autoincrement().primaryKey(),
+  propertySlug: varchar("propertySlug", { length: 64 }).notNull(),   // e.g. "hollytree-golf-dining"
+  guestName: varchar("guestName", { length: 128 }).notNull(),
+  guestEmail: varchar("guestEmail", { length: 320 }),                // stored privately, not shown publicly
+  rating: int("rating").notNull(),                                   // 1–5
+  title: varchar("title", { length: 256 }),
+  body: text("body").notNull(),
+  hostResponse: text("hostResponse"),                                // admin reply, shown publicly
+  isVisible: int("isVisible").notNull().default(1),                  // 1 = shown, 0 = hidden
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = typeof reviews.$inferInsert;

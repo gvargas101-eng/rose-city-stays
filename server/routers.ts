@@ -14,6 +14,7 @@ import { adminRouter } from "./routers/admin";
 import { propertiesRouter } from "./routers/properties";
 import { adminAuthRouter } from "./routers/adminAuth";
 import { blogRouter } from "./routers/blog";
+import { reviewsRouter } from "./routers/reviews";
 
 export const appRouter = router({
   booking: bookingRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   properties: propertiesRouter,
   adminAuth: adminAuthRouter,
   blog: blogRouter,
+  reviews: reviewsRouter,
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({

@@ -357,3 +357,17 @@
 ## SEO Blog Posts (Aug 2026)
 - [x] Publish "Discover Tyler, TX: Your Guide to Exceptional Short-Term Rentals" — targets "short-term rentals Tyler TX", slug: discover-tyler-tx-your-guide-to-exceptional-short-term-rentals
 - [x] Publish "Your Guide to Furnished Housing & Travel Nurse Housing in Tyler, TX" — targets "furnished housing Tyler TX medical" and "travel nurse housing Tyler TX", slug: your-guide-to-furnished-housing-travel-nurse-housing-in-tyler-tx
+
+## Review System (Aug 2026)
+- [x] Add `reviews` table to drizzle/schema.ts (id, propertySlug, guestName, guestEmail, rating, title, body, hostResponse, isVisible, createdAt)
+- [x] Run pnpm db:push to create table
+- [x] Add public tRPC procedures: getReviewsByProperty, getAllReviews, submitReview
+- [x] Add admin tRPC procedures: adminListReviews, adminDeleteReview, adminRespondToReview, adminToggleReviewVisibility
+- [x] Create AdminReviews.tsx page at /admin/reviews
+- [x] Add Reviews nav item to AdminLayout.tsx sidebar
+- [x] Register /admin/reviews route in App.tsx
+- [x] Create public /reviews page showing all reviews across properties
+- [ ] Embed reviews section on PropertyDetail.tsx
+- [ ] Show aggregate star rating on PropertyCard and PropertyDetail
+- [x] Add review submission form at /leave-a-review
+- [ ] Add Reviews link in Navbar
