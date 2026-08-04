@@ -342,3 +342,4 @@
 - [x] Harden availability check in createManualBookingCheckout — same status !== 'available' fix applied to manual booking token checkout path
 - [x] Add real-time availability warning on admin manual booking form — when property + checkIn + checkOut are all filled, query Hostaway calendar and show a red warning banner listing blocked nights, before the admin even generates the link
 - [x] Update sitemap.xml — added /tyler-guide, 11th property (cozy-3-bedrooms), updated all lastmod dates to 2026-08-04
+- [x] Fix ID upload bug in ManualBookingPay.tsx — form field was named "file" but server multer expected "idFile"; also added credentials: "include" to the fetch call

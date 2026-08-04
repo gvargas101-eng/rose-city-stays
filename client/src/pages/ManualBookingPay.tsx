@@ -120,8 +120,8 @@ export default function ManualBookingPay() {
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload/guest-id", { method: "POST", body: formData });
+      formData.append("idFile", file);
+      const res = await fetch("/api/upload/guest-id", { method: "POST", body: formData, credentials: "include" });
       if (!res.ok) throw new Error("Upload failed");
       const json = await res.json();
       setIdUrl(json.url);
