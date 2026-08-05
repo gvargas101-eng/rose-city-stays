@@ -405,3 +405,8 @@
 - [x] Fix stale comment "All 10 properties" → "All 11 properties" in properties.ts
 - [x] Replace Mio Nonno (Flower Mound/Dallas chain, not in Tyler) with Villaggio Del Vino (real Tyler Italian restaurant) in TylerGuide.tsx
 - [x] Rewrite llms.txt with accurate 11-property list, correct bed/bath/guest counts, and updated neighborhoods
+
+## Tyler Guide & Hero Copy Updates (Aug 2026)
+- [x] Add Prime 102 (downtown steakhouse) and Don Juan's on the Square (downtown Tex-Mex) to TylerGuide.tsx restaurant list
+- [x] Update Rick's on the Square description to reflect live music / Southern food focus
+- [x] Update hero copy "200+ stays" → "1,000+ stays" in Home.tsx

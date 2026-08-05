@@ -107,15 +107,27 @@ const restaurants = [
   },
   {
     name: "Rick's on the Square",
-    type: "American",
-    description: "A downtown staple for lunch and dinner, known for fresh salads, hand-crafted burgers, and a lively bar scene on weekend evenings.",
+    type: "Southern / Live Music",
+    description: "A downtown institution for 30+ years. Scratch-made Southern food, fresh seafood, and steaks — plus one of Tyler's premier live music stages. Free two-step lessons every Tuesday night.",
     neighborhood: "Downtown Tyler",
   },
   {
     name: "True Vine Brewing Company",
     type: "Craft Brewery",
-    description: "Tyler's original craft brewery, offering rotating taps of locally brewed ales and lagers in a relaxed taproom. Food trucks rotate on weekends.",
+    description: "Tyler's original craft brewery, offering rotating taps of locally brewed ales and lagers in a relaxed, dog-friendly taproom. Live music and food trucks rotate on weekends.",
     neighborhood: "Downtown Tyler",
+  },
+  {
+    name: "Prime 102",
+    type: "Steakhouse / Seafood",
+    description: "Downtown Tyler's premier steakhouse, housed in the historic People's Petroleum Building. First-rate cuts, fresh seafood, and handcrafted cocktails in an elegant setting. Reservations recommended.",
+    neighborhood: "Downtown Tyler (102 N College Ave)",
+  },
+  {
+    name: "Don Juan's on the Square",
+    type: "Tex-Mex",
+    description: "A beloved downtown Tyler institution serving authentic Mexican food with a loyal local following. Known for the best margaritas on the square, generous portions, and a festive patio atmosphere.",
+    neighborhood: "Downtown Tyler (113 E Erwin St)",
   },
 ];
 

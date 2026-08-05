@@ -273,7 +273,7 @@ export default function Home() {
             className="text-lg sm:text-xl text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animate-delay-200"
             style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}
           >
-            11 designer properties in Tyler, TX — the Rose Capital of America. Steps from UT Health, Mother Frances Hospital, and downtown dining. 4.9★ rated across 200+ stays.
+            11 designer properties in Tyler, TX — the Rose Capital of America. Steps from UT Health, Mother Frances Hospital, and downtown dining. 4.9★ rated across 1,000+ stays.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animate-delay-300">
