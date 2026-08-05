@@ -382,3 +382,15 @@
 - [x] Gate getByCheckoutSession — only confirm if payment_status === "paid", return failed state otherwise
 - [x] Update BookingConfirmation page to show payment-failed error state (not success) when payment rejected
 - [x] Add owner alert when a payment fails but confirmation page is visited (so manual cleanup can happen)
+
+## SEO / AEO / GEO Optimization (Aug 2026)
+- [ ] Add useSEO with per-property dynamic meta tags to PropertyDetail page
+- [ ] Add useSEO to Home, CorporateStays, TylerGuide, ReviewsPage, LeaveReview pages
+- [ ] Fix Organization schema: use www.rosecitystays.com, add real phone/social profiles
+- [ ] Add FAQPage JSON-LD schema to Home page
+- [ ] Add LodgingBusiness JSON-LD schema to PropertyDetail pages
+- [ ] Add BreadcrumbList JSON-LD to PropertyDetail and BlogDetail pages
+- [ ] Add og:site_name, og:locale, og:url to seo.ts helper
+- [ ] Create /public/llms.txt for LLM crawler discovery (GEO)
+- [ ] Add speakable schema to Home page for voice/AI assistants
+- [ ] Add twitter:site meta tag to index.html

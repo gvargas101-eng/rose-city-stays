@@ -25,6 +25,8 @@ import {
   Home as HomeIcon,
   PawPrint,
 } from "lucide-react";
+import { useSEO } from "@/hooks/useSEO";
+import { generateOrganizationSchema, generateFAQSchema, generateSpeakableSchema } from "@/lib/seo";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PropertyCard from "@/components/PropertyCard";
@@ -98,6 +100,35 @@ const testimonials = [
 ];
 
 export default function Home() {
+  // SEO / AEO / GEO — inject meta tags and structured data
+  useSEO(
+    {
+      title: "Rose City Stays | Luxury Short-Term Rentals in Tyler, TX",
+      description:
+        "Premium short-term & corporate rentals in Tyler, TX. Book direct with Rose City Stays — save on fees, 4.9★ rated, self check-in.",
+      ogImage: HERO_IMAGE,
+      ogType: "website",
+      path: "/",
+      keywords: [
+        "Tyler TX vacation rental",
+        "short-term rental Tyler Texas",
+        "corporate housing Tyler TX",
+        "book direct rental",
+        "East Texas rental",
+        "Rose City Stays",
+      ],
+    },
+    // Inject multiple schemas by merging them into a @graph
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        generateOrganizationSchema(),
+        generateFAQSchema(),
+        generateSpeakableSchema(),
+      ],
+    } as Record<string, unknown>
+  );
+
   // Load properties from DB (falls back to static data while loading)
   const { data: dbProperties } = trpc.properties.list.useQuery();
 

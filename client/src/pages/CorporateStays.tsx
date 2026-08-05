@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useSEO } from "@/hooks/useSEO";
+import { generateBreadcrumbSchema } from "@/lib/seo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,6 +68,27 @@ const WHO_WE_SERVE = [
 ];
 
 export default function CorporateStays() {
+  useSEO(
+    {
+      title: "Corporate Housing & Extended Stays in Tyler, TX | Rose City Stays",
+      description:
+        "Fully furnished corporate rentals in Tyler, TX. WiFi, self check-in, flexible terms. Ideal for traveling nurses, executives & extended stays.",
+      ogType: "website",
+      path: "/corporate-stays",
+      keywords: [
+        "corporate housing Tyler TX",
+        "extended stay Tyler Texas",
+        "furnished rental Tyler TX",
+        "traveling nurse housing Tyler",
+        "short-term corporate rental",
+        "Rose City Stays corporate",
+      ],
+    },
+    generateBreadcrumbSchema([
+      { name: "Home", path: "/" },
+      { name: "Corporate Stays", path: "/corporate-stays" },
+    ])
+  );
   const [form, setForm] = useState({
     name: "",
     company: "",

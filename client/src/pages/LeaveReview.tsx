@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useSEO } from "@/hooks/useSEO";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,13 @@ const RATING_LABELS: Record<number, string> = {
 };
 
 export default function LeaveReview() {
+  useSEO({
+    title: "Leave a Review | Rose City Stays",
+    description: "Share your experience at a Rose City Stays property in Tyler, TX. Your review helps future guests and helps us improve.",
+    ogType: "website",
+    path: "/leave-a-review",
+    keywords: ["Rose City Stays review", "Tyler TX rental review", "leave a review"],
+  });
   const search = useSearch();
   const params = new URLSearchParams(search);
   const prefilledSlug = params.get("property") ?? "";

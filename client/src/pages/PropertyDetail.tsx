@@ -28,6 +28,8 @@ import {
   Fingerprint,
   Camera,
 } from "lucide-react";
+import { useSEO } from "@/hooks/useSEO";
+import { generatePropertySchema, generateBreadcrumbSchema } from "@/lib/seo";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { getPropertyById, properties as staticProperties, type Property } from "@/lib/properties";
@@ -157,6 +159,54 @@ export default function PropertyDetail() {
       .sort((a, b) => a.date.localeCompare(b.date))[0];
     return nextAvail?.minimumStay ?? 1;
   })();
+
+  // ── SEO / AEO / GEO — must be called before early returns (React rules of hooks) ──
+  const seoProperty = property || staticProperty;
+  useSEO(
+    {
+      title: seoProperty
+        ? `${seoProperty.name} | Rose City Stays — Tyler, TX`
+        : "Property | Rose City Stays",
+      description: seoProperty
+        ? `${seoProperty.bedrooms}-bedroom, ${seoProperty.bathrooms}-bath rental in Tyler, TX. Sleeps ${seoProperty.guests}. Book direct and save on fees. ${seoProperty.description?.slice(0, 80) ?? ""}`
+        : "Luxury short-term rental in Tyler, TX.",
+      ogImage: seoProperty?.image || seoProperty?.images?.[0],
+      ogType: "product",
+      path: seoProperty ? `/property/${seoProperty.id}` : undefined,
+      keywords: seoProperty
+        ? [
+            `${seoProperty.name} Tyler TX`,
+            `Tyler TX ${seoProperty.bedrooms} bedroom rental`,
+            `short-term rental ${seoProperty.neighborhood ?? "Tyler"}`,
+            "book direct Tyler Texas",
+            "Rose City Stays",
+          ]
+        : [],
+    },
+    seoProperty
+      ? {
+          "@context": "https://schema.org",
+          "@graph": [
+            generatePropertySchema({
+              name: seoProperty.name,
+              description: seoProperty.description ?? "",
+              image: seoProperty.image || seoProperty.images?.[0] || "",
+              bedrooms: seoProperty.bedrooms,
+              bathrooms: seoProperty.bathrooms,
+              guests: seoProperty.guests,
+              rating: seoProperty.rating,
+              reviewCount: seoProperty.reviewCount,
+              slug: String(seoProperty.id),
+            }),
+            generateBreadcrumbSchema([
+              { name: "Home", path: "/" },
+              { name: "Properties", path: "/#properties" },
+              { name: seoProperty.name, path: `/property/${seoProperty.id}` },
+            ]),
+          ],
+        }
+      : undefined
+  );
 
   // ── Early returns after all hooks ──
   if (dbLoading && !staticProperty) {

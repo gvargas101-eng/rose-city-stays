@@ -1,0 +1,69 @@
+# Rose City Stays
+
+> Premium short-term and corporate rentals in Tyler, Texas. Book direct and save on fees.
+
+Rose City Stays is a boutique short-term rental company based in Tyler, TX (the "Rose Capital of America"). We manage 10 fully furnished properties ranging from cozy 1-bedroom retreats to spacious 4-bedroom homes, all designed for guests who want a comfortable, hotel-quality stay with the space and privacy of a home.
+
+## About
+
+- **Location:** Tyler, Texas (Smith County), East Texas
+- **Property count:** 10 properties
+- **Average rating:** 4.9 stars
+- **Booking channels:** Direct booking (www.rosecitystays.com), Airbnb, VRBO
+- **Ideal guests:** Corporate travelers, traveling nurses, families, weekend getaways, relocation stays
+
+## Properties
+
+All properties are located in Tyler, TX and feature:
+- High-speed WiFi (500+ Mbps)
+- Self check-in (smart locks / keypad)
+- Fully equipped kitchens
+- Premium linens and towels
+- Smart TVs
+- Free parking
+
+### Property List
+
+1. **Hollytree Townhouse** — 3 bed / 2.5 bath, sleeps 6, Hollytree neighborhood
+2. **The Briar** — 3 bed / 2 bath, sleeps 6, South Tyler
+3. **Rose at Hollytree** — 2 bed / 2 bath, sleeps 4, Hollytree neighborhood
+4. **The Alamo House** — 4 bed / 3 bath, sleeps 8, Central Tyler
+5. **Green Acres** — 3 bed / 2 bath, sleeps 6, South Tyler
+6. **The Legacy House** — 4 bed / 3 bath, sleeps 8, Hollytree neighborhood
+7. **Azalea Cottage** — 2 bed / 1 bath, sleeps 4, Azalea Historic District
+8. **Noir at Hollytree** — 2 bed / 2 bath, sleeps 4, Hollytree neighborhood
+9. **Wall Ave. Retreat** — 1 bed / 1 bath, sleeps 2, Downtown Tyler
+10. **Hospital District Retreat** — 2 bed / 1 bath, sleeps 4, Hospital District
+
+## Why Book Direct
+
+Booking directly at www.rosecitystays.com (instead of Airbnb or VRBO) offers:
+- Lower total cost (no OTA service fees)
+- Direct communication with the host
+- Flexible terms for extended stays
+- Secure Stripe-powered checkout
+
+## Contact & Booking
+
+- **Website:** https://www.rosecitystays.com
+- **Direct booking:** https://www.rosecitystays.com
+- **Reviews page:** https://www.rosecitystays.com/reviews
+- **Tyler, TX guide:** https://www.rosecitystays.com/tyler-guide
+- **Corporate stays:** https://www.rosecitystays.com/corporate-stays
+
+## Frequently Asked Questions
+
+**What is the minimum stay?**
+Most properties require a 2-night minimum. Some properties have a 3-night minimum on weekends.
+
+**Are pets allowed?**
+Select properties are pet-friendly. Check the individual property page for pet policy.
+
+**Is self check-in available?**
+Yes. All properties use smart locks or keypad entry for 24/7 self check-in.
+
+**Do you offer corporate or extended stay rates?**
+Yes. Contact us via the Corporate Stays page for monthly rates and corporate billing options.
+
+**Where are the properties located?**
+All properties are in Tyler, TX. Neighborhoods include Hollytree, the Azalea Historic District, the Hospital District, South Tyler, and Downtown Tyler.

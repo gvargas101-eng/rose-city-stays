@@ -4,8 +4,9 @@
  * Designed to rank for "things to do in Tyler TX", "Tyler TX visitor guide", etc.
  */
 
-import { useEffect } from "react";
 import { Link } from "wouter";
+import { useSEO } from "@/hooks/useSEO";
+import { generateBreadcrumbSchema } from "@/lib/seo";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -21,21 +22,6 @@ import {
   ArrowRight,
   Home,
 } from "lucide-react";
-
-// ── SEO meta helper ──────────────────────────────────────────────────────────
-function useSeoMeta(title: string, description: string) {
-  useEffect(() => {
-    document.title = title;
-    let meta = document.querySelector<HTMLMetaElement>("meta[name='description']");
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.name = "description";
-      document.head.appendChild(meta);
-    }
-    meta.content = description;
-  }, [title, description]);
-}
-
 // ── Data ─────────────────────────────────────────────────────────────────────
 
 const attractions = [
@@ -172,9 +158,26 @@ const events = [
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function TylerGuide() {
-  useSeoMeta(
-    "Tyler, Texas Visitor Guide — Things to Do, Dining & Neighborhoods | Rose City Stays",
-    "Explore Tyler, TX with our local guide. Discover the best attractions, restaurants, neighborhoods, and events in the Rose Capital of America. Find short-term rentals near it all."
+  useSEO(
+    {
+      title: "Tyler, Texas Visitor Guide — Things to Do, Dining & Neighborhoods | Rose City Stays",
+      description:
+        "Explore Tyler, TX: best attractions, restaurants, neighborhoods & events in the Rose Capital of America. Short-term rentals near it all.",
+      ogType: "article",
+      path: "/tyler-guide",
+      keywords: [
+        "things to do Tyler TX",
+        "Tyler Texas visitor guide",
+        "Tyler TX restaurants",
+        "Tyler TX neighborhoods",
+        "East Texas travel guide",
+        "Rose Capital of America",
+      ],
+    },
+    generateBreadcrumbSchema([
+      { name: "Home", path: "/" },
+      { name: "Tyler, TX Guide", path: "/tyler-guide" },
+    ])
   );
 
   return (

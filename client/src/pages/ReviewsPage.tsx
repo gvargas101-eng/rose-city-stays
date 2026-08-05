@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useSEO } from "@/hooks/useSEO";
+import { generateBreadcrumbSchema } from "@/lib/seo";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Star } from "lucide-react";
@@ -24,6 +26,25 @@ function propertyLabel(slug: string) {
 }
 
 export default function ReviewsPage() {
+  useSEO(
+    {
+      title: "Guest Reviews | Rose City Stays — Tyler, TX Rentals",
+      description:
+        "Read verified guest reviews for Rose City Stays properties in Tyler, TX. 4.9★ average across 10 premium short-term rentals.",
+      ogType: "website",
+      path: "/reviews",
+      keywords: [
+        "Rose City Stays reviews",
+        "Tyler TX rental reviews",
+        "short-term rental guest reviews",
+        "Tyler Texas vacation rental reviews",
+      ],
+    },
+    generateBreadcrumbSchema([
+      { name: "Home", path: "/" },
+      { name: "Guest Reviews", path: "/reviews" },
+    ])
+  );
   const { data: reviews = [], isLoading } = trpc.reviews.all.useQuery();
   const [filterSlug, setFilterSlug] = useState("all");
 
