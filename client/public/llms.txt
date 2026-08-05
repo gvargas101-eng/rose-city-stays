@@ -15,7 +15,7 @@ Rose City Stays is a boutique short-term rental company based in Tyler, TX (the 
 ## Properties
 
 All properties are located in Tyler, TX and feature:
-- High-speed WiFi (500+ Mbps)
+- 1 Gig WiFi
 - Self check-in (smart locks / keypad)
 - Fully equipped kitchens
 - Premium linens and towels

@@ -526,7 +526,7 @@ Medical professionals need dependable internet for:
 - Staying connected with family
 - Work-from-home flexibility
 
-Rose City Stays properties feature **500+ Mbps WiFi** throughout.
+Rose City Stays properties feature **1 Gig WiFi** throughout.
 
 ### Dedicated Workspace
 Many medical professionals need a quiet space for:

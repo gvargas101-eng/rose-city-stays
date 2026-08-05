@@ -466,7 +466,7 @@ export default function PropertyDetail() {
                 {[
                   { icon: <Clock className="w-4 h-4" />, label: "Check-in", value: property.checkIn },
                   { icon: <Clock className="w-4 h-4" />, label: "Check-out", value: property.checkOut },
-                  { icon: <Wifi className="w-4 h-4" />, label: "WiFi", value: "500+ Mbps included" },
+                  { icon: <Wifi className="w-4 h-4" />, label: "WiFi", value: "1 Gig included" },
                   { icon: <Calendar className="w-4 h-4" />, label: "Self Check-In", value: "24-hour access" },
                 ].map((rule) => (
                   <div key={rule.label} className="flex items-start gap-3 p-4 bg-muted/40 rounded-lg">

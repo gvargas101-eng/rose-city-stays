@@ -316,7 +316,7 @@ export default function Home() {
               { value: "11", label: "Properties" },
               { value: "4.9★", label: "Average Rating" },
               { value: "24/7", label: "Self Check-In" },
-              { value: "500+", label: "Mbps WiFi" },
+              { value: "1 Gig", label: "WiFi Speed" },
             ].map((stat, i) => (
               <div
                 key={stat.label}
@@ -625,7 +625,7 @@ export default function Home() {
 
               <div className="mt-8 grid grid-cols-2 gap-4">
                 {[
-                  { icon: <Wifi className="w-4 h-4" />, label: "500+ Mbps WiFi" },
+                  { icon: <Wifi className="w-4 h-4" />, label: "1 Gig WiFi" },
                   { icon: <Clock className="w-4 h-4" />, label: "24-Hour Check-In" },
                   { icon: <MapPin className="w-4 h-4" />, label: "Tyler, TX" },
                   { icon: <CheckCircle2 className="w-4 h-4" />, label: "Professionally Cleaned" },

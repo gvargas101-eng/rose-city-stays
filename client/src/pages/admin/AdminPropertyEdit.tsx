@@ -442,7 +442,7 @@ export default function AdminPropertyEdit() {
               <Input
                 value={newAmenity}
                 onChange={(e) => setNewAmenity(e.target.value)}
-                placeholder="e.g. Free WiFi (500+ Mbps)"
+                placeholder="e.g. Free WiFi (1 Gig)"
                 className="flex-1"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newAmenity.trim()) {

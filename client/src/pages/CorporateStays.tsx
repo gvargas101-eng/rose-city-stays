@@ -33,7 +33,7 @@ const BENEFITS = [
   },
   {
     icon: <Wifi className="w-5 h-5 text-primary" />,
-    title: "500+ Mbps Wi-Fi",
+    title: "1 Gig Wi-Fi",
     desc: "Every property is equipped with blazing-fast internet, ideal for remote work, telehealth, and video conferencing.",
   },
   {
@@ -234,7 +234,7 @@ export default function CorporateStays() {
                   ["Minimum Stay", "30 nights for monthly rates"],
                   ["Properties", "10 fully furnished homes"],
                   ["Location", "Tyler, TX — near UT Health & Mother Frances"],
-                  ["Internet", "500+ Mbps fiber in every home"],
+                  ["Internet", "1 Gig fiber in every home"],
                   ["Check-In", "Self check-in, 24/7 availability"],
                   ["Response Time", "Within 24 hours of inquiry"],
                 ].map(([label, value]) => (

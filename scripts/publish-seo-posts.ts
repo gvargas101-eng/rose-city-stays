@@ -92,7 +92,7 @@ Return a JSON object with: { "title": string, "metaDescription": string, "excerp
 - 274 travel nurse jobs available in Tyler TX area (Indeed data)
 - Travel nurse housing platform travelnursehousing.com lists 157 furnished rentals in Tyler TX area
 - Rose City Stays has 11 fully furnished properties in Tyler TX, including properties in the Hospital District (walking distance to Mother Frances and UT Health Tyler)
-- Rose City Stays amenities: 500+ Mbps WiFi (essential for telehealth/charting), full kitchens, in-unit laundry, self check-in, 4.9-star rated
+- Rose City Stays amenities: 1 Gig WiFi (essential for telehealth/charting), full kitchens, in-unit laundry, self check-in, 4.9-star rated
 - Tyler TX is in East Texas, a growing healthcare hub serving a region of 1+ million people
 Today's date: August 2026`,
   },

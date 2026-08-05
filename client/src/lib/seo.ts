@@ -104,7 +104,7 @@ export const generateOrganizationSchema = () => {
     "@id": `${SITE_URL}/#organization`,
     name: SITE_NAME,
     description:
-      "Rose City Stays offers luxury short-term and corporate vacation rentals in Tyler, Texas. 11 designer properties, 4.9-star rated, self check-in, 500+ Mbps WiFi.",
+      "Rose City Stays offers luxury short-term and corporate vacation rentals in Tyler, Texas. 11 designer properties, 4.9-star rated, self check-in, 1 Gig WiFi.",
     url: SITE_URL,
     telephone: "+19037144305",
     email: "hello@rosecitystays.com",
@@ -173,7 +173,7 @@ export const generateFAQSchema = () => {
         name: "Does Rose City Stays offer corporate or extended-stay housing?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. Rose City Stays specializes in corporate housing and extended stays for traveling nurses, medical professionals, and business travelers. All properties include high-speed WiFi (500+ Mbps), full kitchens, and flexible check-in.",
+          text: "Yes. Rose City Stays specializes in corporate housing and extended stays for traveling nurses, medical professionals, and business travelers. All properties include 1 Gig WiFi, full kitchens, and flexible check-in.",
         },
       },
       {

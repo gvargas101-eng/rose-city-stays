@@ -410,3 +410,7 @@
 - [x] Add Prime 102 (downtown steakhouse) and Don Juan's on the Square (downtown Tex-Mex) to TylerGuide.tsx restaurant list
 - [x] Update Rick's on the Square description to reflect live music / Southern food focus
 - [x] Update hero copy "200+ stays" → "1,000+ stays" in Home.tsx
+
+## Accuracy Fixes (Aug 2026)
+- [x] Fix Kiepersol location: "Tyler outskirts" → "Bullard, TX (~20 min from Tyler)" in TylerGuide.tsx
+- [x] Update all "500+ Mbps" WiFi references → "1 Gig" across properties.ts, Home.tsx, CorporateStays.tsx, PropertyDetail.tsx, TylerGuide.tsx, seo.ts, llms.txt, blog.ts, AdminPropertyEdit.tsx, publish-seo-posts.ts

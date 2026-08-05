@@ -90,8 +90,8 @@ const restaurants = [
   {
     name: "Kiepersol Winery & Restaurant",
     type: "Fine Dining / Winery",
-    description: "Award-winning East Texas winery with an on-site restaurant serving farm-to-table cuisine. The estate is a stunning setting for a special dinner.",
-    neighborhood: "Tyler outskirts",
+    description: "Award-winning East Texas winery with an on-site restaurant serving farm-to-table cuisine. The estate is a stunning setting for a special dinner. Rated #1 restaurant in Tyler on TripAdvisor.",
+    neighborhood: "Bullard, TX (~20 min from Tyler)",
   },
   {
     name: "Villaggio Del Vino",
@@ -393,7 +393,7 @@ export default function TylerGuide() {
                 Tyler is the medical hub of East Texas, home to <strong className="text-foreground">UT Health East Texas</strong> and <strong className="text-foreground">Christus Trinity Mother Frances</strong> — two major regional hospital systems. Traveling nurses, patients, and families visiting for extended medical stays make up a significant portion of our guests.
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed mb-6" style={{ fontFamily: "var(--font-body)" }}>
-                Our properties near the Hospital District offer high-speed WiFi (500+ Mbps), full kitchens, washer/dryer, and flexible stays — everything you need for a comfortable extended stay without the cost of a hotel.
+                Our properties near the Hospital District offer 1 Gig WiFi, full kitchens, washer/dryer, and flexible stays — everything you need for a comfortable extended stay without the cost of a hotel.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link href="/corporate-stays">
