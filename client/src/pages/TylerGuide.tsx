@@ -22,8 +22,7 @@ import {
   ArrowRight,
   Home,
 } from "lucide-react";
-// ── Data ─────────────────────────────────────────────────────────────────────
-
+// ---- Data ----
 const attractions = [
   {
     name: "Tyler Municipal Rose Garden",
@@ -155,7 +154,7 @@ const events = [
   { name: "First Friday Art Walk", month: "Monthly", description: "Downtown galleries stay open late on the first Friday of each month, with live music and street vendors creating a festive atmosphere." },
 ];
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ---- Component ----
 
 export default function TylerGuide() {
   useSEO(

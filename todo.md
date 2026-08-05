@@ -384,13 +384,17 @@
 - [x] Add owner alert when a payment fails but confirmation page is visited (so manual cleanup can happen)
 
 ## SEO / AEO / GEO Optimization (Aug 2026)
-- [ ] Add useSEO with per-property dynamic meta tags to PropertyDetail page
-- [ ] Add useSEO to Home, CorporateStays, TylerGuide, ReviewsPage, LeaveReview pages
-- [ ] Fix Organization schema: use www.rosecitystays.com, add real phone/social profiles
-- [ ] Add FAQPage JSON-LD schema to Home page
-- [ ] Add LodgingBusiness JSON-LD schema to PropertyDetail pages
-- [ ] Add BreadcrumbList JSON-LD to PropertyDetail and BlogDetail pages
-- [ ] Add og:site_name, og:locale, og:url to seo.ts helper
-- [ ] Create /public/llms.txt for LLM crawler discovery (GEO)
-- [ ] Add speakable schema to Home page for voice/AI assistants
-- [ ] Add twitter:site meta tag to index.html
+- [x] Add useSEO with per-property dynamic meta tags to PropertyDetail page
+- [x] Add useSEO to Home, CorporateStays, TylerGuide, ReviewsPage, LeaveReview pages
+- [x] Fix Organization schema: use www.rosecitystays.com, add real phone/social profiles
+- [x] Add FAQPage JSON-LD schema to Home page
+- [x] Add LodgingBusiness JSON-LD schema to PropertyDetail pages
+- [x] Add BreadcrumbList JSON-LD to PropertyDetail and BlogDetail pages
+- [x] Add og:site_name, og:locale, og:url to seo.ts helper
+- [x] Create /public/llms.txt for LLM crawler discovery (GEO)
+- [x] Add speakable schema to Home page for voice/AI assistants
+- [x] Add twitter:site meta tag to index.html
+
+## Per-Property SEO (Aug 2026)
+- [x] Create client/src/lib/propertySEO.ts with hand-crafted SEO copy for all 11 properties (slug-keyed override map)
+- [x] Wire per-property SEO override map into PropertyDetail useSEO call (falls back to dynamic generation)

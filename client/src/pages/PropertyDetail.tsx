@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useSEO } from "@/hooks/useSEO";
 import { generatePropertySchema, generateBreadcrumbSchema } from "@/lib/seo";
+import { propertySEOMap } from "@/lib/propertySEO";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { getPropertyById, properties as staticProperties, type Property } from "@/lib/properties";
@@ -162,26 +163,32 @@ export default function PropertyDetail() {
 
   // ── SEO / AEO / GEO — must be called before early returns (React rules of hooks) ──
   const seoProperty = property || staticProperty;
+  // Use hand-crafted per-property SEO copy when available; fall back to dynamic generation.
+  const seoSlug = id || "";
+  const seoOverride = propertySEOMap[seoSlug];
   useSEO(
     {
-      title: seoProperty
-        ? `${seoProperty.name} | Rose City Stays — Tyler, TX`
-        : "Property | Rose City Stays",
-      description: seoProperty
-        ? `${seoProperty.bedrooms}-bedroom, ${seoProperty.bathrooms}-bath rental in Tyler, TX. Sleeps ${seoProperty.guests}. Book direct and save on fees. ${seoProperty.description?.slice(0, 80) ?? ""}`
-        : "Luxury short-term rental in Tyler, TX.",
+      title: seoOverride?.title
+        ?? (seoProperty
+          ? `${seoProperty.name} | Rose City Stays — Tyler, TX`
+          : "Property | Rose City Stays"),
+      description: seoOverride?.description
+        ?? (seoProperty
+          ? `${seoProperty.bedrooms}-bedroom, ${seoProperty.bathrooms}-bath rental in Tyler, TX. Sleeps ${seoProperty.guests}. Book direct and save on fees. ${seoProperty.description?.slice(0, 80) ?? ""}`
+          : "Luxury short-term rental in Tyler, TX."),
       ogImage: seoProperty?.image || seoProperty?.images?.[0],
       ogType: "product",
       path: seoProperty ? `/property/${seoProperty.id}` : undefined,
-      keywords: seoProperty
-        ? [
-            `${seoProperty.name} Tyler TX`,
-            `Tyler TX ${seoProperty.bedrooms} bedroom rental`,
-            `short-term rental ${seoProperty.neighborhood ?? "Tyler"}`,
-            "book direct Tyler Texas",
-            "Rose City Stays",
-          ]
-        : [],
+      keywords: seoOverride?.keywords
+        ?? (seoProperty
+          ? [
+              `${seoProperty.name} Tyler TX`,
+              `Tyler TX ${seoProperty.bedrooms} bedroom rental`,
+              `short-term rental ${seoProperty.neighborhood ?? "Tyler"}`,
+              "book direct Tyler Texas",
+              "Rose City Stays",
+            ]
+          : []),
     },
     seoProperty
       ? {
