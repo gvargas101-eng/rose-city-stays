@@ -1,5 +1,5 @@
 // Rose City Stays — Property Data
-// All 10 properties in Tyler, TX
+// All 11 properties in Tyler, TX
 
 export interface Property {
   id: string | number;

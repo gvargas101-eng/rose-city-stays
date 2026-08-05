@@ -169,7 +169,7 @@ export default function CorporateStays() {
             Premium furnished homes in Tyler, TX — ideal for traveling nurses, corporate teams, and anyone who needs more than a hotel room. Monthly rates, no lease, move-in ready.
           </p>
           <div className="flex flex-wrap justify-center gap-6 mt-10 text-white/60 text-sm" style={{ fontFamily: "var(--font-body)" }}>
-            {["10 Properties Available", "4.9★ Average Rating", "Self Check-In 24/7", "Monthly Rate Discounts"].map(t => (
+            {["11 Properties Available", "4.9★ Average Rating", "Self Check-In 24/7", "Monthly Rate Discounts"].map(t => (
               <div key={t} className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-primary" />
                 <span>{t}</span>

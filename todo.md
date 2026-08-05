@@ -398,3 +398,10 @@
 ## Per-Property SEO (Aug 2026)
 - [x] Create client/src/lib/propertySEO.ts with hand-crafted SEO copy for all 11 properties (slug-keyed override map)
 - [x] Wire per-property SEO override map into PropertyDetail useSEO call (falls back to dynamic generation)
+
+## Site Audit Fixes (Aug 2026)
+- [x] Fix stale "10 properties" → "11 properties" in Footer.tsx
+- [x] Fix stale "10 Properties Available" → "11 Properties Available" in CorporateStays.tsx
+- [x] Fix stale comment "All 10 properties" → "All 11 properties" in properties.ts
+- [x] Replace Mio Nonno (Flower Mound/Dallas chain, not in Tyler) with Villaggio Del Vino (real Tyler Italian restaurant) in TylerGuide.tsx
+- [x] Rewrite llms.txt with accurate 11-property list, correct bed/bath/guest counts, and updated neighborhoods

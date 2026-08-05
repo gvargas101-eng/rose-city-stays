@@ -22,7 +22,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-sm text-background/60 leading-relaxed mb-6" style={{ fontFamily: "var(--font-body)" }}>
-              Tyler’s top-rated short-term rental collection. 10 properties, professionally managed, available to book direct.
+              Tyler's top-rated short-term rental collection. 11 properties, professionally managed, available to book direct.
             </p>
             <div className="flex items-center gap-3">
               <a

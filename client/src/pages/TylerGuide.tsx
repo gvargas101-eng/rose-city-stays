@@ -94,10 +94,10 @@ const restaurants = [
     neighborhood: "Tyler outskirts",
   },
   {
-    name: "Mio Nonno",
-    type: "Italian",
-    description: "Beloved downtown Italian restaurant known for handmade pasta, wood-fired dishes, and an extensive wine list. Reservations recommended on weekends.",
-    neighborhood: "Downtown Tyler",
+    name: "Villaggio Del Vino",
+    type: "Italian / Wine Bar",
+    description: "Tyler's top-rated Italian restaurant and wine bar, serving handcrafted pizzas, pastas, and small plates in a modern space with a patio. Consistently ranked #1 for Italian in Tyler.",
+    neighborhood: "South Tyler (Old Bullard Rd)",
   },
   {
     name: "Posados Café",
