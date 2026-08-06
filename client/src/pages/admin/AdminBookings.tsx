@@ -207,6 +207,44 @@ export default function AdminBookings() {
                             <p className="text-xs text-muted-foreground mb-0.5">Cleaning Fee</p>
                             <p className="text-foreground">${parseFloat(b.cleaningFee).toFixed(2)}</p>
                           </div>
+                          {/* ── Itemized Charge Breakdown ── */}
+                          <div className="col-span-2 sm:col-span-3 lg:col-span-4">
+                            <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Charge Breakdown</p>
+                            <div className="bg-background border border-border rounded-lg overflow-hidden text-sm w-full max-w-sm">
+                              <div className="divide-y divide-border">
+                                <div className="flex justify-between px-3 py-2">
+                                  <span className="text-muted-foreground">${parseFloat(b.nightlyRate).toFixed(2)} × {b.nights} night{b.nights !== 1 ? "s" : ""}</span>
+                                  <span className="text-foreground font-medium">${parseFloat(b.subtotal).toFixed(2)}</span>
+                                </div>
+                                {parseFloat(b.cleaningFee) > 0 && (
+                                  <div className="flex justify-between px-3 py-2">
+                                    <span className="text-muted-foreground">Cleaning fee</span>
+                                    <span className="text-foreground">${parseFloat(b.cleaningFee).toFixed(2)}</span>
+                                  </div>
+                                )}
+                                {parseFloat(b.taxAmount) > 0 && (
+                                  <div className="flex justify-between px-3 py-2">
+                                    <span className="text-muted-foreground">Tax ({(parseFloat(b.taxRate) * 100).toFixed(1)}%)</span>
+                                    <span className="text-foreground">${parseFloat(b.taxAmount).toFixed(2)}</span>
+                                  </div>
+                                )}
+                                {/* Add-ons: derive from total - subtotal - cleaningFee - tax */}
+                                {(() => {
+                                  const addonsTotal = parseFloat(b.totalAmount) - parseFloat(b.subtotal) - parseFloat(b.cleaningFee) - parseFloat(b.taxAmount);
+                                  return addonsTotal > 0.01 ? (
+                                    <div className="flex justify-between px-3 py-2">
+                                      <span className="text-muted-foreground">Add-ons</span>
+                                      <span className="text-foreground">${addonsTotal.toFixed(2)}</span>
+                                    </div>
+                                  ) : null;
+                                })()}
+                                <div className="flex justify-between px-3 py-2.5 bg-muted/30">
+                                  <span className="font-semibold text-foreground">Total charged</span>
+                                  <span className="font-semibold text-foreground">${parseFloat(b.totalAmount).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Stripe Payment ID</p>
                             <p className="text-foreground font-mono text-xs truncate">{b.stripePaymentIntentId || "—"}</p>

@@ -416,6 +416,9 @@
 - [x] Update all "500+ Mbps" WiFi references → "1 Gig" across properties.ts, Home.tsx, CorporateStays.tsx, PropertyDetail.tsx, TylerGuide.tsx, seo.ts, llms.txt, blog.ts, AdminPropertyEdit.tsx, publish-seo-posts.ts
 
 ## Payment Safeguard (Aug 2026)
+
+## Admin Itemized Charges (Aug 2026)
+- [x] Add itemized charge breakdown (nights × rate, cleaning fee, add-ons, total) to AdminBookings expanded detail view
 - [x] Add Stripe payment-status verification notification every time a Hostaway reservation is created (confirmStripeCheckoutSession)
 
 ## Webhook Retry Job (Aug 2026)
