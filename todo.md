@@ -420,6 +420,11 @@
 ## Admin Itemized Charges (Aug 2026)
 
 ## Phone Number to Hostaway (Aug 2026)
+
+## Named Add-ons in Admin Breakdown (Aug 2026)
+- [x] Add addonsSnapshot JSON column to bookings schema and migrate DB
+- [x] Save addon names/prices to addonsSnapshot at booking creation
+- [x] Display named add-on line items in admin charge breakdown
 - [x] Make phone number required in CheckoutModal (needed for door code generation)
 - [x] Pass guestPhone in manual booking confirmManualBooking Hostaway call
 - [x] Add itemized charge breakdown (nights × rate, cleaning fee, add-ons, total) to AdminBookings expanded detail view

@@ -502,6 +502,9 @@ export const bookingRouter = router({
           message: input.message || null,
           guestIdUrl: input.guestIdUrl || null,
           agreementAcceptedAt: input.agreementAcceptedAt || null,
+          addonsSnapshot: upsellAddonLines.length > 0
+            ? JSON.stringify(upsellAddonLines.map(a => ({ name: a.name, price: a.price })))
+            : null,
         })
         .$returningId();
 

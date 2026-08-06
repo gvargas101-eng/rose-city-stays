@@ -229,14 +229,33 @@ export default function AdminBookings() {
                                   </div>
                                 )}
                                 {/* Add-ons: derive from total - subtotal - cleaningFee - tax */}
-                                {(() => {
-                                  const addonsTotal = parseFloat(b.totalAmount) - parseFloat(b.subtotal) - parseFloat(b.cleaningFee) - parseFloat(b.taxAmount);
-                                  return addonsTotal > 0.01 ? (
+                               {(() => {
+                                 const addonsTotal = parseFloat(b.totalAmount) - parseFloat(b.subtotal) - parseFloat(b.cleaningFee) - parseFloat(b.taxAmount);
+                                  if (addonsTotal <= 0.01) return null;
+                                  // Try to parse named add-ons from snapshot
+                                  let addonLines: { name: string; price: number }[] = [];
+                                  try {
+                                    if (b.addonsSnapshot) addonLines = JSON.parse(b.addonsSnapshot);
+                                  } catch { /* ignore */ }
+                                  if (addonLines.length > 0) {
+                                    return (
+                                      <>
+                                        {addonLines.map((a, i) => (
+                                          <div key={i} className="flex justify-between px-3 py-2">
+                                            <span className="text-muted-foreground">{a.name}</span>
+                                            <span className="text-foreground">${Number(a.price).toFixed(2)}</span>
+                                          </div>
+                                        ))}
+                                      </>
+                                    );
+                                  }
+                                  // Fallback: no snapshot (older booking) — show generic total
+                                  return (
                                     <div className="flex justify-between px-3 py-2">
                                       <span className="text-muted-foreground">Add-ons</span>
                                       <span className="text-foreground">${addonsTotal.toFixed(2)}</span>
                                     </div>
-                                  ) : null;
+                                  );
                                 })()}
                                 <div className="flex justify-between px-3 py-2.5 bg-muted/30">
                                   <span className="font-semibold text-foreground">Total charged</span>

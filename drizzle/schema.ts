@@ -115,6 +115,7 @@ export const bookings = mysqlTable("bookings", {
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  addonsSnapshot: text("addonsSnapshot"), // JSON: [{name, price}] — snapshot of selected add-ons at booking time
 });
 
 export type Booking = typeof bookings.$inferSelect;
