@@ -45,6 +45,7 @@ import {
   X,
   Mail,
   Smartphone,
+  Phone,
 } from "lucide-react";
 import { properties as staticProperties } from "@/lib/properties";
 import AdminLayout from "./AdminLayout";
@@ -1002,15 +1003,21 @@ export default function AdminManualBookings() {
                                </a>
                              )}
                               {link.guestPhone && (
-                                <span className="inline-flex items-center gap-2 ml-2">
+                               <span className="inline-flex items-center gap-2 ml-2">
                                   <a href={`tel:${link.guestPhone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80">
-                                    📞 {link.guestPhone}
+                                    <Phone className="w-3 h-3" />{link.guestPhone}
                                   </a>
                                   <a
                                     href={`sms:${link.guestPhone}?body=${encodeURIComponent(`Hi ${link.guestName ?? ""}! Here is your booking payment link for ${link.propertyName}: ${window?.location?.origin ?? ""}/booking/pay/${link.token}`)}`}
                                     className="inline-flex items-center gap-0.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
-                                    💬 SMS
+                                    <MessageSquare className="w-3 h-3" />SMS
                                   </a>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(link.guestPhone!); }}
+                                    className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
+                                    title="Copy phone number">
+                                    <Copy className="w-3 h-3" />
+                                  </button>
                                 </span>
                               )}
                             </div>

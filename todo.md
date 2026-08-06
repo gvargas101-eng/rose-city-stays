@@ -438,3 +438,7 @@
 ## Admin SMS & Phone Improvements (Aug 2026)
 - [x] Add SMS quick-action button next to phone link in AdminBookings rows
 - [x] Show guest phone number in AdminManualLinks panel (+ phone field in create form)
+
+## Admin Phone UX (Aug 2026)
+- [x] Fix SMS pre-fill in AdminBookings to use property display name instead of slug
+- [x] Add copy-to-clipboard button for phone number in AdminBookings and AdminManualBookings

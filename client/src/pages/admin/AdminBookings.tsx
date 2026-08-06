@@ -3,6 +3,9 @@ import AdminLayout from "./AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Calendar, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare, Phone } from "lucide-react";
+import { Copy, Check } from "lucide-react";
+import { properties } from "@/lib/properties";
+import { useState as useStateLocal } from "react";
 
 const STATUS_OPTIONS = ["pending", "paid", "confirmed", "cancelled", "failed"] as const;
 type BookingStatus = typeof STATUS_OPTIONS[number];
@@ -179,12 +182,18 @@ export default function AdminBookings() {
                                   <Phone className="w-3 h-3" />{b.guestPhone}
                                 </a>
                                 <a
-                                  href={`sms:${b.guestPhone}?body=${encodeURIComponent(`Hi ${b.guestName}! This is Rose City Stays regarding your stay at ${b.propertyId} (${new Date(b.checkIn).toLocaleDateString()} – ${new Date(b.checkOut).toLocaleDateString()}).`)}`}
+                                  href={`sms:${b.guestPhone}?body=${encodeURIComponent(`Hi ${b.guestName}! This is Rose City Stays regarding your stay at ${properties.find(p => p.id === b.propertyId)?.name ?? b.propertyId} (${new Date(b.checkIn).toLocaleDateString()} – ${new Date(b.checkOut).toLocaleDateString()}).`)}`}
                                   className="inline-flex items-center gap-0.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
                                   onClick={e => e.stopPropagation()}
                                   title="Send SMS">
                                   <MessageSquare className="w-3 h-3" />SMS
                                 </a>
+                                <button
+                                  onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(b.guestPhone!); }}
+                                  className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
+                                  title="Copy phone number">
+                                  <Copy className="w-3 h-3" />
+                                </button>
                               </span>
                             )}
                           </div>
