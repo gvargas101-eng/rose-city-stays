@@ -65,12 +65,22 @@ export default function AdminBookings() {
   const [tab, setTab] = useState<"direct" | "manual">("direct");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [expandedLink, setExpandedLink] = useState<number | null>(null);
 
   const filtered = (bookings ?? []).filter(
     (b) => {
       if (filterStatus !== "all" && b.status !== filterStatus) return false;
+      if (dateFrom) {
+        const from = new Date(dateFrom).getTime();
+        if (b.checkIn < from) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo).getTime() + 86400000; // inclusive
+        if (b.checkIn >= to) return false;
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
@@ -160,6 +170,31 @@ export default function AdminBookings() {
                   placeholder="Search by guest name, phone, email, or property…"
                   className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
+              </div>
+              {/* Date range filter */}
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">Check-in:</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="text-sm rounded-lg border border-border bg-background text-foreground px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="text-sm rounded-lg border border-border bg-background text-foreground px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                {(dateFrom || dateTo) && (
+                  <button
+                    onClick={() => { setDateFrom(""); setDateTo(""); }}
+                    className="text-xs text-primary hover:text-primary/80 underline underline-offset-2"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
               {["all", ...STATUS_OPTIONS].map((s) => (
                 <button

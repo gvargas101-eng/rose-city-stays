@@ -25,6 +25,19 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import AdminLogin from "./AdminLogin";
 
+function PendingBadge() {
+  const { data: bookings } = trpc.admin.listBookings.useQuery(undefined, {
+    refetchInterval: 60_000, // refresh every minute
+  });
+  const pending = (bookings ?? []).filter(b => b.status === "pending").length;
+  if (!pending) return null;
+  return (
+    <span className="ml-auto bg-amber-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+      {pending}
+    </span>
+  );
+}
+
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/properties", label: "Properties", icon: Building2 },
@@ -82,7 +95,7 @@ function SidebarContent({
               >
                 <item.icon className="w-4 h-4 shrink-0" />
                 {item.label}
-                {active && <ChevronRight className="w-3.5 h-3.5 ml-auto" />}
+                {item.href === "/admin/bookings" ? <PendingBadge /> : active ? <ChevronRight className="w-3.5 h-3.5 ml-auto" /> : null}
               </div>
             </Link>
           );

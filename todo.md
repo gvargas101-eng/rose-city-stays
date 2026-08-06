@@ -446,3 +446,7 @@
 ## Admin Bookings UX (Aug 2026)
 - [x] Add "View in Stripe" link on each booking row using stripePaymentIntentId
 - [x] Add search/filter by guest name, phone, email, or property in AdminBookings
+
+## Admin Bookings UX Round 2 (Aug 2026)
+- [x] Add check-in date range filter to AdminBookings
+- [x] Add live pending bookings count badge on admin nav Bookings item
