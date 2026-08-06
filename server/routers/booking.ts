@@ -256,11 +256,53 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
   const paymentIntentId = normalizePaymentIntentId(session.payment_intent);
 
   // First confirm the booking (Hostaway + status update)
-  await confirmStoredBooking({
+  const confirmResult = await confirmStoredBooking({
     bookingId,
     stripePaymentIntentId: paymentIntentId,
     stripeCheckoutSessionId: session.id,
   });
+
+  // ── Payment-status safeguard notification ──────────────────────────────────
+  // Verify the Stripe payment intent status directly and notify the owner with
+  // full payment details so any discrepancy (incomplete, requires_action, etc.)
+  // is caught immediately.
+  try {
+    let piStatus = "unknown";
+    let piAmount = 0;
+    let piCurrency = "usd";
+    let piReceiptUrl = "";
+    if (paymentIntentId) {
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ["latest_charge"],
+      });
+      piStatus = pi.status;
+      piAmount = pi.amount;
+      piCurrency = pi.currency;
+      const charge = pi.latest_charge as Stripe.Charge | null;
+      piReceiptUrl = charge?.receipt_url ?? "";
+    }
+    const amountFormatted = `$${(piAmount / 100).toFixed(2)} ${piCurrency.toUpperCase()}`;
+    const statusEmoji = piStatus === "succeeded" ? "✅" : "⚠️";
+    const b = confirmResult.booking;
+    await notifyOwner({
+      title: `${statusEmoji} Payment Verified — Booking #${bookingId} (${piStatus.toUpperCase()})`,
+      content: [
+        `**Stripe Payment Status:** ${piStatus.toUpperCase()} ${statusEmoji}`,
+        `**Amount Charged:** ${amountFormatted}`,
+        `**Guest:** ${b.guestName} <${b.guestEmail}>`,
+        `**Property:** ${b.propertyId}`,
+        `**Dates:** ${new Date(b.checkIn).toLocaleDateString("en-US", { timeZone: "UTC" })} – ${new Date(b.checkOut).toLocaleDateString("en-US", { timeZone: "UTC" })}`,
+        `**Hostaway Reservation:** ${confirmResult.hostawayReservationId ?? "⚠️ Not created"}`,
+        paymentIntentId ? `**Stripe Dashboard:** https://dashboard.stripe.com/payments/${paymentIntentId}` : null,
+        piReceiptUrl ? `**Receipt:** ${piReceiptUrl}` : null,
+        piStatus !== "succeeded"
+          ? `\n🚨 ACTION REQUIRED: Payment status is NOT succeeded. Verify in Stripe and collect payment manually if needed.`
+          : null,
+      ].filter(Boolean).join("\n"),
+    });
+  } catch (notifyErr) {
+    console.error("[Booking] Payment verification notification failed:", notifyErr);
+  }
 
   // ── $500 Security Deposit Hold (post-checkout) ──
   // After the rental payment succeeds, retrieve the payment method from the

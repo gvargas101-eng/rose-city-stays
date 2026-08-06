@@ -414,3 +414,6 @@
 ## Accuracy Fixes (Aug 2026)
 - [x] Fix Kiepersol location: "Tyler outskirts" → "Bullard, TX (~20 min from Tyler)" in TylerGuide.tsx
 - [x] Update all "500+ Mbps" WiFi references → "1 Gig" across properties.ts, Home.tsx, CorporateStays.tsx, PropertyDetail.tsx, TylerGuide.tsx, seo.ts, llms.txt, blog.ts, AdminPropertyEdit.tsx, publish-seo-posts.ts
+
+## Payment Safeguard (Aug 2026)
+- [x] Add Stripe payment-status verification notification every time a Hostaway reservation is created (confirmStripeCheckoutSession)
