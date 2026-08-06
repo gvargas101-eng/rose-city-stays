@@ -421,4 +421,4 @@
 ## Webhook Retry Job (Aug 2026)
 - [x] Build /api/scheduled/retry-pending-bookings endpoint that finds pending bookings with paid Stripe sessions and confirms them
 - [x] Register endpoint in server/_core/index.ts
-- [ ] Schedule as project-level Heartbeat cron every 15 minutes via manus-heartbeat CLI (done after deploy)
+- [x] Schedule as project-level Heartbeat cron every 15 minutes via manus-heartbeat CLI (task_uid: TXUZMB9fpEinFeeEjr9N6T)
