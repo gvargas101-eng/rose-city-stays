@@ -110,6 +110,7 @@ interface FormState {
   adminNotes: string;
   guestName: string;
   guestEmail: string;
+  guestPhone: string;
   expiryDays: number;
   securityDepositOverride: string; // string so input can be empty
   guestNote: string;
@@ -134,6 +135,7 @@ const INITIAL_FORM: FormState = {
   adminNotes: "",
   guestName: "",
   guestEmail: "",
+  guestPhone: "",
   expiryDays: 7,
   securityDepositOverride: "",
   guestNote: "",
@@ -313,6 +315,7 @@ export default function AdminManualBookings() {
       adminNotes: form.adminNotes || undefined,
       guestName: form.guestName || undefined,
       guestEmail: form.guestEmail || undefined,
+      guestPhone: form.guestPhone || undefined,
       expiryDays: form.expiryDays,
       securityDepositOverride: depositOverride,
       guestNote: form.guestNote || undefined,
@@ -731,11 +734,20 @@ export default function AdminManualBookings() {
                     type="email"
                     value={form.guestEmail}
                     onChange={e => set("guestEmail", e.target.value)}
-                    placeholder="jane@example.com"
-                  />
-                </div>
+                  placeholder="jane@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Guest Phone</label>
+                <Input
+                  type="tel"
+                  value={form.guestPhone}
+                  onChange={e => set("guestPhone", e.target.value)}
+                  placeholder="+1 (555) 000-0000"
+                />
               </div>
             </div>
+          </div>
 
             {/* Guest Note */}
             <div>
@@ -984,10 +996,22 @@ export default function AdminManualBookings() {
                             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Guest</div>
                             <div className="text-sm text-foreground">
                               {link.guestName && <span>{link.guestName}</span>}
-                              {link.guestEmail && (
-                                <a href={`mailto:${link.guestEmail}`} className="ml-2 text-primary hover:underline">
-                                  {link.guestEmail}
-                                </a>
+                             {link.guestEmail && (
+                               <a href={`mailto:${link.guestEmail}`} className="ml-2 text-primary hover:underline">
+                                 {link.guestEmail}
+                               </a>
+                             )}
+                              {link.guestPhone && (
+                                <span className="inline-flex items-center gap-2 ml-2">
+                                  <a href={`tel:${link.guestPhone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80">
+                                    📞 {link.guestPhone}
+                                  </a>
+                                  <a
+                                    href={`sms:${link.guestPhone}?body=${encodeURIComponent(`Hi ${link.guestName ?? ""}! Here is your booking payment link for ${link.propertyName}: ${window?.location?.origin ?? ""}/booking/pay/${link.token}`)}`}
+                                    className="inline-flex items-center gap-0.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+                                    💬 SMS
+                                  </a>
+                                </span>
                               )}
                             </div>
                           </div>

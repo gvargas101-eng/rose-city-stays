@@ -506,6 +506,7 @@ export const adminRouter = router({
         adminNotes: z.string().optional(),
         guestName: z.string().optional(),
         guestEmail: z.string().email().optional(),
+        guestPhone: z.string().optional(),
         expiryDays: z.number().int().positive().default(7),
         securityDepositOverride: z.number().nonnegative().optional(), // null = use global setting
         guestNote: z.string().optional(), // shown to guest on payment page
@@ -549,6 +550,7 @@ export const adminRouter = router({
         adminNotes: input.adminNotes ?? null,
         guestName: input.guestName ?? null,
         guestEmail: input.guestEmail ?? null,
+        guestPhone: input.guestPhone ?? null,
         expiresAt,
         status: "active",
       });

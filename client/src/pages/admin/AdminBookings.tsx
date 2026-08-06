@@ -2,8 +2,7 @@ import { useState } from "react";
 import AdminLayout from "./AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Calendar, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare } from "lucide-react";
-import { Phone } from "lucide-react";
+import { Calendar, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare, Phone } from "lucide-react";
 
 const STATUS_OPTIONS = ["pending", "paid", "confirmed", "cancelled", "failed"] as const;
 type BookingStatus = typeof STATUS_OPTIONS[number];
@@ -173,11 +172,20 @@ export default function AdminBookings() {
                             <p className="font-medium text-foreground text-sm">{b.guestName}</p>
                             <p className="text-xs text-muted-foreground">{b.guestEmail}</p>
                             {b.guestPhone && (
-                              <a href={`tel:${b.guestPhone}`}
-                                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-                                onClick={e => e.stopPropagation()}>
-                                <Phone className="w-3 h-3" />{b.guestPhone}
-                              </a>
+                              <span className="inline-flex items-center gap-2">
+                                <a href={`tel:${b.guestPhone}`}
+                                  className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                                  onClick={e => e.stopPropagation()}>
+                                  <Phone className="w-3 h-3" />{b.guestPhone}
+                                </a>
+                                <a
+                                  href={`sms:${b.guestPhone}?body=${encodeURIComponent(`Hi ${b.guestName}! This is Rose City Stays regarding your stay at ${b.propertyId} (${new Date(b.checkIn).toLocaleDateString()} – ${new Date(b.checkOut).toLocaleDateString()}).`)}`}
+                                  className="inline-flex items-center gap-0.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                                  onClick={e => e.stopPropagation()}
+                                  title="Send SMS">
+                                  <MessageSquare className="w-3 h-3" />SMS
+                                </a>
+                              </span>
                             )}
                           </div>
                         </div>

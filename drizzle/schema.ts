@@ -268,6 +268,7 @@ export const manualBookingLinks = mysqlTable("manual_booking_links", {
   // Guest info (pre-filled if admin knows it)
   guestName: varchar("guestName", { length: 256 }),
   guestEmail: varchar("guestEmail", { length: 320 }),
+  guestPhone: varchar("guestPhone", { length: 32 }),
 
   // Status lifecycle
   status: mysqlEnum("status", ["active", "paid", "expired", "revoked"]).notNull().default("active"),

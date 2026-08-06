@@ -434,3 +434,7 @@
 - [x] Build /api/scheduled/retry-pending-bookings endpoint that finds pending bookings with paid Stripe sessions and confirms them
 - [x] Register endpoint in server/_core/index.ts
 - [x] Schedule as project-level Heartbeat cron every 15 minutes via manus-heartbeat CLI (task_uid: TXUZMB9fpEinFeeEjr9N6T)
+
+## Admin SMS & Phone Improvements (Aug 2026)
+- [x] Add SMS quick-action button next to phone link in AdminBookings rows
+- [x] Show guest phone number in AdminManualLinks panel (+ phone field in create form)
