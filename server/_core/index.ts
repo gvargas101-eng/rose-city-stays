@@ -9,6 +9,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { generateBlogPost } from "../blog-writer";
 import { syncHostawayListings } from "../hostaway-sync";
+import { retryPendingBookingsHandler } from "../retry-pending-bookings";
 import Stripe from "stripe";
 import { confirmStripeCheckoutSession } from "../routers/booking";
 
@@ -114,6 +115,9 @@ async function startServer() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ── Retry pending bookings (webhook safety net, every 15 min) ────────────
+  app.post("/api/scheduled/retry-pending-bookings", retryPendingBookingsHandler);
 
   // ── Guest ID upload endpoint ──────────────────────────────────────────
   // Accepts multipart/form-data POST with a single file field "idFile".
