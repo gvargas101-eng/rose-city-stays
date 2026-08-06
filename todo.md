@@ -450,3 +450,6 @@
 ## Admin Bookings UX Round 2 (Aug 2026)
 - [x] Add check-in date range filter to AdminBookings
 - [x] Add live pending bookings count badge on admin nav Bookings item
+
+## Admin Nav Badges (Aug 2026)
+- [x] Add active manual booking links count badge on Manual Bookings nav item

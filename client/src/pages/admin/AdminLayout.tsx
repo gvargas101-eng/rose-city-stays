@@ -38,6 +38,19 @@ function PendingBadge() {
   );
 }
 
+function ActiveLinksBadge() {
+  const { data: links } = trpc.admin.listManualBookingLinks.useQuery(undefined, {
+    refetchInterval: 60_000,
+  });
+  const active = (links ?? []).filter(l => l.status === "active").length;
+  if (!active) return null;
+  return (
+    <span className="ml-auto bg-blue-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+      {active}
+    </span>
+  );
+}
+
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/properties", label: "Properties", icon: Building2 },
@@ -95,7 +108,11 @@ function SidebarContent({
               >
                 <item.icon className="w-4 h-4 shrink-0" />
                 {item.label}
-                {item.href === "/admin/bookings" ? <PendingBadge /> : active ? <ChevronRight className="w-3.5 h-3.5 ml-auto" /> : null}
+                {item.href === "/admin/bookings"
+                  ? <PendingBadge />
+                  : item.href === "/admin/manual-bookings"
+                    ? <ActiveLinksBadge />
+                    : active ? <ChevronRight className="w-3.5 h-3.5 ml-auto" /> : null}
               </div>
             </Link>
           );
