@@ -418,6 +418,10 @@
 ## Payment Safeguard (Aug 2026)
 
 ## Admin Itemized Charges (Aug 2026)
+
+## Phone Number to Hostaway (Aug 2026)
+- [x] Make phone number required in CheckoutModal (needed for door code generation)
+- [x] Pass guestPhone in manual booking confirmManualBooking Hostaway call
 - [x] Add itemized charge breakdown (nights × rate, cleaning fee, add-ons, total) to AdminBookings expanded detail view
 - [x] Add Stripe payment-status verification notification every time a Hostaway reservation is created (confirmStripeCheckoutSession)
 

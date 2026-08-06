@@ -860,6 +860,7 @@ export const bookingRouter = router({
         guestEmail: z.string().email(),
         guestIdUrl: z.string().url().optional(),
         origin: z.string(),
+        guestPhone: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -996,6 +997,7 @@ export const bookingRouter = router({
           guest_id_url: input.guestIdUrl ?? "",
           property_slug: link.propertySlug,
           property_name: link.propertyName,
+          guest_phone: input.guestPhone ?? "",
         },
         allow_promotion_codes: true,
       });
@@ -1050,6 +1052,7 @@ export const bookingRouter = router({
             hostawayListingId: link.hostawayListingId!,
             guestName,
             guestEmail,
+            guestPhone: session.metadata?.guest_phone || undefined,
             checkIn: checkInDate,
             checkOut: checkOutDate,
             adults: link.guestCount,

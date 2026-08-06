@@ -62,6 +62,7 @@ export default function ManualBookingPay() {
   // Form state — pre-filled once link data loads
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
   const [prefilled, setPrefilled] = useState(false);
 
   // Hard-stop acknowledgment state
@@ -166,6 +167,7 @@ export default function ManualBookingPay() {
       guestEmail: guestEmail.trim(),
       guestIdUrl: idUrl ?? undefined,
       origin: window.location.origin,
+      guestPhone: guestPhone.trim() || undefined,
     });
   }
 
@@ -214,6 +216,7 @@ export default function ManualBookingPay() {
   const canSubmit =
     guestName.trim() &&
     guestEmail.trim() &&
+    guestPhone.trim() &&
     (!requireCamera || ackCamera) &&
     (!requireGuestCount || ackGuestCount) &&
     (!requireTerms || ackTerms) &&
@@ -358,6 +361,16 @@ export default function ManualBookingPay() {
                   value={guestEmail}
                   onChange={e => setGuestEmail(e.target.value)}
                   placeholder="jane@example.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Phone Number *</label>
+                <Input
+                  type="tel"
+                  value={guestPhone}
+                  onChange={e => setGuestPhone(e.target.value)}
+                  placeholder="+1 (555) 000-0000"
                   required
                 />
               </div>

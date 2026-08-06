@@ -179,7 +179,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
 
   const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!guestInfo.name.trim() || !guestInfo.email.trim()) return;
+    if (!guestInfo.name.trim() || !guestInfo.email.trim() || !guestInfo.phone.trim()) return;
 
     // Hard stop — must upload ID
     if (idUpload.status !== "done") {
@@ -352,12 +352,13 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Phone (optional)</label>
+                  <label className="text-xs text-muted-foreground mb-1 block">Phone Number *</label>
                   <Input
                     type="tel"
                     value={guestInfo.phone}
                     onChange={(e) => setGuestInfo((g) => ({ ...g, phone: e.target.value }))}
                     placeholder="+1 (555) 000-0000"
+                    required
                     className="bg-background"
                   />
                 </div>
