@@ -4,8 +4,8 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Calendar, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare, Phone } from "lucide-react";
 import { Copy, Check } from "lucide-react";
+import { Search } from "lucide-react";
 import { properties } from "@/lib/properties";
-import { useState as useStateLocal } from "react";
 
 const STATUS_OPTIONS = ["pending", "paid", "confirmed", "cancelled", "failed"] as const;
 type BookingStatus = typeof STATUS_OPTIONS[number];
@@ -64,11 +64,25 @@ export default function AdminBookings() {
 
   const [tab, setTab] = useState<"direct" | "manual">("direct");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [expandedLink, setExpandedLink] = useState<number | null>(null);
 
   const filtered = (bookings ?? []).filter(
-    (b) => filterStatus === "all" || b.status === filterStatus
+    (b) => {
+      if (filterStatus !== "all" && b.status !== filterStatus) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          b.guestName.toLowerCase().includes(q) ||
+          b.guestEmail.toLowerCase().includes(q) ||
+          (b.guestPhone ?? "").toLowerCase().includes(q) ||
+          b.propertyId.toLowerCase().includes(q) ||
+          (properties.find(p => p.id === b.propertyId)?.name ?? "").toLowerCase().includes(q)
+        );
+      }
+      return true;
+    }
   );
 
   const totalRevenue = (bookings ?? [])
@@ -136,6 +150,17 @@ export default function AdminBookings() {
           <>
             {/* Filter tabs */}
             <div className="flex gap-2 mb-5 flex-wrap">
+              {/* Search input */}
+              <div className="w-full mb-2 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search by guest name, phone, email, or property…"
+                  className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
               {["all", ...STATUS_OPTIONS].map((s) => (
                 <button
                   key={s}
@@ -291,7 +316,19 @@ export default function AdminBookings() {
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Stripe Payment ID</p>
-                            <p className="text-foreground font-mono text-xs truncate">{b.stripePaymentIntentId || "—"}</p>
+                            {b.stripePaymentIntentId ? (
+                              <a
+                                href={`https://dashboard.stripe.com/payments/${b.stripePaymentIntentId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-mono"
+                              >
+                                {b.stripePaymentIntentId.slice(0, 20)}…
+                                <ExternalLink className="w-3 h-3 shrink-0" />
+                              </a>
+                            ) : (
+                              <p className="text-foreground font-mono text-xs">—</p>
+                            )}
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Hostaway Reservation</p>

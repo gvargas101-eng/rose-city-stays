@@ -442,3 +442,7 @@
 ## Admin Phone UX (Aug 2026)
 - [x] Fix SMS pre-fill in AdminBookings to use property display name instead of slug
 - [x] Add copy-to-clipboard button for phone number in AdminBookings and AdminManualBookings
+
+## Admin Bookings UX (Aug 2026)
+- [x] Add "View in Stripe" link on each booking row using stripePaymentIntentId
+- [x] Add search/filter by guest name, phone, email, or property in AdminBookings
