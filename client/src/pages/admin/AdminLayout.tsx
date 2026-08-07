@@ -21,6 +21,7 @@ import {
   Tag,
   Star,
 } from "lucide-react";
+import { Percent } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import AdminLogin from "./AdminLogin";
@@ -60,6 +61,7 @@ const navItems = [
   { href: "/admin/manual-bookings", label: "Manual Bookings", icon: Link2 },
   { href: "/admin/upsell-addons", label: "Upsell Add-Ons", icon: Tag },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
+  { href: "/admin/discount-codes", label: "Discount Codes", icon: Percent },
   { href: "/admin/settings", label: "Settings", icon: Settings2 },
 ];
 

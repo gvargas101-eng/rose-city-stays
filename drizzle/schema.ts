@@ -116,6 +116,10 @@ export const bookings = mysqlTable("bookings", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   addonsSnapshot: text("addonsSnapshot"), // JSON: [{name, price}] — snapshot of selected add-ons at booking time
+  // Loyalty discount code applied at checkout
+  discountCodeId: int("discountCodeId"),
+  discountCodeLabel: varchar("discountCodeLabel", { length: 128 }),
+  discountCodeAmount: decimal("discountCodeAmount", { precision: 10, scale: 2 }),
 });
 
 export type Booking = typeof bookings.$inferSelect;
@@ -325,3 +329,65 @@ export const reviews = mysqlTable("reviews", {
 });
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loyalty Discount Codes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * discount_codes — admin-managed promo/loyalty codes.
+ * Discount is applied to the nightly subtotal only (not cleaning fee or tax).
+ */
+export const discountCodes = mysqlTable("discount_codes", {
+  id: int("id").autoincrement().primaryKey(),
+
+  // The code guests type at checkout (stored uppercase, compared case-insensitively)
+  code: varchar("code", { length: 64 }).notNull().unique(),
+
+  // Human-readable label shown to guest as a line item, e.g. "Welcome Back 10%"
+  label: varchar("label", { length: 128 }).notNull(),
+
+  // Discount type: "percent" = % off nightly subtotal, "fixed" = flat $ off nightly subtotal
+  discountType: mysqlEnum("discountType", ["percent", "fixed"]).notNull().default("percent"),
+
+  // Value: for percent = 10 means 10%, for fixed = 25 means $25 off
+  discountValue: decimal("discountValue", { precision: 8, scale: 2 }).notNull(),
+
+  // Max total uses across all guests (null = unlimited)
+  maxTotalUses: int("maxTotalUses"),
+
+  // Default max uses per unique guest email (null = unlimited per guest)
+  maxUsesPerGuest: int("maxUsesPerGuest").notNull().default(3),
+
+  // Optional expiration date (Unix ms, null = never expires)
+  expiresAt: bigint("expiresAt", { mode: "number" }),
+
+  // Optional restriction to specific property slugs (JSON array, null = all properties)
+  propertyRestrictions: text("propertyRestrictions"), // JSON: string[] | null
+
+  // Active toggle — admin can pause without deleting
+  isActive: int("isActive").notNull().default(1),
+
+  // Internal notes (not shown to guest)
+  adminNotes: text("adminNotes"),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type DiscountCode = typeof discountCodes.$inferSelect;
+export type InsertDiscountCode = typeof discountCodes.$inferInsert;
+
+/**
+ * discount_code_uses — one row per successful use of a discount code.
+ * Used to enforce maxTotalUses and maxUsesPerGuest limits.
+ */
+export const discountCodeUses = mysqlTable("discount_code_uses", {
+  id: int("id").autoincrement().primaryKey(),
+  discountCodeId: int("discountCodeId").notNull(),
+  bookingId: int("bookingId"),                        // null until booking confirmed
+  guestEmail: varchar("guestEmail", { length: 320 }).notNull(),
+  discountAmount: decimal("discountAmount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type DiscountCodeUse = typeof discountCodeUses.$inferSelect;
+export type InsertDiscountCodeUse = typeof discountCodeUses.$inferInsert;

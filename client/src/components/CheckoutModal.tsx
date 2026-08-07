@@ -33,6 +33,7 @@ import {
   Plus,
   Minus,
 } from "lucide-react";
+import { Tag, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AGREEMENT_ACKNOWLEDGMENT_TEXT } from "@/lib/rentalAgreement";
 
@@ -108,6 +109,18 @@ export default function CheckoutModal(props: CheckoutModalProps) {
   const availableAddons: UpsellAddon[] = upsellAddonsData ?? [];
   const [selectedAddonIds, setSelectedAddonIds] = useState<number[]>([]);
 
+  // Discount code state
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    id: number;
+    code: string;
+    label: string;
+    discountAmount: number;
+  } | null>(null);
+  const [discountError, setDiscountError] = useState<string | null>(null);
+  const [discountLoading, setDiscountLoading] = useState(false);
+  const validateDiscount = trpc.discountCodes.validate.useMutation();
+
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
     name: "",
     email: "",
@@ -128,13 +141,44 @@ export default function CheckoutModal(props: CheckoutModalProps) {
   const customFeesTotal = customFeeLines.reduce((s, f) => s + f.computed, 0);
   const selectedAddons = availableAddons.filter(a => selectedAddonIds.includes(a.id));
   const upsellAddonsTotal = selectedAddons.reduce((s, a) => s + a.price, 0);
-  const grandTotal = totalAmount + customFeesTotal + upsellAddonsTotal;
+  const discountAmount = appliedDiscount?.discountAmount ?? 0;
+  const grandTotal = totalAmount + customFeesTotal + upsellAddonsTotal - discountAmount;
 
   const toggleAddon = (id: number) => {
     setSelectedAddonIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
+  const applyDiscountCode = async () => {
+    const code = discountCodeInput.trim().toUpperCase();
+    if (!code) return;
+    if (!guestInfo.email.trim()) {
+      setDiscountError("Please enter your email address first.");
+      return;
+    }
+    setDiscountLoading(true);
+    setDiscountError(null);
+    try {
+      const result = await validateDiscount.mutateAsync({
+        code,
+        guestEmail: guestInfo.email.trim(),
+        nightlySubtotal: subtotal,
+        propertyId,
+      });
+      setAppliedDiscount({
+        id: result.id,
+        code: result.code,
+        label: result.label,
+        discountAmount: result.discountAmount,
+      });
+      setDiscountCodeInput("");
+    } catch (err: any) {
+      setDiscountError(err.message ?? "Invalid discount code.");
+    } finally {
+      setDiscountLoading(false);
+    }
+  };
+
   const taxPct = Math.round(taxRate * 100);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,6 +254,9 @@ export default function CheckoutModal(props: CheckoutModalProps) {
         guestIdUrl: idUpload.status === "done" ? idUpload.url : undefined,
         agreementAcceptedAt: Date.now(),
         selectedAddonIds: selectedAddonIds.length > 0 ? selectedAddonIds : undefined,
+        discountCodeId: appliedDiscount?.id ?? undefined,
+        discountCodeLabel: appliedDiscount?.label ?? undefined,
+        discountCodeAmount: appliedDiscount?.discountAmount ?? undefined,
       });
 
       if (!result.checkoutUrl) {
@@ -305,6 +352,15 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                 <span>${a.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             ))}
+            {appliedDiscount && (
+              <div className="flex justify-between text-green-700 font-medium">
+                <span className="flex items-center gap-1">
+                  <Tag className="w-3 h-3" />
+                  {appliedDiscount.label}
+                </span>
+                <span>-${appliedDiscount.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            )}
             <div className="flex justify-between font-semibold text-foreground pt-2 border-t border-border mt-1">
               <span>Total (USD)</span>
               <span>
@@ -422,6 +478,59 @@ export default function CheckoutModal(props: CheckoutModalProps) {
             )}
 
             {/* ── STEP 2: Government ID Upload ── */}
+            {/* ── DISCOUNT CODE ── */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-green-600 text-white text-xs flex items-center justify-center font-bold">
+                  <Tag className="w-3 h-3" />
+                </span>
+                Have a Discount Code?
+              </h3>
+              {appliedDiscount ? (
+                <div className="flex items-center justify-between rounded-xl border-2 border-green-400 bg-green-50 px-4 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-green-800">{appliedDiscount.code}</div>
+                    <div className="text-xs text-green-700">{appliedDiscount.label} — saving ${appliedDiscount.discountAmount.toFixed(2)}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setAppliedDiscount(null); setDiscountError(null); }}
+                    className="text-green-600 hover:text-red-500 transition-colors"
+                    title="Remove discount"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={discountCodeInput}
+                      onChange={e => { setDiscountCodeInput(e.target.value.toUpperCase()); setDiscountError(null); }}
+                      onKeyDown={e => e.key === "Enter" && (e.preventDefault(), applyDiscountCode())}
+                      placeholder="e.g. WELCOMEBACK10"
+                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyDiscountCode}
+                      disabled={discountLoading || !discountCodeInput.trim()}
+                      className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {discountLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+                    </button>
+                  </div>
+                  {discountError && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <XCircle className="w-3 h-3" /> {discountError}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── STEP 2: Government ID Upload (reopened) ── */}
             <div
               className={`rounded-xl border-2 p-4 transition-colors ${
                 idTouched && idUpload.status !== "done"

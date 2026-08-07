@@ -17,6 +17,8 @@ import {
   siteSettings,
   manualBookingLinks,
   upsellAddons,
+  discountCodeUses,
+  discountCodes,
 } from "../../drizzle/schema";
 import { PROPERTY_TO_HOSTAWAY_ID, getPropertyCalendar } from "../hostaway";
 import { createHostawayReservation } from "../hostaway-booking";
@@ -411,6 +413,9 @@ export const bookingRouter = router({
         guestIdUrl: z.string().url().optional(),
         agreementAcceptedAt: z.number().int().optional(),
         selectedAddonIds: z.array(z.number().int()).optional(),
+        discountCodeId: z.number().int().optional(),
+        discountCodeLabel: z.string().optional(),
+        discountCodeAmount: z.number().nonnegative().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -475,7 +480,8 @@ export const bookingRouter = router({
         upsellAddonLines.reduce((sum, a) => sum + a.price, 0)
       );
       const taxAmount = roundCurrency(subtotal * taxRate);
-      const totalAmount = roundCurrency(subtotal + cleaningFee + taxAmount + customFeesTotal + overageFee + upsellAddonsTotal);
+      const discountAmount = roundCurrency(input.discountCodeAmount ?? 0);
+      const totalAmount = roundCurrency(subtotal + cleaningFee + taxAmount + customFeesTotal + overageFee + upsellAddonsTotal - discountAmount);
 
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -505,6 +511,9 @@ export const bookingRouter = router({
           addonsSnapshot: upsellAddonLines.length > 0
             ? JSON.stringify(upsellAddonLines.map(a => ({ name: a.name, price: a.price })))
             : null,
+          discountCodeId: input.discountCodeId ?? null,
+          discountCodeLabel: input.discountCodeLabel ?? null,
+          discountCodeAmount: discountAmount > 0 ? String(discountAmount) : null,
         })
         .$returningId();
 
@@ -599,6 +608,16 @@ export const bookingRouter = router({
             },
             quantity: 1,
           })),
+          ...(discountAmount > 0 && input.discountCodeLabel ? [{
+            price_data: {
+              currency: "usd" as const,
+              product_data: {
+                name: `Discount — ${input.discountCodeLabel}`,
+              },
+              unit_amount: -dollarsToCents(discountAmount),
+            },
+            quantity: 1,
+          }] : []),
         ],
       });
 

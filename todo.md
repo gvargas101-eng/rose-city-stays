@@ -453,3 +453,10 @@
 
 ## Admin Nav Badges (Aug 2026)
 - [x] Add active manual booking links count badge on Manual Bookings nav item
+
+## Loyalty Discount Code System (Aug 2026)
+- [x] Add discount_codes and discount_code_uses tables to DB schema
+- [x] Server: validateDiscountCode (mutation), admin CRUD procedures (list/create/update/toggle/delete/setGuestLimit)
+- [x] CheckoutModal: discount code field with live validation and named line item in price breakdown
+- [x] AdminDiscountCodes page: create/edit/toggle/per-guest reset + usage stats
+- [x] Add Discount Codes to admin nav (Percent icon)
