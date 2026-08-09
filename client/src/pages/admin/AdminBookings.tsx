@@ -344,6 +344,12 @@ export default function AdminBookings() {
                                 })()}
                                 <div className="flex justify-between px-3 py-2.5 bg-muted/30">
                                   <span className="font-semibold text-foreground">Total charged</span>
+                                {b.discountCodeLabel && b.discountCodeAmount && parseFloat(b.discountCodeAmount) > 0 && (
+                                  <div className="flex justify-between px-3 py-2 text-green-700">
+                                    <span className="flex items-center gap-1">🏷 {b.discountCodeLabel}</span>
+                                    <span>-${parseFloat(b.discountCodeAmount).toFixed(2)}</span>
+                                  </div>
+                                )}
                                   <span className="font-semibold text-foreground">${parseFloat(b.totalAmount).toFixed(2)}</span>
                                 </div>
                               </div>

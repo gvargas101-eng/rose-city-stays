@@ -460,3 +460,8 @@
 - [x] CheckoutModal: discount code field with live validation and named line item in price breakdown
 - [x] AdminDiscountCodes page: create/edit/toggle/per-guest reset + usage stats
 - [x] Add Discount Codes to admin nav (Percent icon)
+
+## Discount Code System — Follow-up (Aug 2026)
+- [ ] Record discount_code_uses in confirmStoredBooking after payment confirmed
+- [ ] Show discountCodeLabel and discountCodeAmount in AdminBookings charge breakdown
+- [ ] Add discount code field to manual booking link creation and ManualBookingPay page

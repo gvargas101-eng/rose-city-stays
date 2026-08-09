@@ -205,6 +205,21 @@ async function confirmStoredBooking(params: {
     })
     .where(eq(bookings.id, params.bookingId));
 
+  // Record discount code use (enforces per-guest and total use limits)
+  if (booking.discountCodeId && booking.guestEmail && booking.discountCodeAmount) {
+    try {
+      await db.insert(discountCodeUses).values({
+        discountCodeId: booking.discountCodeId,
+        bookingId: booking.id,
+        guestEmail: booking.guestEmail.toLowerCase(),
+        discountAmount: booking.discountCodeAmount,
+      });
+    } catch (discountErr) {
+      console.error("[Booking] Failed to record discount code use:", discountErr);
+    }
+  }
+
+
   await notifyOwner({
     title: `🎉 New Direct Booking — ${booking.guestName}`,
     content: [
@@ -216,6 +231,7 @@ async function confirmStoredBooking(params: {
       `**Nights:** ${booking.nights}`,
       `**Guests:** ${booking.guestCount}`,
       `**Total:** $${booking.totalAmount}`,
+      booking.discountCodeLabel ? `**Discount Applied:** ${booking.discountCodeLabel} (-$${booking.discountCodeAmount})` : null,
       params.stripePaymentIntentId ? `**Stripe PaymentIntent:** ${params.stripePaymentIntentId}` : null,
       params.stripeCheckoutSessionId ? `**Stripe Checkout Session:** ${params.stripeCheckoutSessionId}` : null,
       hostawayReservationId ? `**Hostaway Reservation:** ${hostawayReservationId}` : "⚠️ Hostaway sync failed — create manually",
@@ -528,7 +544,19 @@ export const bookingRouter = router({
         mode: "payment",
         customer_email: input.guestEmail,
         client_reference_id: String(bookingId),
-        allow_promotion_codes: true,
+        ...(discountAmount > 0 && input.discountCodeLabel ? {
+          discounts: [{
+            coupon: await (async () => {
+              const coupon = await stripe.coupons.create({
+                amount_off: dollarsToCents(discountAmount),
+                currency: "usd",
+                name: `Discount — ${input.discountCodeLabel}`,
+                duration: "once",
+              });
+              return coupon.id;
+            })(),
+          }],
+        } : { allow_promotion_codes: true as const }),
         success_url: `${baseUrl}/booking/confirmation?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/property/${input.propertyId}`,
         metadata: {
@@ -995,14 +1023,8 @@ export const bookingRouter = router({
       }
       // Apply discount as a negative line item if present
       if (Number(link.discountAmount) > 0) {
-        lineItems.push({
-          price_data: {
-            currency: "usd",
-            product_data: { name: "Discount" },
-            unit_amount: -dollarsToCents(Number(link.discountAmount)),
-          },
-          quantity: 1,
-        });
+        // Stripe does not allow negative unit_amount — use a coupon instead
+        // (coupon is created inline and attached via session.discounts)
       }
 
       const session = await stripe.checkout.sessions.create({
@@ -1021,7 +1043,20 @@ export const bookingRouter = router({
           property_name: link.propertyName,
           guest_phone: input.guestPhone ?? "",
         },
-        allow_promotion_codes: true,
+        ...(Number(link.discountAmount) > 0 ? {
+          discounts: [{
+            coupon: await (async () => {
+              const label = (link as any).discountLabel || "Discount";
+              const coupon = await stripe.coupons.create({
+                amount_off: dollarsToCents(Number(link.discountAmount)),
+                currency: "usd",
+                name: label,
+                duration: "once",
+              });
+              return coupon.id;
+            })(),
+          }],
+        } : { allow_promotion_codes: true as const }),
       });
 
       // Store the checkout session ID on the link
