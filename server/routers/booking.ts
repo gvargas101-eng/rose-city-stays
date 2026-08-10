@@ -544,6 +544,11 @@ export const bookingRouter = router({
         mode: "payment",
         customer_email: input.guestEmail,
         client_reference_id: String(bookingId),
+        // Save the payment method so we can reuse it for the deposit hold
+        // after checkout completes (off_session authorization).
+        payment_intent_data: {
+          setup_future_usage: "off_session",
+        },
         ...(discountAmount > 0 && input.discountCodeLabel ? {
           discounts: [{
             coupon: await (async () => {
