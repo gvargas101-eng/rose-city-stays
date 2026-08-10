@@ -163,7 +163,16 @@ export async function getListingReservations(
   }
   const json = await res.json();
   const result = json.result ?? json.reservations ?? [];
-  return result.map((r: any) => ({
+  // Debug: log first result to verify filter is working
+  if (result.length > 0) {
+    console.log(`[calendar] listing ${hostawayListingId}: ${result.length} reservations, first listingMapId=${result[0]?.listingMapId}`);
+  }
+  // Filter client-side to ensure only this listing's reservations are returned
+  // (Hostaway may ignore the listingMapId query param in some API versions)
+  const filtered = result.filter((r: any) =>
+    !r.listingMapId || r.listingMapId === hostawayListingId || String(r.listingMapId) === String(hostawayListingId)
+  );
+  return filtered.map((r: any) => ({
     id: r.id,
     listingMapId: r.listingMapId,
     guestName: r.guestName || "Guest",
