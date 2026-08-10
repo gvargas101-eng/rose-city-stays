@@ -465,3 +465,8 @@
 - [ ] Record discount_code_uses in confirmStoredBooking after payment confirmed
 - [ ] Show discountCodeLabel and discountCodeAmount in AdminBookings charge breakdown
 - [ ] Add discount code field to manual booking link creation and ManualBookingPay page
+
+## Master Property Calendar (Aug 2026)
+- [x] Add getReservationsForCalendar admin tRPC procedure — fetches all Hostaway reservations for all 11 properties for a given month range
+- [x] Build AdminCalendar.tsx page — horizontal timeline grid, properties as rows, days as columns, color-coded by channel (Airbnb/VRBO/Direct/Manual)
+- [x] Register /admin/calendar route in App.tsx and add Calendar nav item to admin sidebar

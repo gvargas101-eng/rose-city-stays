@@ -647,4 +647,30 @@ export const adminRouter = router({
       await db.delete(upsellAddons).where(eq(upsellAddons.id, input.id));
       return { success: true };
     }),
+
+  // ── Master Calendar ───────────────────────────────────────────────────────
+
+  /** Fetch all Hostaway reservations for all properties in a date range */
+  getReservationsForCalendar: adminProcedure
+    .input(z.object({
+      startDate: z.string(), // YYYY-MM-DD
+      endDate: z.string(),   // YYYY-MM-DD
+    }))
+    .query(async ({ input }) => {
+      const { PROPERTY_TO_HOSTAWAY_ID, getListingReservations } = await import("../hostaway");
+      const entries = Object.entries(PROPERTY_TO_HOSTAWAY_ID);
+      const results = await Promise.allSettled(
+        entries.map(async ([propertySlug, hostawayId]) => {
+          const reservations = await getListingReservations(
+            hostawayId,
+            input.startDate,
+            input.endDate
+          );
+          return { propertySlug, reservations };
+        })
+      );
+      return results
+        .filter((r): r is PromiseFulfilledResult<{ propertySlug: string; reservations: any[] }> => r.status === "fulfilled")
+        .map(r => r.value);
+    }),
 });

@@ -21,7 +21,7 @@ import {
   Tag,
   Star,
 } from "lucide-react";
-import { Percent } from "lucide-react";
+import { Percent, CalendarDays } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import AdminLogin from "./AdminLogin";
@@ -56,6 +56,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/properties", label: "Properties", icon: Building2 },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+  { href: "/admin/calendar", label: "Master Calendar", icon: CalendarDays },
   { href: "/admin/deposits", label: "Deposits", icon: Shield },
   { href: "/admin/corporate-inquiries", label: "Corporate", icon: Briefcase },
   { href: "/admin/manual-bookings", label: "Manual Bookings", icon: Link2 },

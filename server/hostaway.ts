@@ -125,3 +125,53 @@ export async function getListingBasePrice(propertyId: string): Promise<number | 
     return null;
   }
 }
+
+// ── Reservations (for master calendar) ─────────────────────────────────────
+
+export interface HostawayReservationEntry {
+  id: number;
+  listingMapId: number;
+  guestName: string;
+  channelName: string;   // "Airbnb", "Vrbo", "Direct", etc.
+  arrivalDate: string;   // YYYY-MM-DD
+  departureDate: string; // YYYY-MM-DD
+  status: string;        // "confirmed", "cancelled", etc.
+  numberOfGuests: number;
+  totalPrice: number;
+}
+
+/** Fetch all reservations for a single Hostaway listing in a date range */
+export async function getListingReservations(
+  hostawayListingId: number,
+  startDate: string,
+  endDate: string
+): Promise<HostawayReservationEntry[]> {
+  const token = await getAccessToken();
+  const params = new URLSearchParams({
+    listingMapId: String(hostawayListingId),
+    startDate,
+    endDate,
+    limit: "100",
+    includeResources: "0",
+  });
+  const res = await fetch(`${HOSTAWAY_API_BASE}/reservations?${params}`, {
+    headers: { Authorization: `Bearer ${token}`, "Cache-control": "no-cache" },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Hostaway reservations API error ${res.status}: ${text}`);
+  }
+  const json = await res.json();
+  const result = json.result ?? json.reservations ?? [];
+  return result.map((r: any) => ({
+    id: r.id,
+    listingMapId: r.listingMapId,
+    guestName: r.guestName || "Guest",
+    channelName: r.channelName || r.source || "Direct",
+    arrivalDate: r.arrivalDate,
+    departureDate: r.departureDate,
+    status: r.status || "confirmed",
+    numberOfGuests: r.numberOfGuests || 1,
+    totalPrice: parseFloat(r.totalPrice) || 0,
+  }));
+}
