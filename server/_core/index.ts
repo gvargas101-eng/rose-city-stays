@@ -13,7 +13,7 @@ import { retryPendingBookingsHandler } from "../retry-pending-bookings";
 import { hostawayReservationWebhookHandler } from "../hostaway-webhook";
 import { syncHostawayGuestsHandler } from "../sync-hostaway-guests";
 import Stripe from "stripe";
-import { confirmStripeCheckoutSession } from "../routers/booking";
+import { confirmManualCheckoutSession, confirmStripeCheckoutSession } from "../routers/booking";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -74,8 +74,19 @@ async function startServer() {
       try {
         if (event.type === "checkout.session.completed") {
           const session = event.data.object as Stripe.Checkout.Session;
-          await confirmStripeCheckoutSession(session);
-          console.log(`[Webhook] Booking confirmed for session ${session.id}`);
+          // Only direct website bookings have a numeric booking reference. Stripe
+          // can also send events for Hostaway or other products connected to the
+          // same account; those must not enter the Rose City Stays booking flow.
+          if (session.metadata?.manual_booking_token) {
+            await confirmManualCheckoutSession(session);
+            console.log(`[Webhook] Manual booking confirmed for session ${session.id}`);
+          } else if (!session.client_reference_id) {
+            console.info(`[Webhook] Ignoring non-website Checkout session ${session.id}`);
+            return res.json({ received: true, ignored: "non_website_checkout" });
+          } else {
+            await confirmStripeCheckoutSession(session);
+            console.log(`[Webhook] Booking confirmed for session ${session.id}`);
+          }
         }
       } catch (err: any) {
         console.error(`[Webhook] Handler error for ${event.type}:`, err.message);

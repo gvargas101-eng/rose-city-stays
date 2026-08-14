@@ -477,3 +477,9 @@
 - [x] Import historical Hostaway guests and upsert newly synchronized guest data
 - [x] Add guest search and one-click autofill to the admin manual booking form
 - [x] Add authenticated Hostaway reservation webhook handling and a scheduled reconciliation with a manual "Sync Now" control and last-sync status (Heartbeat task: ECFPwVM5wSgP9eSuPsA8Ku)
+
+## Paid Booking Hostaway Failure (Aug 2026)
+- [x] Inspect the affected successful Stripe payment and Hostaway API failure details
+- [x] Repair the affected paid booking and prevent the confirmed-payment sync failure from recurring
+- [x] Record the already-collected Stripe payment as a paid Hostaway offline charge for reservation 64756333 (Hostaway charge #32189934, status Paid)
+- [x] Automatically record a paid Hostaway charge after every successful Stripe-created reservation

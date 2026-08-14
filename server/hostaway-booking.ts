@@ -25,6 +25,51 @@ export interface HostawayReservation {
   status: string;
 }
 
+export interface RecordHostawayPaymentInput {
+  reservationId: string | number;
+  amount: number;
+  stripePaymentIntentId: string;
+}
+
+/**
+ * Hostaway API reservations do not become "Paid" from an isPaid flag on the
+ * reservation payload. Record the Stripe-collected amount as a paid offline
+ * charge so the PMS balance and guest payment status reconcile correctly.
+ */
+export async function recordHostawayStripePayment(
+  input: RecordHostawayPaymentInput
+): Promise<{ id: string; status: string }> {
+  const token = await getAccessToken();
+  const scheduledDate = new Date().toISOString().slice(0, 19).replace("T", " ");
+  const response = await fetch(
+    `${HOSTAWAY_API_BASE}/guestPayments/charges/${input.reservationId}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "Cache-control": "no-cache",
+      },
+      body: JSON.stringify({
+        title: "Direct website payment (Stripe)",
+        description: `Collected by Rose City Stays Stripe Checkout — PaymentIntent ${input.stripePaymentIntentId}`,
+        amount: Math.round(input.amount * 100) / 100,
+        paymentMethod: "credit_card",
+        status: "paid",
+        scheduledDate,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Hostaway payment reconciliation failed: ${response.status} — ${await response.text()}`);
+  }
+
+  const data = await response.json();
+  const charge = data.result ?? data;
+  return { id: String(charge.id ?? ""), status: String(charge.status ?? "paid") };
+}
+
 export async function createHostawayReservation(
   input: CreateReservationInput
 ): Promise<HostawayReservation> {

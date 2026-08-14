@@ -26,8 +26,10 @@ vi.mock("stripe", () => ({
 
 // ── Mock Hostaway booking ────────────────────────────────────────────────────
 const mockCreateHostawayReservation = vi.fn();
+const mockRecordHostawayStripePayment = vi.fn().mockResolvedValue({ id: "charge_1", status: "paid" });
 vi.mock("./hostaway-booking", () => ({
   createHostawayReservation: mockCreateHostawayReservation,
+  recordHostawayStripePayment: mockRecordHostawayStripePayment,
 }));
 
 // ── Mock Hostaway calendar (availability check) ───────────────────────────────
