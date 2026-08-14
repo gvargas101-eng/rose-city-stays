@@ -313,9 +313,10 @@ export default function AdminBookings() {
                                     <span className="text-foreground">${parseFloat(b.taxAmount).toFixed(2)}</span>
                                   </div>
                                 )}
-                                {/* Add-ons: derive from total - subtotal - cleaningFee - tax */}
+                                {/* Add-ons: derive from total after reversing any applied discount. */}
                                {(() => {
-                                 const addonsTotal = parseFloat(b.totalAmount) - parseFloat(b.subtotal) - parseFloat(b.cleaningFee) - parseFloat(b.taxAmount);
+                                 const discountAmount = b.discountCodeAmount ? parseFloat(b.discountCodeAmount) : 0;
+                                 const addonsTotal = parseFloat(b.totalAmount) - parseFloat(b.subtotal) - parseFloat(b.cleaningFee) - parseFloat(b.taxAmount) + discountAmount;
                                   if (addonsTotal <= 0.01) return null;
                                   // Try to parse named add-ons from snapshot
                                   let addonLines: { name: string; price: number }[] = [];
@@ -342,14 +343,14 @@ export default function AdminBookings() {
                                     </div>
                                   );
                                 })()}
-                                <div className="flex justify-between px-3 py-2.5 bg-muted/30">
-                                  <span className="font-semibold text-foreground">Total charged</span>
                                 {b.discountCodeLabel && b.discountCodeAmount && parseFloat(b.discountCodeAmount) > 0 && (
                                   <div className="flex justify-between px-3 py-2 text-green-700">
-                                    <span className="flex items-center gap-1">🏷 {b.discountCodeLabel}</span>
-                                    <span>-${parseFloat(b.discountCodeAmount).toFixed(2)}</span>
+                                    <span className="font-medium">{b.discountCodeLabel}</span>
+                                    <span>−${parseFloat(b.discountCodeAmount).toFixed(2)}</span>
                                   </div>
                                 )}
+                                <div className="flex justify-between px-3 py-2.5 bg-muted/30">
+                                  <span className="font-semibold text-foreground">Total charged</span>
                                   <span className="font-semibold text-foreground">${parseFloat(b.totalAmount).toFixed(2)}</span>
                                 </div>
                               </div>

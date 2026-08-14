@@ -462,9 +462,9 @@
 - [x] Add Discount Codes to admin nav (Percent icon)
 
 ## Discount Code System — Follow-up (Aug 2026)
-- [ ] Record discount_code_uses in confirmStoredBooking after payment confirmed
-- [ ] Show discountCodeLabel and discountCodeAmount in AdminBookings charge breakdown
-- [ ] Add discount code field to manual booking link creation and ManualBookingPay page
+- [x] Record discount_code_uses in confirmStoredBooking after payment confirmed
+- [x] Show discountCodeLabel and discountCodeAmount in AdminBookings charge breakdown
+- [x] Add a managed loyalty-code field to manual booking link creation and show the applied code by name on ManualBookingPay
 
 ## Master Property Calendar (Aug 2026)
 - [x] Add getReservationsForCalendar admin tRPC procedure — fetches all Hostaway reservations for all 11 properties for a given month range
@@ -476,4 +476,4 @@
 - [x] Add a guest directory schema with deduplication, source reservation tracking, and sync timestamps
 - [x] Import historical Hostaway guests and upsert newly synchronized guest data
 - [x] Add guest search and one-click autofill to the admin manual booking form
-- [ ] Add authenticated Hostaway reservation webhook handling and a scheduled reconciliation with a manual "Sync Now" control and last-sync status
+- [x] Add authenticated Hostaway reservation webhook handling and a scheduled reconciliation with a manual "Sync Now" control and last-sync status (Heartbeat task: ECFPwVM5wSgP9eSuPsA8Ku)

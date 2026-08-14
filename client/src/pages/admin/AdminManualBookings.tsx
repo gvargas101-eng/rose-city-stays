@@ -95,6 +95,14 @@ interface CustomLineItem {
   amount: number;
 }
 
+interface AppliedDiscount {
+  id: number;
+  code: string;
+  label: string;
+  discountAmount: number;
+  usesRemaining: number;
+}
+
 interface FormState {
   propertySlug: string;
   checkIn: string;
@@ -156,6 +164,8 @@ export default function AdminManualBookings() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [guestSearch, setGuestSearch] = useState("");
   const [showGuestResults, setShowGuestResults] = useState(false);
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -212,6 +222,16 @@ export default function AdminManualBookings() {
     onError: (err) => {
       toast.error(err.message || "Failed to create booking link");
     },
+  });
+
+  const applyDiscountMutation = trpc.discountCodes.validate.useMutation({
+    onSuccess: (discount) => {
+      setAppliedDiscount(discount);
+      setDiscountCodeInput(discount.code);
+      set("discountAmount", discount.discountAmount);
+      toast.success(`${discount.code} applied — saving ${fmt(discount.discountAmount)}`);
+    },
+    onError: (error) => toast.error(error.message || "That discount code cannot be applied"),
   });
 
   // Revoke mutation
@@ -292,6 +312,25 @@ export default function AdminManualBookings() {
     toast.success(`${profile.fullName}'s details were added to this booking link`);
   }
 
+  function applyDiscountCode() {
+    if (!discountCodeInput.trim()) return toast.error("Enter a discount code");
+    if (!form.guestEmail) return toast.error("Enter or select the guest email before applying a code");
+    if (!form.propertySlug) return toast.error("Select a property before applying a code");
+    if (subtotal <= 0) return toast.error("Enter dates and a nightly rate before applying a code");
+    applyDiscountMutation.mutate({
+      code: discountCodeInput.trim(),
+      guestEmail: form.guestEmail,
+      nightlySubtotal: subtotal,
+      propertyId: form.propertySlug,
+    });
+  }
+
+  function removeAppliedDiscount() {
+    setAppliedDiscount(null);
+    setDiscountCodeInput("");
+    set("discountAmount", 0);
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.propertySlug) return toast.error("Select a property");
@@ -327,6 +366,8 @@ export default function AdminManualBookings() {
       nightlyRate: form.nightlyRate,
       cleaningFee: form.cleaningFee,
       discountAmount: form.discountAmount,
+      discountCodeId: appliedDiscount?.id,
+      discountLabel: appliedDiscount?.label,
       extraGuestFee: form.extraGuestFee,
       taxAmount,
       totalAmount: total,
@@ -565,6 +606,36 @@ export default function AdminManualBookings() {
                     onChange={e => set("taxRate", Number(e.target.value))}
                   />
                 </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <label className="block text-xs font-semibold text-foreground mb-2">Loyalty / Discount Code</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    value={discountCodeInput}
+                    onChange={e => {
+                      setDiscountCodeInput(e.target.value.toUpperCase());
+                      if (appliedDiscount) setAppliedDiscount(null);
+                    }}
+                    placeholder="e.g. WELCOMEBACK10"
+                    className="font-mono uppercase"
+                    disabled={!!appliedDiscount}
+                  />
+                  {appliedDiscount ? (
+                    <Button type="button" variant="outline" onClick={removeAppliedDiscount}>Remove</Button>
+                  ) : (
+                    <Button type="button" variant="outline" onClick={applyDiscountCode} disabled={applyDiscountMutation.isPending}>
+                      {applyDiscountMutation.isPending ? "Checking…" : "Apply Code"}
+                    </Button>
+                  )}
+                </div>
+                {appliedDiscount ? (
+                  <p className="mt-2 text-xs text-green-700">
+                    <strong>{appliedDiscount.code}</strong> — {appliedDiscount.label}; saving {fmt(appliedDiscount.discountAmount)} on the nightly subtotal. {appliedDiscount.usesRemaining} use{appliedDiscount.usesRemaining === 1 ? "" : "s"} remaining for this guest.
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">Apply a managed loyalty code to preserve its guest-use limit and show a named discount on the payment page.</p>
+                )}
               </div>
 
               {/* Live price breakdown */}

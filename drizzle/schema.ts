@@ -248,6 +248,7 @@ export const manualBookingLinks = mysqlTable("manual_booking_links", {
   nightlyRate: decimal("nightlyRate", { precision: 10, scale: 2 }).notNull(),
   cleaningFee: decimal("cleaningFee", { precision: 10, scale: 2 }).notNull().default("0"),
   discountAmount: decimal("discountAmount", { precision: 10, scale: 2 }).notNull().default("0"),
+  discountCodeId: int("discountCodeId"),
   discountLabel: varchar("discountLabel", { length: 128 }),  // e.g. "Welcome Back 10%" — shown as named line item
   extraGuestFee: decimal("extraGuestFee", { precision: 10, scale: 2 }).notNull().default("0"),
   taxAmount: decimal("taxAmount", { precision: 10, scale: 2 }).notNull().default("0"),

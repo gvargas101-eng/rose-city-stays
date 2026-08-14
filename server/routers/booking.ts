@@ -887,6 +887,7 @@ export const bookingRouter = router({
         nightlyRate: link.nightlyRate,
         cleaningFee: link.cleaningFee,
         discountAmount: link.discountAmount,
+        discountLabel: link.discountLabel,
         extraGuestFee: link.extraGuestFee,
         taxAmount: link.taxAmount,
         totalAmount: link.totalAmount,
@@ -1103,6 +1104,21 @@ export const bookingRouter = router({
         .update(manualBookingLinks)
         .set({ status: "paid", stripeCheckoutSessionId: session.id, guestIdUrl })
         .where(eq(manualBookingLinks.id, link.id));
+
+      // Record a pre-applied loyalty-code use only after Stripe confirms payment.
+      // The paid-link guard above keeps this insert idempotent for normal retries.
+      if (link.discountCodeId && guestEmail && Number(link.discountAmount) > 0) {
+        try {
+          await db.insert(discountCodeUses).values({
+            discountCodeId: link.discountCodeId,
+            bookingId: null,
+            guestEmail: guestEmail.toLowerCase(),
+            discountAmount: String(link.discountAmount),
+          });
+        } catch (discountErr) {
+          console.error("[ManualBooking] Failed to record discount code use:", discountErr);
+        }
+      }
 
       // Create Hostaway reservation if listing ID is available
       let hostawayReservationId: number | null = null;
