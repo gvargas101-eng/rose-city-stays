@@ -134,6 +134,13 @@
       "when": 1785871158601,
       "tag": "0018_flimsy_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1786726687457,
+      "tag": "0019_slow_queen_noir",
+      "breakpoints": true
     }
   ]
 }

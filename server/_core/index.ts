@@ -10,6 +10,8 @@ import { serveStatic, setupVite } from "./vite";
 import { generateBlogPost } from "../blog-writer";
 import { syncHostawayListings } from "../hostaway-sync";
 import { retryPendingBookingsHandler } from "../retry-pending-bookings";
+import { hostawayReservationWebhookHandler } from "../hostaway-webhook";
+import { syncHostawayGuestsHandler } from "../sync-hostaway-guests";
 import Stripe from "stripe";
 import { confirmStripeCheckoutSession } from "../routers/booking";
 
@@ -85,6 +87,10 @@ async function startServer() {
     }
   );
 
+  // ── Hostaway reservation webhook ─────────────────────────────────────────
+  // Authenticated by the Basic Auth credentials configured in Hostaway.
+  app.post("/api/hostaway/guest-webhook", express.json({ limit: "1mb" }), hostawayReservationWebhookHandler);
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -118,6 +124,7 @@ async function startServer() {
 
   // ── Retry pending bookings (webhook safety net, every 15 min) ────────────
   app.post("/api/scheduled/retry-pending-bookings", retryPendingBookingsHandler);
+  app.post("/api/scheduled/sync-hostaway-guests", syncHostawayGuestsHandler);
 
   // ── Guest ID upload endpoint ──────────────────────────────────────────
   // Accepts multipart/form-data POST with a single file field "idFile".

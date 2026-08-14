@@ -470,3 +470,10 @@
 - [x] Add getReservationsForCalendar admin tRPC procedure — fetches all Hostaway reservations for all 11 properties for a given month range
 - [x] Build AdminCalendar.tsx page — horizontal timeline grid, properties as rows, days as columns, color-coded by channel (Airbnb/VRBO/Direct/Manual)
 - [x] Register /admin/calendar route in App.tsx and add Calendar nav item to admin sidebar
+
+## Hostaway Guest Directory & Sync (Aug 2026)
+- [x] Verify the Hostaway reservation/guest API fields and select the safe synchronization approach — Option A: webhook-driven sync with scheduled reconciliation
+- [x] Add a guest directory schema with deduplication, source reservation tracking, and sync timestamps
+- [x] Import historical Hostaway guests and upsert newly synchronized guest data
+- [x] Add guest search and one-click autofill to the admin manual booking form
+- [ ] Add authenticated Hostaway reservation webhook handling and a scheduled reconciliation with a manual "Sync Now" control and last-sync status

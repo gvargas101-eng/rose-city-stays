@@ -46,6 +46,8 @@ import {
   Mail,
   Smartphone,
   Phone,
+  Search,
+  UserRound,
 } from "lucide-react";
 import { properties as staticProperties } from "@/lib/properties";
 import AdminLayout from "./AdminLayout";
@@ -152,6 +154,8 @@ export default function AdminManualBookings() {
   const [copied, setCopied] = useState(false);
   const [showForm, setShowForm] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [guestSearch, setGuestSearch] = useState("");
+  const [showGuestResults, setShowGuestResults] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -160,6 +164,12 @@ export default function AdminManualBookings() {
 
   // List all manual booking links
   const { data: links, isLoading: linksLoading } = trpc.admin.listManualBookingLinks.useQuery();
+
+  // Search the private Hostaway guest directory only after at least two characters.
+  const { data: guestMatches, isFetching: guestSearchLoading } = trpc.admin.searchGuestProfiles.useQuery(
+    { query: guestSearch.trim() },
+    { enabled: guestSearch.trim().length >= 2 && showGuestResults, staleTime: 30_000 }
+  );
 
   // ── Real-time availability check ──────────────────────────────────────────
   // Fires as soon as property + checkIn + checkOut are all filled in.
@@ -268,6 +278,18 @@ export default function AdminManualBookings() {
       ...prev,
       customLineItems: prev.customLineItems.filter((_, i) => i !== index),
     }));
+  }
+
+  function selectGuest(profile: { id: number; fullName: string; email: string | null; phone: string | null }) {
+    setForm(prev => ({
+      ...prev,
+      guestName: profile.fullName,
+      guestEmail: profile.email ?? prev.guestEmail,
+      guestPhone: profile.phone ?? prev.guestPhone,
+    }));
+    setGuestSearch(profile.fullName);
+    setShowGuestResults(false);
+    toast.success(`${profile.fullName}'s details were added to this booking link`);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -720,6 +742,57 @@ export default function AdminManualBookings() {
             {/* Guest info (optional) */}
             <div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Guest Info (Optional)</h3>
+              <div className="relative mb-4">
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <UserRound className="w-3.5 h-3.5" />
+                  Returning Guest Lookup
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    value={guestSearch}
+                    onChange={e => {
+                      setGuestSearch(e.target.value);
+                      setShowGuestResults(true);
+                    }}
+                    onFocus={() => setShowGuestResults(true)}
+                    placeholder="Search by name, email, or phone…"
+                    className="pl-9"
+                    autoComplete="off"
+                  />
+                </div>
+                {showGuestResults && guestSearch.trim().length >= 2 && (
+                  <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
+                    {guestSearchLoading ? (
+                      <div className="px-3 py-2.5 text-xs text-muted-foreground">Searching guest directory…</div>
+                    ) : guestMatches && guestMatches.length > 0 ? (
+                      <div className="max-h-56 overflow-y-auto py-1">
+                        {guestMatches.map(profile => (
+                          <button
+                            key={profile.id}
+                            type="button"
+                            onClick={() => selectGuest(profile)}
+                            className="w-full px-3 py-2.5 text-left hover:bg-muted transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-sm font-medium text-foreground truncate">{profile.fullName}</span>
+                              <span className="shrink-0 text-[11px] text-primary font-medium">
+                                {profile.totalReservations} stay{profile.totalReservations === 1 ? "" : "s"}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 text-xs text-muted-foreground truncate">
+                              {[profile.email, profile.phone].filter(Boolean).join(" · ") || "No contact details available"}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2.5 text-xs text-muted-foreground">No matching guest found.</div>
+                    )}
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground">Select a guest to auto-fill their contact details. You can edit any field below.</p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Guest Name</label>

@@ -28,6 +28,7 @@ import AdminUpsellAddons from "./pages/admin/AdminUpsellAddons";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminDiscountCodes from "./pages/admin/AdminDiscountCodes";
 import AdminCalendar from "./pages/admin/AdminCalendar";
+import AdminGuestDirectory from "./pages/admin/AdminGuestDirectory";
 import ReviewsPage from "./pages/ReviewsPage";
 import LeaveReview from "./pages/LeaveReview";
 import ManualBookingPay from "./pages/ManualBookingPay";
@@ -61,6 +62,7 @@ function Router() {
       <Route path={"/admin/reviews"} component={AdminReviews} />
       <Route path={"/admin/discount-codes"} component={AdminDiscountCodes} />
       <Route path={"/admin/calendar"} component={AdminCalendar} />
+      <Route path={"/admin/guests"} component={AdminGuestDirectory} />
       <Route path={"/reviews"} component={ReviewsPage} />
       <Route path={"/leave-a-review"} component={LeaveReview} />
       <Route path={"/booking/pay/:token"} component={ManualBookingPay} />
