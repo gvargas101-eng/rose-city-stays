@@ -483,3 +483,9 @@
 - [x] Repair the affected paid booking and prevent the confirmed-payment sync failure from recurring
 - [x] Record the already-collected Stripe payment as a paid Hostaway offline charge for reservation 64756333 (Hostaway charge #32189934, status Paid)
 - [x] Automatically record a paid Hostaway charge after every successful Stripe-created reservation
+
+## Hostaway Webhook Incident & Admin Reliability Audit (Aug 2026)
+- [x] Identify and repair the Hostaway webhook 500 delivery failure (event ID 35640)
+- [x] Test webhook authentication, malformed payload, and valid reservation-event behavior
+- [x] Audit direct and manual payment confirmation, Hostaway paid-status reconciliation, deposit holds, and retries
+- [ ] Audit active scheduled jobs and report any failed or missed runs

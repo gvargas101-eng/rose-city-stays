@@ -3,7 +3,7 @@
  * Webhooks provide the fast path; this job repairs any delayed or missed event.
  */
 import type { Request, Response } from "express";
-import { syncAllHostawayGuests } from "./hostaway-guests";
+import { syncRecentHostawayGuests } from "./hostaway-guests";
 import { sdk } from "./_core/sdk";
 
 export async function syncHostawayGuestsHandler(request: Request, response: Response) {
@@ -17,7 +17,7 @@ export async function syncHostawayGuestsHandler(request: Request, response: Resp
   }
 
   try {
-    const summary = await syncAllHostawayGuests("reconcile");
+    const summary = await syncRecentHostawayGuests();
     return response.json({ ok: true, ...summary });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Guest reconciliation failed";

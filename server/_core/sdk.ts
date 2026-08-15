@@ -282,7 +282,12 @@ class SDKServer {
   async authenticateRequest(req: Request): Promise<AuthenticatedUser> {
     // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
-    const sessionCookie = cookies.get(COOKIE_NAME);
+    // Heartbeat sends its signed project session through this header rather than
+    // a browser cookie. Accept both transports so scheduled callbacks receive
+    // the same cron identity as browser-originated requests.
+    const heartbeatSession = req.headers["x-manus-user-session"];
+    const sessionCookie = cookies.get(COOKIE_NAME)
+      ?? (typeof heartbeatSession === "string" ? heartbeatSession : undefined);
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {

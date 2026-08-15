@@ -323,6 +323,45 @@ export async function syncAllHostawayGuests(mode: "historical" | "reconcile" = "
   }
 }
 
+/**
+ * Bounded safety-net reconciliation for Heartbeat. Webhooks handle the fast
+ * path; this checks the 100 most recently updated reservations so it remains
+ * comfortably within the scheduler's two-minute callback limit.
+ */
+export async function syncRecentHostawayGuests(): Promise<GuestSyncResult> {
+  await updateSyncState("running", { lastError: null, lastImportedReservations: 0 });
+  const summary: GuestSyncResult = {
+    processed: 0,
+    createdGuests: 0,
+    updatedGuests: 0,
+    createdReservations: 0,
+    updatedReservations: 0,
+  };
+
+  try {
+    const page = await fetchHostawayReservationPage(0);
+    for (const reservation of page.rows) {
+      const saved = await upsertGuestFromHostawayReservation(reservation);
+      summary.processed += 1;
+      if (saved.createdGuest) summary.createdGuests += 1;
+      else summary.updatedGuests += 1;
+      if (saved.createdReservation) summary.createdReservations += 1;
+      else summary.updatedReservations += 1;
+    }
+
+    await updateSyncState("success", {
+      lastError: null,
+      lastImportedReservations: summary.processed,
+      lastReconciledAt: new Date(),
+    });
+    return summary;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.slice(0, 500) : "Guest synchronization failed";
+    await updateSyncState("failed", { lastError: message, lastImportedReservations: summary.processed });
+    throw error;
+  }
+}
+
 export async function getGuestSyncStatus() {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
