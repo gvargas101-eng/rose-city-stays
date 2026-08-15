@@ -489,3 +489,7 @@
 - [x] Test webhook authentication, malformed payload, and valid reservation-event behavior
 - [x] Audit direct and manual payment confirmation, Hostaway paid-status reconciliation, deposit holds, and retries
 - [x] Audit active scheduled jobs and report any failed or missed runs — identified the retry job's prior 401 failures and guest-sync timeout; updated scheduler authentication and bounded reconciliation to 100 recent reservations (verified in 9.7 seconds locally)
+
+## Direct Channel Integration Assessment (Aug 2026)
+- [x] Verify Airbnb and VRBO direct API integration eligibility and current requirements
+- [x] Compare direct channel synchronization with the Hostaway-centered architecture
