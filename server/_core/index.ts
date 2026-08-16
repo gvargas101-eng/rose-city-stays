@@ -13,6 +13,7 @@ import { retryPendingBookingsHandler } from "../retry-pending-bookings";
 import { hostawayReservationWebhookHandler } from "../hostaway-webhook";
 import { syncHostawayGuestsHandler } from "../sync-hostaway-guests";
 import { scheduledLocalEventsBlogHandler } from "../scheduled-local-events-blog";
+import { scheduledMonthlyLocalEventsBlogHandler } from "../scheduled-monthly-local-events-blog";
 import Stripe from "stripe";
 import { confirmManualCheckoutSession, confirmStripeCheckoutSession } from "../routers/booking";
 
@@ -138,6 +139,7 @@ async function startServer() {
   app.post("/api/scheduled/retry-pending-bookings", retryPendingBookingsHandler);
   app.post("/api/scheduled/sync-hostaway-guests", syncHostawayGuestsHandler);
   app.post("/api/scheduled/local-events-blog", scheduledLocalEventsBlogHandler);
+  app.post("/api/scheduled/monthly-local-events-blog", scheduledMonthlyLocalEventsBlogHandler);
 
   // ── Guest ID upload endpoint ──────────────────────────────────────────
   // Accepts multipart/form-data POST with a single file field "idFile".
