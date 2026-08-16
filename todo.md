@@ -493,3 +493,8 @@
 ## Direct Channel Integration Assessment (Aug 2026)
 - [x] Verify Airbnb and VRBO direct API integration eligibility and current requirements
 - [x] Compare direct channel synchronization with the Hostaway-centered architecture
+
+## Monthly Tyler Events Blog Workflow (Aug 2026)
+- [x] Select the monthly research-and-publication workflow and review level — create a draft for approval on the 14th at 9:00 AM Central
+- [x] Research and create the initial August–October Tyler-area events blog post — draft #60001, “Tyler Events: August–October 2026 Guide”
+- [ ] Schedule the recurring monthly 14th events-blog task covering the prior, current, and upcoming months
