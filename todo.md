@@ -498,3 +498,7 @@
 - [x] Select the monthly research-and-publication workflow and review level — create a draft for approval on the 14th at 9:00 AM Central
 - [x] Research and create the initial August–October Tyler-area events blog post — draft #60001, “Tyler Events: August–October 2026 Guide”
 - [x] Schedule the recurring monthly 14th events-blog task through the website scheduler, covering the prior, current, and upcoming months (Heartbeat task: Y3mcikfAJURh29gMW8G4J4)
+
+## Extra Guest Fee Defect (Aug 2026)
+- [x] Diagnose why checkout charges the $25 per-guest-per-night fee at four guests — an unconditional active $25 custom fee was applied despite its “more than 4 guests” description
+- [x] Fix the fee to apply only to guests above four and add regression tests — deactivated the incompatible custom fee; four guests have no extra-guest Stripe line item; added clear $10/night conditional checkout receipt line

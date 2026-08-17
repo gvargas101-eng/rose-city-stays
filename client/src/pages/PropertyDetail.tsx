@@ -707,6 +707,8 @@ export default function PropertyDetail() {
             taxAmount={taxAmount}
             taxRate={liveTaxRate}
             totalAmount={totalAmount}
+            extraGuestCount={extraGuests}
+            extraGuestFee={overageFee}
             customFees={activeFees}
             onClose={() => setCheckoutBooking(null)}
           />

@@ -65,6 +65,8 @@ interface CheckoutModalProps {
   taxAmount: number;
   taxRate: number;
   totalAmount: number;
+  extraGuestCount?: number;
+  extraGuestFee?: number;
   customFees?: CustomFee[];
   onClose: () => void;
 }
@@ -97,6 +99,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
     taxAmount,
     taxRate,
     totalAmount,
+    extraGuestCount = 0,
+    extraGuestFee = 0,
     customFees = [],
     onClose,
   } = props;
@@ -335,6 +339,14 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                 ${taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
+            {extraGuestFee > 0 && extraGuestCount > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Extra guests ({extraGuestCount} × $10/night)</span>
+                <span>
+                  ${extraGuestFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
             {customFeeLines.map((f) => (
               <div key={f.id} className="flex justify-between text-muted-foreground">
                 <span title={f.description ?? undefined}>

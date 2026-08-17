@@ -207,6 +207,12 @@ describe("bookingRouter.createCheckoutSession", () => {
         status: "pending",
       })
     );
+    // Four guests are included. No extra-guest line item may reach Stripe.
+    const sessionInput = mockCheckoutSessionCreate.mock.calls[0][0];
+    expect(sessionInput.line_items.some((line: any) => line.price_data.product_data.name === "Extra guest fee")).toBe(false);
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ totalAmount: "588.18" })
+    );
   });
 
   it("throws if property is not found in PROPERTY_TO_HOSTAWAY_ID map", async () => {
