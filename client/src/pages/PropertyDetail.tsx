@@ -683,8 +683,9 @@ export default function PropertyDetail() {
 
       {/* Checkout Modal */}
       {checkoutBooking && property && (() => {
-        const CLEANING: Record<string, number> = { "the-briar": 150, "hospital-district": 125, "hollytree-golf-dining": 150, "alamo-house": 175, "green-acres": 150, "legacy-house": 150, "azalea-spring-cottage": 125, "noir-hollytree": 125, "hollytree-king-bed": 125, "hollytree-townhouse": 125 };
-        const cleaningFee = (CLEANING[propertySlug] ?? 125);
+        // The admin-managed DB value is the source of truth for every property.
+        // Do not duplicate cleaning fees in client code, where they can become stale.
+        const cleaningFee = Number(dbProperty?.cleaningFee ?? 125) || 125;
         const subtotal = Math.round(checkoutBooking.avgNightlyRate * checkoutBooking.nights * 100) / 100;
         const taxAmount = Math.round(subtotal * liveTaxRate * 100) / 100;
         // Extra guest overage fee — must match server-side calculation in booking.ts

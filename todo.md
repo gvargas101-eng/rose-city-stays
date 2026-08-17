@@ -502,3 +502,7 @@
 ## Extra Guest Fee Defect (Aug 2026)
 - [x] Diagnose why checkout charges the $25 per-guest-per-night fee at four guests — an unconditional active $25 custom fee was applied despite its “more than 4 guests” description
 - [x] Fix the fee to apply only to guests above four and add regression tests — deactivated the incompatible custom fee; four guests have no extra-guest Stripe line item; added clear $10/night conditional checkout receipt line
+
+## Per-Property Cleaning Fee Defect (Aug 2026)
+- [x] Diagnose why checkout uses a $150 cleaning fee instead of the saved property setting — PropertyDetail used a stale hardcoded client map while the server correctly read the database
+- [x] Use each property’s saved cleaning fee in the quote and Stripe checkout, with regression coverage — checkout now reads the DB property setting and the server test verifies a saved $125 fee reaches Stripe

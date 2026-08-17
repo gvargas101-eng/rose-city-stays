@@ -62,6 +62,7 @@ const mockUpdateSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue
 const mockUpdate = vi.fn().mockReturnValue({ set: mockUpdateSet });
 
 let mockBookingRow: Record<string, unknown> = {};
+let mockCleaningFee = "150.00";
 // mockSelectResult controls what .limit(1) returns; defaults to mockBookingRow.
 // For getCleaningFee (properties table) we return a property row with cleaningFee.
 const mockSelectLimit = vi.fn().mockImplementation(() => Promise.resolve([mockBookingRow]));
@@ -84,7 +85,7 @@ const mockSelectFrom = vi.fn().mockImplementation((table: unknown) => {
   if (tableAny?.cleaningFee) {
     return {
       where: vi.fn().mockReturnValue({
-        limit: vi.fn().mockResolvedValue([{ cleaningFee: "150.00" }]),
+        limit: vi.fn().mockImplementation(() => Promise.resolve([{ cleaningFee: mockCleaningFee }])),
       }),
     };
   }
@@ -141,6 +142,7 @@ async function callProcedure(
 describe("bookingRouter.createCheckoutSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCleaningFee = "150.00";
   });
 
   it("creates a Checkout Session and returns checkoutUrl + totals", async () => {
@@ -213,6 +215,35 @@ describe("bookingRouter.createCheckoutSession", () => {
     expect(mockInsertValues).toHaveBeenCalledWith(
       expect.objectContaining({ totalAmount: "588.18" })
     );
+  });
+
+  it("uses the saved per-property cleaning fee in the Stripe checkout", async () => {
+    mockCleaningFee = "125.00";
+    mockCheckoutSessionCreate.mockResolvedValue({
+      id: "cs_test_cleaning_fee",
+      url: "https://checkout.stripe.com/pay/cs_test_cleaning_fee",
+    });
+
+    const result = await callProcedure(
+      "createCheckoutSession",
+      {
+        propertyId: "hospital-district",
+        propertyName: "Hospital District Retreat",
+        checkIn: "2026-07-10",
+        checkOut: "2026-07-12",
+        nights: 2,
+        nightlyRate: 100,
+        guestCount: 2,
+        guestName: "Cleaning Fee Test",
+        guestEmail: "cleaning@example.com",
+      },
+      { req: { headers: { origin: "https://www.rosecitystays.com" } } }
+    );
+
+    expect(result.cleaningFee).toBe(125);
+    const cleaningLine = mockCheckoutSessionCreate.mock.calls[0][0].line_items
+      .find((line: any) => line.price_data.product_data.name === "Cleaning fee");
+    expect(cleaningLine.price_data.unit_amount).toBe(12500);
   });
 
   it("throws if property is not found in PROPERTY_TO_HOSTAWAY_ID map", async () => {
