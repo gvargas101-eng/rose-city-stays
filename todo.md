@@ -506,3 +506,8 @@
 ## Per-Property Cleaning Fee Defect (Aug 2026)
 - [x] Diagnose why checkout uses a $150 cleaning fee instead of the saved property setting — PropertyDetail used a stale hardcoded client map while the server correctly read the database
 - [x] Use each property’s saved cleaning fee in the quote and Stripe checkout, with regression coverage — checkout now reads the DB property setting and the server test verifies a saved $125 fee reaches Stripe
+
+## Direct-Booking Deposit Card Retention (Aug 2026)
+- [x] Diagnose why completed direct-booking cards are not available for the security-deposit hold — Checkout did not force a Stripe Customer, leaving reusable-method availability inconsistent; existing live PaymentIntent data is unavailable in the sandbox test context
+- [x] Correct the Stripe customer/payment-method retention and deposit authorization flow — force customer creation, save for off-session use, persist session IDs, and flag hold failures in Admin Deposits
+- [ ] Verify the live deployment and a completed direct-booking deposit hold

@@ -215,6 +215,7 @@ async function confirmStoredBooking(params: {
       status: "confirmed",
       hostawayReservationId,
       stripePaymentIntentId: params.stripePaymentIntentId || booking.stripePaymentIntentId,
+      stripeCheckoutSessionId: params.stripeCheckoutSessionId || booking.stripeCheckoutSessionId,
     })
     .where(eq(bookings.id, params.bookingId));
 
@@ -364,14 +365,20 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
 
     // Expand the checkout session to get the payment intent + payment method
     const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
-      expand: ["payment_intent.payment_method"],
+      expand: ["payment_intent.payment_method", "customer"],
     });
 
     const pi = expandedSession.payment_intent as Stripe.PaymentIntent | null;
     const pm = pi?.payment_method as Stripe.PaymentMethod | null;
+    const customerId =
+      (typeof pi?.customer === "string" ? pi.customer : (pi?.customer as Stripe.Customer | null)?.id) ??
+      (typeof expandedSession.customer === "string" ? expandedSession.customer : (expandedSession.customer as Stripe.Customer | null)?.id);
 
     if (!pm?.id) {
-      console.warn("[deposit hold] No payment method found on checkout session — skipping hold");
+      throw new Error("No reusable payment method was saved by Stripe Checkout");
+    }
+    if (!customerId) {
+      throw new Error("Stripe Checkout did not create a customer for the saved payment method");
     } else {
       // Create and confirm the deposit hold in one step
       const depositIntent = await stripe.paymentIntents.create({
@@ -380,7 +387,7 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
         capture_method: "manual",
         confirm: true,
         payment_method: pm.id,
-        customer: typeof pi?.customer === "string" ? pi.customer : (pi?.customer as Stripe.Customer | null)?.id ?? undefined,
+        customer: customerId,
         description: `Security deposit hold — Booking #${bookingId} — ${booking.propertyId}`,
         metadata: {
           bookingId: String(bookingId),
@@ -409,6 +416,12 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
   } catch (depositErr: any) {
     // Non-fatal: log and notify owner but don't fail the booking confirmation
     console.error("[deposit hold] Failed to create post-checkout deposit hold:", depositErr?.message);
+    try {
+      const db = await getDb();
+      await db?.update(bookings)
+        .set({ depositHoldStatus: "failed" })
+        .where(eq(bookings.id, bookingId));
+    } catch (_) { /* preserve the original deposit error */ }
     try {
       await notifyOwner({
         title: `⚠️ Deposit Hold Failed — Booking #${bookingId}`,
@@ -649,6 +662,9 @@ export const bookingRouter = router({
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
+        // A customer record is required to attach and reuse the payment method
+        // for the separately authorized security-deposit hold after checkout.
+        customer_creation: "always",
         customer_email: input.guestEmail,
         client_reference_id: String(bookingId),
         // Save the payment method so we can reuse it for the deposit hold

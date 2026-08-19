@@ -176,6 +176,9 @@ describe("bookingRouter.createCheckoutSession", () => {
     // 3 nights × $116 = $348
     expect(result.subtotal).toBe(348);
     expect(result.cleaningFee).toBe(150);
+    const sessionInput = mockCheckoutSessionCreate.mock.calls[0][0];
+    expect(sessionInput.customer_creation).toBe("always");
+    expect(sessionInput.payment_intent_data.setup_future_usage).toBe("off_session");
   });
 
   it("inserts a pending booking record into the database", async () => {
