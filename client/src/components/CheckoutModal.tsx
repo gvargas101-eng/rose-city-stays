@@ -253,7 +253,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
         guestCount,
         guestName: guestInfo.name.trim(),
         guestEmail: guestInfo.email.trim(),
-        guestPhone: guestInfo.phone.trim() || undefined,
+        guestPhone: guestInfo.phone.trim(),
         message: guestInfo.message.trim() || undefined,
         guestIdUrl: idUpload.status === "done" ? idUpload.url : undefined,
         agreementAcceptedAt: Date.now(),

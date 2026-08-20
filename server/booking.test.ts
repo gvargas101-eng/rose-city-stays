@@ -145,6 +145,25 @@ describe("bookingRouter.createCheckoutSession", () => {
     mockCleaningFee = "150.00";
   });
 
+  it("rejects a direct checkout without a valid guest phone number", async () => {
+    const caller = bookingRouter.createCaller({
+      req: { headers: { origin: "https://www.rosecitystays.com" } },
+    } as any);
+
+    await expect(caller.createCheckoutSession({
+      propertyId: "the-briar",
+      propertyName: "The Briar",
+      checkIn: "2026-09-01",
+      checkOut: "2026-09-03",
+      nights: 2,
+      nightlyRate: 150,
+      guestCount: 2,
+      guestName: "Jane Doe",
+      guestEmail: "jane@example.com",
+      guestPhone: "",
+    } as any)).rejects.toThrow("Enter a valid phone number");
+  });
+
   it("creates a Checkout Session and returns checkoutUrl + totals", async () => {
     mockCheckoutSessionCreate.mockResolvedValue({
       id: "cs_test_123",
@@ -309,6 +328,9 @@ describe("bookingRouter.confirmBooking", () => {
     expect(result.success).toBe(true);
     expect(result.hostawayReservationId).toBe("HA-98765");
     expect(mockCreateHostawayReservation).toHaveBeenCalledOnce();
+    expect(mockCreateHostawayReservation).toHaveBeenCalledWith(expect.objectContaining({
+      guestPhone: "555-0100",
+    }));
     expect(mockUpdate).toHaveBeenCalledOnce();
     expect(mockNotifyOwner).toHaveBeenCalledTimes(1); // success notification
   });

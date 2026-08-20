@@ -510,7 +510,11 @@
 ## Direct-Booking Deposit Card Retention (Aug 2026)
 - [x] Diagnose why completed direct-booking cards are not available for the security-deposit hold — Checkout did not force a Stripe Customer, leaving reusable-method availability inconsistent; existing live PaymentIntent data is unavailable in the sandbox test context
 - [x] Correct the Stripe customer/payment-method retention and deposit authorization flow — force customer creation, save for off-session use, persist session IDs, and flag hold failures in Admin Deposits
-- [ ] Verify the live deployment and a completed direct-booking deposit hold
+- [x] Verify the live deployment and a completed direct-booking deposit hold — Gustavo Vargas booking #390001 has an Authorized $500 hold (payment intent pi_3U6djbIhMg117I1w2LzTk3ra)
+
+## Required Guest Phone (Aug 2026)
+- [x] Require a valid phone number for every direct booking before Stripe checkout starts
+- [x] Verify the required phone is saved and passed to Hostaway with the reservation — server-side regression test asserts the Hostaway payload includes the required guest phone
 
 ## Reservation Extensions & Authorized Follow-On Charges (Aug 2026)
 - [x] Audit whether Hostaway reservation edits currently synchronize back to the website booking record — Hostaway edits update the live calendar and guest history only; they do not currently update the website booking record or payment total
