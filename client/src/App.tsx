@@ -33,6 +33,7 @@ import ReviewsPage from "./pages/ReviewsPage";
 import LeaveReview from "./pages/LeaveReview";
 import ManualBookingPay from "./pages/ManualBookingPay";
 import ManualBookingConfirm from "./pages/ManualBookingConfirm";
+import ExtensionConfirmation from "./pages/ExtensionConfirmation";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -67,6 +68,7 @@ function Router() {
       <Route path={"/leave-a-review"} component={LeaveReview} />
       <Route path={"/booking/pay/:token"} component={ManualBookingPay} />
       <Route path={"/booking/manual-confirm"} component={ManualBookingConfirm} />
+      <Route path={"/booking/extension-confirmation"} component={ExtensionConfirmation} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -511,3 +511,11 @@
 - [x] Diagnose why completed direct-booking cards are not available for the security-deposit hold — Checkout did not force a Stripe Customer, leaving reusable-method availability inconsistent; existing live PaymentIntent data is unavailable in the sandbox test context
 - [x] Correct the Stripe customer/payment-method retention and deposit authorization flow — force customer creation, save for off-session use, persist session IDs, and flag hold failures in Admin Deposits
 - [ ] Verify the live deployment and a completed direct-booking deposit hold
+
+## Reservation Extensions & Authorized Follow-On Charges (Aug 2026)
+- [x] Audit whether Hostaway reservation edits currently synchronize back to the website booking record — Hostaway edits update the live calendar and guest history only; they do not currently update the website booking record or payment total
+- [x] Verify saved-card availability and define controls for authorized extension or incidental charges — new direct checkouts create a Stripe Customer and save the payment method for off-session use; the website never stores card data, and a guest-authorized fallback payment link is required if SCA blocks an off-session charge
+- [x] Add booking extension fields and an idempotent Hostaway-first extension service
+- [x] Add authorized saved-card charging with guest payment-link fallback for extension balances
+- [x] Build the Admin Bookings extension interface and synchronize the website booking record
+- [x] Test and publish the full extension workflow — TypeScript clean; 33 regression tests pass

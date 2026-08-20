@@ -101,6 +101,7 @@ export const bookings = mysqlTable("bookings", {
 
   stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 256 }),
   stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 256 }),
   hostawayReservationId: varchar("hostawayReservationId", { length: 64 }),
 
   status: mysqlEnum("status", ["pending", "paid", "confirmed", "cancelled", "failed"])
@@ -124,6 +125,30 @@ export const bookings = mysqlTable("bookings", {
 
 export type Booking = typeof bookings.$inferSelect;
 export type InsertBooking = typeof bookings.$inferInsert;
+
+/**
+ * Extension attempts are kept separately from the original booking so each
+ * Hostaway date update, payment attempt, and payment-link fallback is auditable.
+ */
+export const bookingExtensions = mysqlTable("booking_extensions", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("bookingId").notNull(),
+  hostawayReservationId: varchar("hostawayReservationId", { length: 64 }).notNull(),
+  previousCheckOut: bigint("previousCheckOut", { mode: "number" }).notNull(),
+  newCheckOut: bigint("newCheckOut", { mode: "number" }).notNull(),
+  additionalNights: int("additionalNights").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  hostawayNewTotal: decimal("hostawayNewTotal", { precision: 10, scale: 2 }).notNull(),
+  status: mysqlEnum("status", ["pending", "paid", "payment_link_sent", "failed", "cancelled"]).notNull().default("pending"),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 256 }),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
+  hostawayChargeId: varchar("hostawayChargeId", { length: 64 }),
+  paymentError: text("paymentError"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BookingExtension = typeof bookingExtensions.$inferSelect;
 
 /**
  * Admin credentials — standalone password-based admin login (independent of Manus OAuth).

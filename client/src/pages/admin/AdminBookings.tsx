@@ -2,7 +2,7 @@ import { useState } from "react";
 import AdminLayout from "./AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Calendar, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare, Phone } from "lucide-react";
+import { Calendar, CalendarPlus, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare, Phone } from "lucide-react";
 import { Copy, Check } from "lucide-react";
 import { Search } from "lucide-react";
 import { properties } from "@/lib/properties";
@@ -69,6 +69,33 @@ export default function AdminBookings() {
   const [dateTo, setDateTo] = useState<string>("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [expandedLink, setExpandedLink] = useState<number | null>(null);
+  const [extensionBookingId, setExtensionBookingId] = useState<number | null>(null);
+  const [extensionCheckOut, setExtensionCheckOut] = useState<string>("");
+  const [extensionQuote, setExtensionQuote] = useState<any>(null);
+  const [extensionPaymentUrl, setExtensionPaymentUrl] = useState<string | null>(null);
+
+  const quoteExtension = trpc.extensions.quote.useMutation({
+    onSuccess: (result) => {
+      setExtensionQuote(result);
+      setExtensionPaymentUrl(null);
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const createExtension = trpc.extensions.createAndCollect.useMutation({
+    onSuccess: (result) => {
+      refetchBookings();
+      setExtensionPaymentUrl(result.paymentUrl);
+      toast.success(result.paymentStatus === "paid" ? "Extension updated and charged." : "Extension updated; guest payment link is ready.");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const openExtension = (bookingId: number, currentCheckOut: number) => {
+    setExtensionBookingId(bookingId);
+    setExtensionCheckOut("");
+    setExtensionQuote(null);
+    setExtensionPaymentUrl(null);
+  };
 
   const filtered = (bookings ?? []).filter(
     (b) => {
@@ -459,6 +486,14 @@ export default function AdminBookings() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
+                          {b.status === "confirmed" && b.hostawayReservationId && (
+                            <button
+                              onClick={() => openExtension(b.id, b.checkOut)}
+                              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
+                            >
+                              <CalendarPlus className="w-3.5 h-3.5" /> Extend stay
+                            </button>
+                          )}
                           <p className="text-xs text-muted-foreground">Update status:</p>
                           <div className="flex gap-1.5 flex-wrap">
                             {STATUS_OPTIONS.map((s) => (
@@ -475,6 +510,64 @@ export default function AdminBookings() {
                             ))}
                           </div>
                         </div>
+                        {extensionBookingId === b.id && (
+                          <div className="mt-4 rounded-lg border border-primary/25 bg-primary/[0.035] p-4 max-w-xl">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div>
+                                <h3 className="text-sm font-semibold text-foreground">Extend stay</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">Hostaway availability and price are checked first. The extension is then charged to the saved Stripe card when permitted; otherwise, you receive a guest payment link.</p>
+                              </div>
+                              <button onClick={() => setExtensionBookingId(null)} className="text-xs text-muted-foreground hover:text-foreground">Close</button>
+                            </div>
+                            <div className="flex flex-wrap gap-2 items-end">
+                              <label className="grid gap-1 text-xs text-muted-foreground">
+                                New check-out
+                                <input
+                                  type="date"
+                                  min={new Date(b.checkOut + 86_400_000).toISOString().slice(0, 10)}
+                                  value={extensionCheckOut}
+                                  onChange={(event) => { setExtensionCheckOut(event.target.value); setExtensionQuote(null); setExtensionPaymentUrl(null); }}
+                                  className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                                />
+                              </label>
+                              <button
+                                disabled={!extensionCheckOut || quoteExtension.isPending}
+                                onClick={() => quoteExtension.mutate({ bookingId: b.id, newCheckOut: new Date(`${extensionCheckOut}T00:00:00Z`).getTime() })}
+                                className="rounded bg-foreground px-3 py-1.5 text-xs font-medium text-background disabled:opacity-50"
+                              >
+                                {quoteExtension.isPending ? "Checking…" : "Get Hostaway quote"}
+                              </button>
+                            </div>
+                            {extensionQuote && (
+                              <div className="mt-3 rounded border border-border bg-background p-3 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Additional nights</span><span>{extensionQuote.additionalNights}</span></div>
+                                <div className="flex justify-between mt-1"><span className="text-muted-foreground">Extension balance</span><span className="font-semibold">${Number(extensionQuote.extensionAmount).toFixed(2)}</span></div>
+                                <div className="flex justify-between mt-1"><span className="text-muted-foreground">New Hostaway reservation total</span><span>${Number(extensionQuote.extendedTotal).toFixed(2)}</span></div>
+                                <button
+                                  disabled={createExtension.isPending}
+                                  onClick={() => {
+                                    if (confirm(`Extend ${b.guestName}'s stay through ${formatDate(extensionQuote.newCheckOut)} and collect $${Number(extensionQuote.extensionAmount).toFixed(2)}? Hostaway will be updated first. If the saved card needs guest authentication, a payment link will be created instead.`)) {
+                                      createExtension.mutate({ bookingId: b.id, newCheckOut: extensionQuote.newCheckOut });
+                                    }
+                                  }}
+                                  className="mt-3 rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                                >
+                                  {createExtension.isPending ? "Updating…" : "Confirm extension & collect"}
+                                </button>
+                              </div>
+                            )}
+                            {extensionPaymentUrl && (
+                              <div className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                                <p className="font-medium">Guest payment required</p>
+                                <p className="mt-0.5">The stay is extended in Hostaway, but Stripe needs the guest to complete payment.</p>
+                                <div className="mt-2 flex gap-2">
+                                  <a href={extensionPaymentUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">Open payment link</a>
+                                  <button onClick={() => navigator.clipboard.writeText(extensionPaymentUrl).then(() => toast.success("Extension payment link copied."))} className="underline font-medium">Copy link</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

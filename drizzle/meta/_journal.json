@@ -148,6 +148,20 @@
       "when": 1786728067945,
       "tag": "0020_great_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1787249812671,
+      "tag": "0021_useful_tiger_shark",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1787249970594,
+      "tag": "0022_superb_boomer",
+      "breakpoints": true
     }
   ]
 }

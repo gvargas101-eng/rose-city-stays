@@ -1,0 +1,1 @@
+ALTER TABLE `booking_extensions` ADD `hostawayNewTotal` decimal(10,2) NOT NULL;
