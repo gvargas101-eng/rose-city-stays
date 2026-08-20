@@ -131,6 +131,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
     phone: "",
     message: "",
   });
+  const [smsConsent, setSmsConsent] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [agreementTouched, setAgreementTouched] = useState(false);
@@ -254,6 +255,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
         guestName: guestInfo.name.trim(),
         guestEmail: guestInfo.email.trim(),
         guestPhone: guestInfo.phone.trim(),
+        smsConsentAt: smsConsent ? Date.now() : undefined,
         message: guestInfo.message.trim() || undefined,
         guestIdUrl: idUpload.status === "done" ? idUpload.url : undefined,
         agreementAcceptedAt: Date.now(),
@@ -430,6 +432,18 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                     className="bg-background"
                   />
                 </div>
+                <label className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={smsConsent}
+                    onChange={(event) => setSmsConsent(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                  />
+                  <span>
+                    <span className="font-medium text-foreground">Optional SMS updates & offers</span><br />
+                    I agree to receive booking updates and occasional offers from Rose City Stays at the number above. Consent is not required to book. Reply STOP to opt out.
+                  </span>
+                </label>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">
                     Special Requests (optional)

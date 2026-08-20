@@ -545,6 +545,7 @@ export const bookingRouter = router({
         guestName: z.string().min(1),
         guestEmail: z.string().email(),
         guestPhone: z.string().trim().regex(/^\+?[0-9().\-\s]{7,25}$/, "Enter a valid phone number"),
+        smsConsentAt: z.number().int().positive().optional(),
         message: z.string().optional(),
         guestIdUrl: z.string().url().optional(),
         agreementAcceptedAt: z.number().int().optional(),
@@ -644,6 +645,7 @@ export const bookingRouter = router({
           message: input.message || null,
           guestIdUrl: input.guestIdUrl || null,
           agreementAcceptedAt: input.agreementAcceptedAt || null,
+          smsConsentAt: input.smsConsentAt ?? null,
           addonsSnapshot: upsellAddonLines.length > 0
             ? JSON.stringify(upsellAddonLines.map(a => ({ name: a.name, price: a.price })))
             : null,

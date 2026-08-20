@@ -218,6 +218,8 @@ describe("bookingRouter.createCheckoutSession", () => {
         guestCount: 4,
         guestName: "Bob Smith",
         guestEmail: "bob@example.com",
+        guestPhone: "555-0100",
+        smsConsentAt: 1_786_262_400_000,
       },
       { req: { headers: { origin: "https://rosecitystays.com" } } }
     );
@@ -228,6 +230,8 @@ describe("bookingRouter.createCheckoutSession", () => {
         propertyId: "the-briar",
         guestName: "Bob Smith",
         guestEmail: "bob@example.com",
+        guestPhone: "555-0100",
+        smsConsentAt: 1_786_262_400_000,
         status: "pending",
       })
     );

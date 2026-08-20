@@ -308,6 +308,10 @@ export default function AdminBookings() {
                             <p className="text-foreground">{b.guestPhone || "—"}</p>
                           </div>
                           <div>
+                            <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1"><MessageSquare className="w-3 h-3" /> SMS Consent</p>
+                            <p className="text-foreground text-xs">{b.smsConsentAt ? `Opted in ${formatDateTime(b.smsConsentAt)}` : "Not opted in"}</p>
+                          </div>
+                          <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Guests</p>
                             <p className="text-foreground">{b.guestCount}</p>
                           </div>
