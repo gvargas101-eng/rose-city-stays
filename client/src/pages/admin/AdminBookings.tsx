@@ -6,6 +6,7 @@ import { Calendar, CalendarPlus, User, DollarSign, IdCard, ShieldCheck, External
 import { Copy, Check } from "lucide-react";
 import { Search } from "lucide-react";
 import { properties } from "@/lib/properties";
+import { matchesSmsConsentFilter, type SmsConsentFilter } from "@/lib/bookingFilters";
 
 const STATUS_OPTIONS = ["pending", "paid", "confirmed", "cancelled", "failed"] as const;
 type BookingStatus = typeof STATUS_OPTIONS[number];
@@ -67,6 +68,7 @@ export default function AdminBookings() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+  const [smsConsentFilter, setSmsConsentFilter] = useState<SmsConsentFilter>("all");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [expandedLink, setExpandedLink] = useState<number | null>(null);
   const [extensionBookingId, setExtensionBookingId] = useState<number | null>(null);
@@ -100,6 +102,7 @@ export default function AdminBookings() {
   const filtered = (bookings ?? []).filter(
     (b) => {
       if (filterStatus !== "all" && b.status !== filterStatus) return false;
+      if (!matchesSmsConsentFilter(b, smsConsentFilter)) return false;
       if (dateFrom) {
         const from = new Date(dateFrom).getTime();
         if (b.checkIn < from) return false;
@@ -222,6 +225,26 @@ export default function AdminBookings() {
                     Clear
                   </button>
                 )}
+              </div>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">SMS:</span>
+                {([
+                  ["all", "All guests"],
+                  ["opted_in", "SMS opted in"],
+                  ["no_consent", "No SMS consent"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => setSmsConsentFilter(value)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      smsConsentFilter === value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
               {["all", ...STATUS_OPTIONS].map((s) => (
                 <button

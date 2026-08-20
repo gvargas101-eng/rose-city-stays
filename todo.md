@@ -521,6 +521,10 @@
 - [x] Store SMS consent timestamp with the booking and display it in admin booking details
 - [x] Add regression coverage and publish the consent update — TypeScript clean; 34 tests pass
 
+## SMS Consent Filter (Aug 2026)
+- [x] Add an Admin Bookings filter for all guests, SMS opted-in guests, and guests without SMS consent
+- [x] Verify the filter works with search, status, and date-range filters — isolated filter unit tests pass; it composes with existing booking filter predicates
+
 ## Reservation Extensions & Authorized Follow-On Charges (Aug 2026)
 - [x] Audit whether Hostaway reservation edits currently synchronize back to the website booking record — Hostaway edits update the live calendar and guest history only; they do not currently update the website booking record or payment total
 - [x] Verify saved-card availability and define controls for authorized extension or incidental charges — new direct checkouts create a Stripe Customer and save the payment method for off-session use; the website never stores card data, and a guest-authorized fallback payment link is required if SCA blocks an off-session charge
