@@ -9,6 +9,7 @@ import { and, eq, or } from "drizzle-orm";
 import { getDb } from "./db";
 import { getAccessToken } from "./hostaway-auth";
 import {
+  bookings,
   guestProfiles,
   guestSyncState,
   hostawayGuestReservations,
@@ -76,6 +77,25 @@ function getPhone(reservation: HostawayReservation): string | null {
 function getChannel(reservation: HostawayReservation): string | null {
   const value = reservation.channelName ?? reservation.channel ?? reservation.source ?? reservation.originalChannel;
   return value === undefined || value === null ? null : String(value).trim() || null;
+}
+
+export function isHostawayReservationCancelled(reservation: HostawayReservation): boolean {
+  const status = String(reservation.status ?? reservation.reservationStatus ?? "").trim().toLowerCase();
+  return status === "cancelled" || reservation.isCancelled === true || reservation.isCancelled === 1 || reservation.isCancelled === "1";
+}
+
+async function syncWebsiteBookingCancellation(reservation: HostawayReservation) {
+  if (!isHostawayReservationCancelled(reservation)) return 0;
+
+  const reservationId = String(reservation.id ?? reservation.reservationId ?? "").trim();
+  if (!reservationId) return 0;
+
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const updated = await db.update(bookings)
+    .set({ status: "cancelled" })
+    .where(eq(bookings.hostawayReservationId, reservationId));
+  return Number((updated as any)[0]?.affectedRows ?? 0);
 }
 
 async function pause(ms: number) {
@@ -269,6 +289,11 @@ export async function upsertGuestFromHostawayReservation(
         totalReservations: (current.totalReservations ?? 0) + 1,
       }).where(eq(guestProfiles.id, profileId));
     }
+  }
+
+  const cancelledBookings = await syncWebsiteBookingCancellation(reservation);
+  if (cancelledBookings > 0) {
+    console.info(`[Hostaway sync] Marked ${cancelledBookings} website booking(s) cancelled for Hostaway reservation ${reservationId}`);
   }
 
   return { createdGuest, createdReservation };
