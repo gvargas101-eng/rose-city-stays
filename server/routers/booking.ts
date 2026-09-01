@@ -887,6 +887,7 @@ export const bookingRouter = router({
         nightlyRate: link.nightlyRate,
         cleaningFee: link.cleaningFee,
         discountAmount: link.discountAmount,
+        discountLabel: link.discountLabel,
         extraGuestFee: link.extraGuestFee,
         taxAmount: link.taxAmount,
         totalAmount: link.totalAmount,

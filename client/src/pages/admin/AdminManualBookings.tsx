@@ -101,6 +101,7 @@ interface FormState {
   nightlyRate: number;
   cleaningFee: number;
   discountAmount: number;
+  discountLabel: string;
   extraGuestFee: number;
   taxRate: number;
   bypassCameraDisclosure: boolean;
@@ -126,6 +127,7 @@ const INITIAL_FORM: FormState = {
   nightlyRate: 0,
   cleaningFee: 125,
   discountAmount: 0,
+  discountLabel: "",
   extraGuestFee: 0,
   taxRate: 9,
   bypassCameraDisclosure: false,
@@ -305,6 +307,7 @@ export default function AdminManualBookings() {
       nightlyRate: form.nightlyRate,
       cleaningFee: form.cleaningFee,
       discountAmount: form.discountAmount,
+      discountLabel: form.discountAmount > 0 ? (form.discountLabel.trim() || "Discount") : undefined,
       extraGuestFee: form.extraGuestFee,
       taxAmount,
       totalAmount: total,
@@ -532,6 +535,18 @@ export default function AdminManualBookings() {
                     placeholder="0.00"
                   />
                 </div>
+                {form.discountAmount > 0 && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                      Discount Label <span className="text-muted-foreground/70">(shown to guest)</span>
+                    </label>
+                    <Input
+                      value={form.discountLabel}
+                      onChange={e => set("discountLabel", e.target.value)}
+                      placeholder="e.g. Welcome Back 10%, Returning Guest Rate"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Tax Rate (%)</label>
                   <Input
@@ -572,7 +587,7 @@ export default function AdminManualBookings() {
                   ))}
                   {form.discountAmount > 0 && (
                     <div className="flex justify-between text-green-700">
-                      <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> Discount</span>
+                      <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> {form.discountLabel.trim() || "Discount"}</span>
                       <span>−{fmt(form.discountAmount)}</span>
                     </div>
                   )}

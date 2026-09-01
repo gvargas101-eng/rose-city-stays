@@ -1,5 +1,9 @@
 # Rose City Stays — Project TODO
 
+## Manual Booking Discount Controls (Aug 2026)
+
+- [x] Add visible discount amount and custom label fields to the Admin → Manual Bookings creation form.
+
 ## Completed Features
 
 - [x] Full React/TypeScript website with homepage, property grid, and detail pages

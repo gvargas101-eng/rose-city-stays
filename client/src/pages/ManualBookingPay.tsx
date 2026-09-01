@@ -315,7 +315,7 @@ export default function ManualBookingPay() {
             ))}
             {Number(link.discountAmount) > 0 && (
               <div className="flex justify-between text-green-700">
-                <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> Discount</span>
+                <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> {link.discountLabel || "Discount"}</span>
                 <span>−{fmt(link.discountAmount)}</span>
               </div>
             )}
