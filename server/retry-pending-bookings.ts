@@ -18,19 +18,20 @@ import { bookings } from "../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { confirmStripeCheckoutSession } from "./routers/booking";
 import { notifyOwner } from "./_core/notification";
+import { sdk } from "./_core/sdk";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia",
 });
 
 export async function retryPendingBookingsHandler(req: Request, res: Response) {
-  // This endpoint is called by the Manus Heartbeat scheduler.
-  // We do NOT use sdk.authenticateRequest here because this is a project-level
-  // cron (§4a) — the HEARTBEAT_SECRET header check is sufficient protection.
-  const auth = (req.headers["x-heartbeat-secret"] as string) || (req.query.secret as string);
-  const HEARTBEAT_SECRET = process.env.HEARTBEAT_SECRET || "rose-city-heartbeat";
-  if (auth !== HEARTBEAT_SECRET) {
-    return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const user = await sdk.authenticateRequest(req);
+    if (!user.isCron || !user.taskUid) {
+      return res.status(403).json({ error: "cron-only" });
+    }
+  } catch {
+    return res.status(403).json({ error: "cron-only" });
   }
 
   const db = await getDb();

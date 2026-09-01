@@ -1,4 +1,4 @@
-import { bigint, decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { bigint, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -101,6 +101,7 @@ export const bookings = mysqlTable("bookings", {
 
   stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 256 }),
   stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 256 }),
   hostawayReservationId: varchar("hostawayReservationId", { length: 64 }),
 
   status: mysqlEnum("status", ["pending", "paid", "confirmed", "cancelled", "failed"])
@@ -110,6 +111,7 @@ export const bookings = mysqlTable("bookings", {
   message: text("message"),
   guestIdUrl: varchar("guestIdUrl", { length: 1024 }), // S3 URL of uploaded government ID photo
   agreementAcceptedAt: bigint("agreementAcceptedAt", { mode: "number" }), // Unix ms timestamp of agreement acceptance
+  smsConsentAt: bigint("smsConsentAt", { mode: "number" }), // Optional guest consent timestamp for SMS communications
   depositHoldIntentId: varchar("depositHoldIntentId", { length: 256 }), // Stripe PaymentIntent ID for $500 security deposit hold
   depositHoldStatus: mysqlEnum("depositHoldStatus", ["pending", "authorized", "captured", "released", "failed"]), // Current state of the deposit hold
 
@@ -124,6 +126,30 @@ export const bookings = mysqlTable("bookings", {
 
 export type Booking = typeof bookings.$inferSelect;
 export type InsertBooking = typeof bookings.$inferInsert;
+
+/**
+ * Extension attempts are kept separately from the original booking so each
+ * Hostaway date update, payment attempt, and payment-link fallback is auditable.
+ */
+export const bookingExtensions = mysqlTable("booking_extensions", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("bookingId").notNull(),
+  hostawayReservationId: varchar("hostawayReservationId", { length: 64 }).notNull(),
+  previousCheckOut: bigint("previousCheckOut", { mode: "number" }).notNull(),
+  newCheckOut: bigint("newCheckOut", { mode: "number" }).notNull(),
+  additionalNights: int("additionalNights").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  hostawayNewTotal: decimal("hostawayNewTotal", { precision: 10, scale: 2 }).notNull(),
+  status: mysqlEnum("status", ["pending", "paid", "payment_link_sent", "failed", "cancelled"]).notNull().default("pending"),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 256 }),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
+  hostawayChargeId: varchar("hostawayChargeId", { length: 64 }),
+  paymentError: text("paymentError"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BookingExtension = typeof bookingExtensions.$inferSelect;
 
 /**
  * Admin credentials — standalone password-based admin login (independent of Manus OAuth).
@@ -248,6 +274,7 @@ export const manualBookingLinks = mysqlTable("manual_booking_links", {
   nightlyRate: decimal("nightlyRate", { precision: 10, scale: 2 }).notNull(),
   cleaningFee: decimal("cleaningFee", { precision: 10, scale: 2 }).notNull().default("0"),
   discountAmount: decimal("discountAmount", { precision: 10, scale: 2 }).notNull().default("0"),
+  discountCodeId: int("discountCodeId"),
   discountLabel: varchar("discountLabel", { length: 128 }),  // e.g. "Welcome Back 10%" — shown as named line item
   extraGuestFee: decimal("extraGuestFee", { precision: 10, scale: 2 }).notNull().default("0"),
   taxAmount: decimal("taxAmount", { precision: 10, scale: 2 }).notNull().default("0"),
@@ -392,3 +419,71 @@ export const discountCodeUses = mysqlTable("discount_code_uses", {
 });
 export type DiscountCodeUse = typeof discountCodeUses.$inferSelect;
 export type InsertDiscountCodeUse = typeof discountCodeUses.$inferInsert;
+
+/**
+ * Guest profiles — contact directory built from Hostaway reservations and direct bookings.
+ * It intentionally excludes payment data and identity-document links. Profiles are matched
+ * by normalized email first, then phone when no email is available.
+ */
+export const guestProfiles = mysqlTable("guest_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  fullName: varchar("fullName", { length: 256 }).notNull(),
+  firstName: varchar("firstName", { length: 128 }),
+  lastName: varchar("lastName", { length: 128 }),
+  email: varchar("email", { length: 320 }),
+  normalizedEmail: varchar("normalizedEmail", { length: 320 }),
+  phone: varchar("phone", { length: 32 }),
+  normalizedPhone: varchar("normalizedPhone", { length: 32 }),
+  hostawayGuestId: varchar("hostawayGuestId", { length: 64 }),
+  lastHostawayReservationId: varchar("lastHostawayReservationId", { length: 64 }),
+  lastPropertySlug: varchar("lastPropertySlug", { length: 128 }),
+  lastChannel: varchar("lastChannel", { length: 128 }),
+  totalReservations: int("totalReservations").notNull().default(0),
+  firstStayAt: bigint("firstStayAt", { mode: "number" }),
+  lastStayAt: bigint("lastStayAt", { mode: "number" }),
+  lastSyncedAt: timestamp("lastSyncedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("guest_profiles_normalized_email_idx").on(table.normalizedEmail),
+  index("guest_profiles_normalized_phone_idx").on(table.normalizedPhone),
+  index("guest_profiles_last_name_idx").on(table.lastName),
+]);
+export type GuestProfile = typeof guestProfiles.$inferSelect;
+
+/**
+ * One source record per Hostaway reservation. This preserves a safe idempotency key for
+ * imports and allows each guest's stay count to be recalculated without storing card data.
+ */
+export const hostawayGuestReservations = mysqlTable("hostaway_guest_reservations", {
+  id: int("id").autoincrement().primaryKey(),
+  hostawayReservationId: varchar("hostawayReservationId", { length: 64 }).notNull().unique(),
+  guestProfileId: int("guestProfileId").notNull(),
+  hostawayListingId: int("hostawayListingId"),
+  propertySlug: varchar("propertySlug", { length: 128 }),
+  channel: varchar("channel", { length: 128 }),
+  reservationStatus: varchar("reservationStatus", { length: 64 }),
+  arrivalAt: bigint("arrivalAt", { mode: "number" }),
+  departureAt: bigint("departureAt", { mode: "number" }),
+  guestCount: int("guestCount"),
+  sourceUpdatedAt: bigint("sourceUpdatedAt", { mode: "number" }),
+  syncedAt: timestamp("syncedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("hostaway_guest_reservations_profile_idx").on(table.guestProfileId),
+  index("hostaway_guest_reservations_listing_idx").on(table.hostawayListingId),
+]);
+
+/** Stores status for the Hostaway guest import and reconciliation process. */
+export const guestSyncState = mysqlTable("guest_sync_state", {
+  id: int("id").autoincrement().primaryKey(),
+  syncKey: varchar("syncKey", { length: 64 }).notNull().unique().default("hostaway-guests"),
+  lastHistoricalImportAt: timestamp("lastHistoricalImportAt"),
+  lastWebhookSyncAt: timestamp("lastWebhookSyncAt"),
+  lastReconciledAt: timestamp("lastReconciledAt"),
+  lastStatus: varchar("lastStatus", { length: 32 }).notNull().default("never"),
+  lastError: text("lastError"),
+  lastImportedReservations: int("lastImportedReservations").notNull().default(0),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});

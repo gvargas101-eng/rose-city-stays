@@ -466,11 +466,78 @@
 - [x] Add Discount Codes to admin nav (Percent icon)
 
 ## Discount Code System — Follow-up (Aug 2026)
-- [ ] Record discount_code_uses in confirmStoredBooking after payment confirmed
-- [ ] Show discountCodeLabel and discountCodeAmount in AdminBookings charge breakdown
-- [ ] Add discount code field to manual booking link creation and ManualBookingPay page
+- [x] Record discount_code_uses in confirmStoredBooking after payment confirmed
+- [x] Show discountCodeLabel and discountCodeAmount in AdminBookings charge breakdown
+- [x] Add a managed loyalty-code field to manual booking link creation and show the applied code by name on ManualBookingPay
 
 ## Master Property Calendar (Aug 2026)
 - [x] Add getReservationsForCalendar admin tRPC procedure — fetches all Hostaway reservations for all 11 properties for a given month range
 - [x] Build AdminCalendar.tsx page — horizontal timeline grid, properties as rows, days as columns, color-coded by channel (Airbnb/VRBO/Direct/Manual)
 - [x] Register /admin/calendar route in App.tsx and add Calendar nav item to admin sidebar
+
+## Hostaway Guest Directory & Sync (Aug 2026)
+- [x] Verify the Hostaway reservation/guest API fields and select the safe synchronization approach — Option A: webhook-driven sync with scheduled reconciliation
+- [x] Add a guest directory schema with deduplication, source reservation tracking, and sync timestamps
+- [x] Import historical Hostaway guests and upsert newly synchronized guest data
+- [x] Add guest search and one-click autofill to the admin manual booking form
+- [x] Add authenticated Hostaway reservation webhook handling and a scheduled reconciliation with a manual "Sync Now" control and last-sync status (Heartbeat task: ECFPwVM5wSgP9eSuPsA8Ku)
+
+## Paid Booking Hostaway Failure (Aug 2026)
+- [x] Inspect the affected successful Stripe payment and Hostaway API failure details
+- [x] Repair the affected paid booking and prevent the confirmed-payment sync failure from recurring
+- [x] Record the already-collected Stripe payment as a paid Hostaway offline charge for reservation 64756333 (Hostaway charge #32189934, status Paid)
+- [x] Automatically record a paid Hostaway charge after every successful Stripe-created reservation
+
+## Hostaway Webhook Incident & Admin Reliability Audit (Aug 2026)
+- [x] Identify and repair the Hostaway webhook 500 delivery failure (event ID 35640)
+- [x] Test webhook authentication, malformed payload, and valid reservation-event behavior
+- [x] Audit direct and manual payment confirmation, Hostaway paid-status reconciliation, deposit holds, and retries
+- [x] Audit active scheduled jobs and report any failed or missed runs — identified the retry job's prior 401 failures and guest-sync timeout; updated scheduler authentication and bounded reconciliation to 100 recent reservations (verified in 9.7 seconds locally)
+
+## Direct Channel Integration Assessment (Aug 2026)
+- [x] Verify Airbnb and VRBO direct API integration eligibility and current requirements
+- [x] Compare direct channel synchronization with the Hostaway-centered architecture
+
+## Monthly Tyler Events Blog Workflow (Aug 2026)
+- [x] Select the monthly research-and-publication workflow and review level — create a draft for approval on the 14th at 9:00 AM Central
+- [x] Research and create the initial August–October Tyler-area events blog post — draft #60001, “Tyler Events: August–October 2026 Guide”
+- [x] Schedule the recurring monthly 14th events-blog task through the website scheduler, covering the prior, current, and upcoming months (Heartbeat task: Y3mcikfAJURh29gMW8G4J4)
+
+## Extra Guest Fee Defect (Aug 2026)
+- [x] Diagnose why checkout charges the $25 per-guest-per-night fee at four guests — an unconditional active $25 custom fee was applied despite its “more than 4 guests” description
+- [x] Fix the fee to apply only to guests above four and add regression tests — deactivated the incompatible custom fee; four guests have no extra-guest Stripe line item; added clear $10/night conditional checkout receipt line
+
+## Per-Property Cleaning Fee Defect (Aug 2026)
+- [x] Diagnose why checkout uses a $150 cleaning fee instead of the saved property setting — PropertyDetail used a stale hardcoded client map while the server correctly read the database
+- [x] Use each property’s saved cleaning fee in the quote and Stripe checkout, with regression coverage — checkout now reads the DB property setting and the server test verifies a saved $125 fee reaches Stripe
+
+## Direct-Booking Deposit Card Retention (Aug 2026)
+- [x] Diagnose why completed direct-booking cards are not available for the security-deposit hold — Checkout did not force a Stripe Customer, leaving reusable-method availability inconsistent; existing live PaymentIntent data is unavailable in the sandbox test context
+- [x] Correct the Stripe customer/payment-method retention and deposit authorization flow — force customer creation, save for off-session use, persist session IDs, and flag hold failures in Admin Deposits
+- [x] Verify the live deployment and a completed direct-booking deposit hold — Gustavo Vargas booking #390001 has an Authorized $500 hold (payment intent pi_3U6djbIhMg117I1w2LzTk3ra)
+
+## Required Guest Phone (Aug 2026)
+- [x] Require a valid phone number for every direct booking before Stripe checkout starts
+- [x] Verify the required phone is saved and passed to Hostaway with the reservation — server-side regression test asserts the Hostaway payload includes the required guest phone
+
+## Optional SMS Consent (Aug 2026)
+- [x] Add optional SMS consent wording and capture control to direct checkout
+- [x] Store SMS consent timestamp with the booking and display it in admin booking details
+- [x] Add regression coverage and publish the consent update — TypeScript clean; 34 tests pass
+
+## SMS Consent Filter (Aug 2026)
+- [x] Add an Admin Bookings filter for all guests, SMS opted-in guests, and guests without SMS consent
+- [x] Verify the filter works with search, status, and date-range filters — isolated filter unit tests pass; it composes with existing booking filter predicates
+
+## Hostaway Cancellation Synchronization (Aug 2026)
+- [x] Inspect and repair Gustavo Vargas’s cancelled Hostaway reservation on the website — Hostaway reservation 65038339 was cancelled; website booking #390001 now correctly shows cancelled
+- [x] Synchronize Hostaway cancellation status to matching website bookings through webhook and reconciliation
+- [x] Add cancellation sync regression coverage and publish the fix — cancellation status classification coverage passes
+
+## Reservation Extensions & Authorized Follow-On Charges (Aug 2026)
+- [x] Audit whether Hostaway reservation edits currently synchronize back to the website booking record — Hostaway edits update the live calendar and guest history only; they do not currently update the website booking record or payment total
+- [x] Verify saved-card availability and define controls for authorized extension or incidental charges — new direct checkouts create a Stripe Customer and save the payment method for off-session use; the website never stores card data, and a guest-authorized fallback payment link is required if SCA blocks an off-session charge
+- [x] Add booking extension fields and an idempotent Hostaway-first extension service
+- [x] Add authorized saved-card charging with guest payment-link fallback for extension balances
+- [x] Build the Admin Bookings extension interface and synchronize the website booking record
+- [x] Test and publish the full extension workflow — TypeScript clean; 33 regression tests pass

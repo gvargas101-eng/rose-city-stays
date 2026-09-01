@@ -1,0 +1,1 @@
+ALTER TABLE `manual_booking_links` ADD `discountCodeId` int;

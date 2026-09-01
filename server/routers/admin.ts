@@ -8,11 +8,12 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees, corporateInquiries, manualBookingLinks, upsellAddons } from "../../drizzle/schema";
-import { eq, asc, desc } from "drizzle-orm";
+import { properties, propertyPhotos, propertyAmenities, bookings, siteSettings, customFees, corporateInquiries, manualBookingLinks, upsellAddons, guestProfiles } from "../../drizzle/schema";
+import { eq, asc, desc, like, or } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { syncHostawayListings } from "../hostaway-sync";
 import { generateBlogPost } from "../blog-writer";
+import { getGuestSyncStatus, syncAllHostawayGuests } from "../hostaway-guests";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia",
@@ -495,6 +496,7 @@ export const adminRouter = router({
         nightlyRate: z.number().nonnegative(),
         cleaningFee: z.number().nonnegative().default(0),
         discountAmount: z.number().nonnegative().default(0),
+        discountCodeId: z.number().int().positive().optional(),
         discountLabel: z.string().optional(),
         extraGuestFee: z.number().nonnegative().default(0),
         taxAmount: z.number().nonnegative().default(0),
@@ -537,6 +539,7 @@ export const adminRouter = router({
         nightlyRate: String(input.nightlyRate),
         cleaningFee: String(input.cleaningFee),
         discountAmount: String(input.discountAmount),
+        discountCodeId: input.discountCodeId ?? null,
         discountLabel: input.discountLabel ?? null,
         extraGuestFee: String(input.extraGuestFee),
         taxAmount: String(input.taxAmount),
@@ -672,5 +675,45 @@ export const adminRouter = router({
       return results
         .filter((r): r is PromiseFulfilledResult<{ propertySlug: string; reservations: any[] }> => r.status === "fulfilled")
         .map(r => r.value);
+    }),
+
+  // ── Guest Directory ───────────────────────────────────────────────────────
+
+  /** Import existing Hostaway guest/reservation contacts into the private directory. */
+  syncHostawayGuests: adminProcedure
+    .input(z.object({ mode: z.enum(["historical", "reconcile"]).default("historical") }).optional())
+    .mutation(async ({ input }) => {
+      return syncAllHostawayGuests(input?.mode ?? "historical");
+    }),
+
+  /** Read the current health and timestamps of the Hostaway guest synchronization. */
+  getGuestSyncStatus: adminProcedure.query(async () => {
+    return getGuestSyncStatus();
+  }),
+
+  /** Search the private guest directory for use in manual booking autofill. */
+  searchGuestProfiles: adminProcedure
+    .input(z.object({ query: z.string().trim().min(1).max(120) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const term = `%${input.query.replace(/[%_\\]/g, "\\$&")}%`;
+      return db.select({
+        id: guestProfiles.id,
+        fullName: guestProfiles.fullName,
+        email: guestProfiles.email,
+        phone: guestProfiles.phone,
+        lastPropertySlug: guestProfiles.lastPropertySlug,
+        lastChannel: guestProfiles.lastChannel,
+        totalReservations: guestProfiles.totalReservations,
+        lastStayAt: guestProfiles.lastStayAt,
+      }).from(guestProfiles)
+        .where(or(
+          like(guestProfiles.fullName, term),
+          like(guestProfiles.email, term),
+          like(guestProfiles.phone, term)
+        ))
+        .orderBy(desc(guestProfiles.lastStayAt), asc(guestProfiles.fullName))
+        .limit(12);
     }),
 });

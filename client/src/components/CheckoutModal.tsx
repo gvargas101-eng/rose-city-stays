@@ -65,6 +65,8 @@ interface CheckoutModalProps {
   taxAmount: number;
   taxRate: number;
   totalAmount: number;
+  extraGuestCount?: number;
+  extraGuestFee?: number;
   customFees?: CustomFee[];
   onClose: () => void;
 }
@@ -97,6 +99,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
     taxAmount,
     taxRate,
     totalAmount,
+    extraGuestCount = 0,
+    extraGuestFee = 0,
     customFees = [],
     onClose,
   } = props;
@@ -127,6 +131,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
     phone: "",
     message: "",
   });
+  const [smsConsent, setSmsConsent] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [agreementTouched, setAgreementTouched] = useState(false);
@@ -249,7 +254,8 @@ export default function CheckoutModal(props: CheckoutModalProps) {
         guestCount,
         guestName: guestInfo.name.trim(),
         guestEmail: guestInfo.email.trim(),
-        guestPhone: guestInfo.phone.trim() || undefined,
+        guestPhone: guestInfo.phone.trim(),
+        smsConsentAt: smsConsent ? Date.now() : undefined,
         message: guestInfo.message.trim() || undefined,
         guestIdUrl: idUpload.status === "done" ? idUpload.url : undefined,
         agreementAcceptedAt: Date.now(),
@@ -335,6 +341,14 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                 ${taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
+            {extraGuestFee > 0 && extraGuestCount > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Extra guests ({extraGuestCount} × $10/night)</span>
+                <span>
+                  ${extraGuestFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
             {customFeeLines.map((f) => (
               <div key={f.id} className="flex justify-between text-muted-foreground">
                 <span title={f.description ?? undefined}>
@@ -418,6 +432,18 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                     className="bg-background"
                   />
                 </div>
+                <label className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={smsConsent}
+                    onChange={(event) => setSmsConsent(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                  />
+                  <span>
+                    <span className="font-medium text-foreground">Optional SMS updates & offers</span><br />
+                    I agree to receive booking updates and occasional offers from Rose City Stays at the number above. Consent is not required to book. Reply STOP to opt out.
+                  </span>
+                </label>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">
                     Special Requests (optional)

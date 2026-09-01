@@ -10,8 +10,13 @@ import { serveStatic, setupVite } from "./vite";
 import { generateBlogPost } from "../blog-writer";
 import { syncHostawayListings } from "../hostaway-sync";
 import { retryPendingBookingsHandler } from "../retry-pending-bookings";
+import { hostawayReservationWebhookHandler } from "../hostaway-webhook";
+import { syncHostawayGuestsHandler } from "../sync-hostaway-guests";
+import { scheduledLocalEventsBlogHandler } from "../scheduled-local-events-blog";
+import { scheduledMonthlyLocalEventsBlogHandler } from "../scheduled-monthly-local-events-blog";
 import Stripe from "stripe";
-import { confirmStripeCheckoutSession } from "../routers/booking";
+import { confirmManualCheckoutSession, confirmStripeCheckoutSession } from "../routers/booking";
+import { confirmExtensionCheckoutSession } from "../booking-extensions";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -72,8 +77,22 @@ async function startServer() {
       try {
         if (event.type === "checkout.session.completed") {
           const session = event.data.object as Stripe.Checkout.Session;
-          await confirmStripeCheckoutSession(session);
-          console.log(`[Webhook] Booking confirmed for session ${session.id}`);
+          // Only direct website bookings have a numeric booking reference. Stripe
+          // can also send events for Hostaway or other products connected to the
+          // same account; those must not enter the Rose City Stays booking flow.
+          if (session.metadata?.extensionId) {
+            await confirmExtensionCheckoutSession(session);
+            console.log(`[Webhook] Extension payment confirmed for session ${session.id}`);
+          } else if (session.metadata?.manual_booking_token) {
+            await confirmManualCheckoutSession(session);
+            console.log(`[Webhook] Manual booking confirmed for session ${session.id}`);
+          } else if (!session.client_reference_id) {
+            console.info(`[Webhook] Ignoring non-website Checkout session ${session.id}`);
+            return res.json({ received: true, ignored: "non_website_checkout" });
+          } else {
+            await confirmStripeCheckoutSession(session);
+            console.log(`[Webhook] Booking confirmed for session ${session.id}`);
+          }
         }
       } catch (err: any) {
         console.error(`[Webhook] Handler error for ${event.type}:`, err.message);
@@ -84,6 +103,10 @@ async function startServer() {
       return res.json({ received: true });
     }
   );
+
+  // ── Hostaway reservation webhook ─────────────────────────────────────────
+  // Authenticated by the Basic Auth credentials configured in Hostaway.
+  app.post("/api/hostaway/guest-webhook", express.json({ limit: "1mb" }), hostawayReservationWebhookHandler);
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
@@ -118,6 +141,9 @@ async function startServer() {
 
   // ── Retry pending bookings (webhook safety net, every 15 min) ────────────
   app.post("/api/scheduled/retry-pending-bookings", retryPendingBookingsHandler);
+  app.post("/api/scheduled/sync-hostaway-guests", syncHostawayGuestsHandler);
+  app.post("/api/scheduled/local-events-blog", scheduledLocalEventsBlogHandler);
+  app.post("/api/scheduled/monthly-local-events-blog", scheduledMonthlyLocalEventsBlogHandler);
 
   // ── Guest ID upload endpoint ──────────────────────────────────────────
   // Accepts multipart/form-data POST with a single file field "idFile".

@@ -56,6 +56,7 @@ export type ToolChoice =
   | ToolChoiceExplicit;
 
 export type InvokeParams = {
+  model?: string;
   messages: Message[];
   tools?: Tool[];
   toolChoice?: ToolChoice;
@@ -66,6 +67,8 @@ export type InvokeParams = {
   output_schema?: OutputSchema;
   responseFormat?: ResponseFormat;
   response_format?: ResponseFormat;
+  reasoning?: { effort: "minimal" | "low" | "medium" | "high" };
+  thinking?: Record<string, unknown>;
 };
 
 export type ToolCall = {
@@ -269,6 +272,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   assertApiKey();
 
   const {
+    model,
     messages,
     tools,
     toolChoice,
@@ -277,10 +281,13 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     output_schema,
     responseFormat,
     response_format,
+    reasoning,
+    thinking,
   } = params;
 
+  const selectedModel = model || "gpt-5-mini";
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    model: selectedModel,
     messages: messages.map(normalizeMessage),
   };
 
@@ -296,9 +303,12 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
+  if (selectedModel.startsWith("gpt-")) {
+    payload.max_completion_tokens = 8_000;
+    if (reasoning) payload.reasoning = reasoning;
+  } else {
+    payload.max_tokens = 8_000;
+    if (thinking) payload.thinking = thinking;
   }
 
   const normalizedResponseFormat = normalizeResponseFormat({

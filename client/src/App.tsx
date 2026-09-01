@@ -28,10 +28,12 @@ import AdminUpsellAddons from "./pages/admin/AdminUpsellAddons";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminDiscountCodes from "./pages/admin/AdminDiscountCodes";
 import AdminCalendar from "./pages/admin/AdminCalendar";
+import AdminGuestDirectory from "./pages/admin/AdminGuestDirectory";
 import ReviewsPage from "./pages/ReviewsPage";
 import LeaveReview from "./pages/LeaveReview";
 import ManualBookingPay from "./pages/ManualBookingPay";
 import ManualBookingConfirm from "./pages/ManualBookingConfirm";
+import ExtensionConfirmation from "./pages/ExtensionConfirmation";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -61,10 +63,12 @@ function Router() {
       <Route path={"/admin/reviews"} component={AdminReviews} />
       <Route path={"/admin/discount-codes"} component={AdminDiscountCodes} />
       <Route path={"/admin/calendar"} component={AdminCalendar} />
+      <Route path={"/admin/guests"} component={AdminGuestDirectory} />
       <Route path={"/reviews"} component={ReviewsPage} />
       <Route path={"/leave-a-review"} component={LeaveReview} />
       <Route path={"/booking/pay/:token"} component={ManualBookingPay} />
       <Route path={"/booking/manual-confirm"} component={ManualBookingConfirm} />
+      <Route path={"/booking/extension-confirmation"} component={ExtensionConfirmation} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
