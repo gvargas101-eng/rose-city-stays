@@ -3,6 +3,7 @@
 ## Manual Booking Discount Controls (Aug 2026)
 
 - [x] Add visible discount amount and custom label fields to the Admin → Manual Bookings creation form.
+- [x] Fix the missing manual_booking_links discount-code column that prevents manual booking links from being created.
 
 ## Completed Features
 
