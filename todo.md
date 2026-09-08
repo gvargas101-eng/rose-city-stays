@@ -5,6 +5,13 @@
 - [x] Add visible discount amount and custom label fields to the Admin → Manual Bookings creation form.
 - [x] Fix the missing manual_booking_links discount-code column that prevents manual booking links from being created.
 
+## Hostaway Webhook Delivery Repair (Sep 2026)
+
+- [ ] Diagnose recurring Hostaway webhook notification failures and identify the failing response or authentication path.
+- [ ] Fix webhook delivery reliability and confirm Hostaway receives a successful acknowledgment.
+- [ ] Capture the latest failed Hostaway log entry and correct the endpoint settings or code based on its exact HTTP response.
+- [ ] Directly test the public webhook endpoint and remove any avoidable Hostaway authentication mismatch.
+
 ## Completed Features
 
 - [x] Full React/TypeScript website with homepage, property grid, and detail pages
