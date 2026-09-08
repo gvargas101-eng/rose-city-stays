@@ -53,6 +53,13 @@ function webhookEventName(payload: Record<string, any>): string {
  */
 export async function hostawayReservationWebhookHandler(request: Request, response: Response) {
   if (!isAuthorizedHostawayWebhook(request)) {
+    const auth = readBasicAuth(request);
+    console.warn("[Hostaway guest webhook] Unauthorized delivery rejected", {
+      webhookSecretConfigured: Boolean(process.env.HOSTAWAY_WEBHOOK_SECRET),
+      basicAuthProvided: Boolean(auth),
+      usernameMatches: auth?.username === WEBHOOK_USERNAME,
+      passwordProvided: Boolean(auth?.password),
+    });
     return response.status(401).json({ error: "Unauthorized" });
   }
 

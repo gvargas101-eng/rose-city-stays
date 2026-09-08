@@ -11,6 +11,7 @@
 - [ ] Fix webhook delivery reliability and confirm Hostaway receives a successful acknowledgment.
 - [ ] Capture the latest failed Hostaway log entry and correct the endpoint settings or code based on its exact HTTP response.
 - [ ] Directly test the public webhook endpoint and remove any avoidable Hostaway authentication mismatch.
+- [ ] Log non-sensitive authentication diagnostics for the next rejected Hostaway delivery.
 
 ## Completed Features
 
