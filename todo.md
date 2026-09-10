@@ -13,6 +13,12 @@
 - [x] Directly test the public webhook endpoint and remove any avoidable Hostaway authentication mismatch.
 - [x] Log non-sensitive authentication diagnostics for the next rejected Hostaway delivery.
 
+## Calendar & Extra-Guest Fee Defects (Sep 2026)
+
+- [x] Fix Master Calendar day generation so 31-day months include the 31st.
+- [x] Fix the extra-guest fee so four guests incur no extra charge and charges begin only at five guests.
+- [x] Add regression coverage for 31-day calendar rendering and the four-guest fee threshold.
+
 ## Completed Features
 
 - [x] Full React/TypeScript website with homepage, property grid, and detail pages

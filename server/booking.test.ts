@@ -63,6 +63,7 @@ const mockUpdate = vi.fn().mockReturnValue({ set: mockUpdateSet });
 
 let mockBookingRow: Record<string, unknown> = {};
 let mockCleaningFee = "150.00";
+let mockActiveCustomFees: Array<Record<string, unknown>> = [];
 // mockSelectResult controls what .limit(1) returns; defaults to mockBookingRow.
 // For getCleaningFee (properties table) we return a property row with cleaningFee.
 const mockSelectLimit = vi.fn().mockImplementation(() => Promise.resolve([mockBookingRow]));
@@ -97,10 +98,10 @@ const mockSelectFrom = vi.fn().mockImplementation((table: unknown) => {
       }),
     };
   }
-  // custom_fees table (getActiveCustomFeeLines) — fallback, returns empty array
+  // custom_fees table (getActiveCustomFeeLines)
   return {
     where: vi.fn().mockReturnValue({
-      orderBy: vi.fn().mockResolvedValue([]),
+      orderBy: vi.fn().mockResolvedValue(mockActiveCustomFees),
       limit: vi.fn().mockResolvedValue([]),
     }),
     orderBy: vi.fn().mockResolvedValue([]),
@@ -143,6 +144,7 @@ describe("bookingRouter.createCheckoutSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCleaningFee = "150.00";
+    mockActiveCustomFees = [];
   });
 
   it("rejects a direct checkout without a valid guest phone number", async () => {
@@ -241,6 +243,43 @@ describe("bookingRouter.createCheckoutSession", () => {
     expect(mockInsertValues).toHaveBeenCalledWith(
       expect.objectContaining({ totalAmount: "588.18" })
     );
+  });
+
+  it("does not apply a legacy flat extra-guest custom fee to four guests", async () => {
+    mockActiveCustomFees = [{
+      id: 1,
+      name: "Extra Guest Fee",
+      description: "Applies when more than 4 guests",
+      type: "flat",
+      amount: "25.00",
+      sortOrder: 0,
+    }];
+    mockCheckoutSessionCreate.mockResolvedValue({
+      id: "cs_test_four_guests",
+      url: "https://checkout.stripe.com/pay/cs_test_four_guests",
+    });
+
+    await callProcedure(
+      "createCheckoutSession",
+      {
+        propertyId: "the-briar",
+        propertyName: "The Briar",
+        checkIn: "2026-10-01",
+        checkOut: "2026-10-04",
+        nights: 3,
+        nightlyRate: 150,
+        guestCount: 4,
+        guestName: "Four Guest Test",
+        guestEmail: "four@example.com",
+        guestPhone: "555-0100",
+      },
+      { req: { headers: { origin: "https://www.rosecitystays.com" } } }
+    );
+
+    const lineItemNames = mockCheckoutSessionCreate.mock.calls[0][0].line_items
+      .map((line: any) => line.price_data.product_data.name);
+    expect(lineItemNames).not.toContain("Extra Guest Fee");
+    expect(lineItemNames.some((name: string) => name.startsWith("Extra guests"))).toBe(false);
   });
 
   it("uses the saved per-property cleaning fee in the Stripe checkout", async () => {

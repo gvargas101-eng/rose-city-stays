@@ -110,7 +110,12 @@ async function getActiveCustomFeeLines(subtotal: number): Promise<Array<{ id: nu
     .where(eq(customFees.active, 1))
     .orderBy(asc(customFees.sortOrder));
 
-  return rows.map((fee) => {
+  // Extra-guest fees are calculated below from the actual guest count. A legacy
+  // flat custom fee with this name would charge every reservation, including
+  // reservations with four or fewer guests, so it must never be a custom line.
+  return rows
+    .filter((fee) => fee.name.trim().toLowerCase() !== "extra guest fee")
+    .map((fee) => {
     const rawAmount = parseFloat(String(fee.amount));
     const computed = fee.type === "flat" ? rawAmount : (subtotal * rawAmount) / 100;
     return {

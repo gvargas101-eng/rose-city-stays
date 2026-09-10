@@ -5,6 +5,7 @@
  */
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { getUtcMonthDays } from "@/lib/calendarDates";
 import { ChevronLeft, ChevronRight, RefreshCw, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,10 +49,6 @@ function addDays(d: Date, n: number): Date {
 function startOfMonth(year: number, month: number): Date {
   return new Date(Date.UTC(year, month, 1));
 }
-function daysInMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-}
-
 // ── Tooltip ───────────────────────────────────────────────────────────────
 interface TooltipInfo {
   guestName: string;
@@ -71,7 +68,8 @@ export default function AdminCalendar() {
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
   const firstDay = startOfMonth(year, month);
-  const numDays = daysInMonth(year, month);
+  const days = useMemo(() => getUtcMonthDays(year, month), [year, month]);
+  const numDays = days.length;
   const startDate = toYMD(firstDay);
   // Fetch 2 extra days so reservations starting at month-end are visible
   const endDate = toYMD(addDays(firstDay, numDays + 1));
@@ -90,12 +88,6 @@ export default function AdminCalendar() {
     }
     return map;
   }, [data]);
-
-  // Days array for the header
-  const days = Array.from({ length: numDays }, (_, i) => {
-    const d = addDays(firstDay, i);
-    return { date: toYMD(d), dayNum: i + 1, dayOfWeek: d.getUTCDay() };
-  });
 
   const todayStr = toYMD(today);
   const monthName = firstDay.toLocaleString("en-US", { month: "long", timeZone: "UTC" });
