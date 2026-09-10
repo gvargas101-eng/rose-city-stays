@@ -16,8 +16,9 @@
  * The list below shows all past links with status and revoke option.
  */
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { getStayPriceSummary } from "@/lib/manualBookingPricing";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,6 +169,8 @@ export default function AdminManualBookings() {
   const [showGuestResults, setShowGuestResults] = useState(false);
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
+  const [lastAutoFilledRateKey, setLastAutoFilledRateKey] = useState<string | null>(null);
+  const [manualRateOverrideKey, setManualRateOverrideKey] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -196,6 +199,24 @@ export default function AdminManualBookings() {
     },
     { enabled: canCheckAvailability, staleTime: 30_000 }
   );
+
+  const liveRateKey = canCheckAvailability
+    ? `${form.propertySlug}|${form.checkIn}|${form.checkOut}`
+    : null;
+  const livePriceSummary = useMemo(
+    () => getStayPriceSummary(availData?.days, form.checkIn, form.checkOut),
+    [availData?.days, form.checkIn, form.checkOut]
+  );
+
+  // Load current Hostaway pricing as soon as complete dates are selected.
+  // A rate edited by the owner for these same dates is never overwritten.
+  useEffect(() => {
+    if (!liveRateKey || !livePriceSummary || availFetching) return;
+    if (manualRateOverrideKey === liveRateKey || lastAutoFilledRateKey === liveRateKey) return;
+
+    setForm((prev) => ({ ...prev, nightlyRate: livePriceSummary.nightlyRate }));
+    setLastAutoFilledRateKey(liveRateKey);
+  }, [availFetching, lastAutoFilledRateKey, livePriceSummary, liveRateKey, manualRateOverrideKey]);
 
   const blockedStayDates = useMemo(() => {
     if (!availData?.days || !form.checkIn || !form.checkOut) return [];
@@ -273,11 +294,26 @@ export default function AdminManualBookings() {
 
   function handlePropertyChange(slug: string) {
     set("propertySlug", slug);
+    setLastAutoFilledRateKey(null);
+    setManualRateOverrideKey(null);
     // Auto-fill cleaning fee from DB or static
     const dbProp = dbProperties?.find(p => p.slug === slug);
     if (dbProp?.cleaningFee) {
       set("cleaningFee", Number(dbProp.cleaningFee));
     }
+  }
+
+  function handleDateChange(key: "checkIn" | "checkOut", value: string) {
+    set(key, value);
+    setLastAutoFilledRateKey(null);
+    setManualRateOverrideKey(null);
+  }
+
+  function useLiveNightlyRate() {
+    if (!livePriceSummary || !liveRateKey) return;
+    set("nightlyRate", livePriceSummary.nightlyRate);
+    setManualRateOverrideKey(null);
+    setLastAutoFilledRateKey(liveRateKey);
   }
 
   function addCustomLineItem() {
@@ -475,7 +511,7 @@ export default function AdminManualBookings() {
                 <Input
                   type="date"
                   value={form.checkIn}
-                  onChange={e => set("checkIn", e.target.value)}
+                  onChange={e => handleDateChange("checkIn", e.target.value)}
                   required
                 />
               </div>
@@ -484,7 +520,7 @@ export default function AdminManualBookings() {
                 <Input
                   type="date"
                   value={form.checkOut}
-                  onChange={e => set("checkOut", e.target.value)}
+                  onChange={e => handleDateChange("checkOut", e.target.value)}
                   min={form.checkIn || undefined}
                   required
                 />
@@ -556,16 +592,44 @@ export default function AdminManualBookings() {
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pricing</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Nightly Rate ($) *</label>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <label className="block text-xs font-medium text-muted-foreground">Nightly Rate ($) *</label>
+                    {livePriceSummary && !availFetching && (
+                      <button
+                        type="button"
+                        onClick={useLiveNightlyRate}
+                        className="text-[11px] font-medium text-primary hover:underline"
+                      >
+                        Use live rate
+                      </button>
+                    )}
+                  </div>
                   <Input
                     type="number"
                     min={0}
                     step={0.01}
                     value={form.nightlyRate || ""}
-                    onChange={e => set("nightlyRate", Number(e.target.value))}
+                    onChange={e => {
+                      set("nightlyRate", Number(e.target.value));
+                      if (liveRateKey) setManualRateOverrideKey(liveRateKey);
+                    }}
                     placeholder="0.00"
                     required
                   />
+                  {availFetching && canCheckAvailability && (
+                    <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <RefreshCw className="h-3 w-3 animate-spin" /> Loading live Hostaway rate…
+                    </p>
+                  )}
+                  {!availFetching && livePriceSummary && (
+                    <p className="mt-1.5 text-[11px] text-green-700">
+                      Live Hostaway average: <strong>{fmt(livePriceSummary.nightlyRate)}/night</strong>
+                      {manualRateOverrideKey === liveRateKey ? " — custom rate in use" : " — loaded automatically"}
+                    </p>
+                  )}
+                  {!availFetching && canCheckAvailability && !livePriceSummary && availData?.days && (
+                    <p className="mt-1.5 text-[11px] text-amber-700">No complete live rate is available for these dates. Enter a custom rate.</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Cleaning Fee ($)</label>

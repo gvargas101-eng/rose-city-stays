@@ -326,6 +326,8 @@
 - [x] Show custom line items on ManualBookingPay price breakdown and in Stripe checkout
 - [x] Add security deposit override to ManualBookingPay deposit notice and Stripe hold
 - [x] Add guest note display to ManualBookingPay page (amber info box)
+- [x] Auto-fill the Manual Bookings nightly rate from Hostaway after selecting a property and stay dates.
+- [x] Keep the auto-filled nightly rate editable and provide a clear reset-to-live-price action for owner overrides.
 
 ## Availability Enforcement & Share Link (Aug 2026)
 - [x] Add Hostaway calendar availability check to createCheckoutSession — block checkout if any date in range is reserved/blocked in Hostaway
