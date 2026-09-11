@@ -5,6 +5,11 @@
 - [x] Add visible discount amount and custom label fields to the Admin → Manual Bookings creation form.
 - [x] Fix the missing manual_booking_links discount-code column that prevents manual booking links from being created.
 
+## Continuous Master Calendar (Sep 2026)
+
+- [x] Extend the Master Calendar beyond a single month with continuous month loading while scrolling.
+- [x] Preserve correct reservation placement and month boundaries across the extended timeline.
+
 ## Hostaway Webhook Delivery Repair (Sep 2026)
 
 - [x] Diagnose recurring Hostaway webhook notification failures and identify the failing response or authentication path.

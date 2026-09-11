@@ -25,3 +25,15 @@ export function getUtcMonthDays(year: number, month: number): CalendarDay[] {
     };
   });
 }
+
+/**
+ * Builds one continuous UTC day sequence across a chosen number of months.
+ * This keeps the Admin Master Calendar aligned when its timeline crosses
+ * month and year boundaries.
+ */
+export function getUtcTimelineDays(year: number, month: number, monthCount: number): CalendarDay[] {
+  const safeMonthCount = Math.max(1, Math.floor(monthCount));
+  return Array.from({ length: safeMonthCount }, (_, offset) =>
+    getUtcMonthDays(year, month + offset)
+  ).flat();
+}
