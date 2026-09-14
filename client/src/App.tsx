@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/sonner";
+import { useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -34,6 +35,17 @@ import LeaveReview from "./pages/LeaveReview";
 import ManualBookingPay from "./pages/ManualBookingPay";
 import ManualBookingConfirm from "./pages/ManualBookingConfirm";
 import ExtensionConfirmation from "./pages/ExtensionConfirmation";
+import { trackGoogleAnalyticsPageView } from "@/lib/googleAnalytics";
+
+function GoogleAnalyticsPageViews() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    trackGoogleAnalyticsPageView(location);
+  }, [location]);
+
+  return null;
+}
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -82,6 +94,7 @@ function App() {
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
+          <GoogleAnalyticsPageViews />
           <Router />
         </TooltipProvider>
       </ThemeProvider>

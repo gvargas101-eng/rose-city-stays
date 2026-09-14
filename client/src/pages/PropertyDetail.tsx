@@ -1,7 +1,7 @@
 // Rose City Stays — Property Detail Page
 // Design: Rose City Luxe — full-width image gallery, booking sidebar
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import {
 import { useSEO } from "@/hooks/useSEO";
 import { generatePropertySchema, generateBreadcrumbSchema } from "@/lib/seo";
 import { propertySEOMap } from "@/lib/propertySEO";
+import { trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { getPropertyById, properties as staticProperties, type Property } from "@/lib/properties";
@@ -214,6 +215,23 @@ export default function PropertyDetail() {
         }
       : undefined
   );
+
+  const trackedPropertyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!seoProperty || trackedPropertyRef.current === String(seoProperty.id)) return;
+    trackedPropertyRef.current = String(seoProperty.id);
+    trackGoogleAnalyticsEvent("view_item", {
+      currency: "USD",
+      property_id: String(seoProperty.id),
+      property_neighborhood: seoProperty.neighborhood ?? "Tyler",
+      items: [{
+        item_id: String(seoProperty.id),
+        item_name: seoProperty.name,
+        item_category: "short_term_rental",
+        quantity: 1,
+      }],
+    });
+  }, [seoProperty]);
 
   // ── Early returns after all hooks ──
   if (dbLoading && !staticProperty) {

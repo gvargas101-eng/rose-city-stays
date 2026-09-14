@@ -36,6 +36,7 @@ import {
 import { Tag, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AGREEMENT_ACKNOWLEDGMENT_TEXT } from "@/lib/rentalAgreement";
+import { trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 
 interface CustomFee {
   id: number;
@@ -269,6 +270,19 @@ export default function CheckoutModal(props: CheckoutModalProps) {
         throw new Error("No checkout URL returned from server.");
       }
 
+      trackGoogleAnalyticsEvent("begin_checkout", {
+        currency: "USD",
+        value: Number(grandTotal.toFixed(2)),
+        property_id: propertyId,
+        nights,
+        guest_count: guestCount,
+        items: [{
+          item_id: propertyId,
+          item_name: propertyName,
+          price: Number(avgNightlyRate.toFixed(2)),
+          quantity: nights,
+        }],
+      });
       toast.info("Redirecting to secure checkout…");
       window.location.href = result.checkoutUrl;
     } catch (err) {

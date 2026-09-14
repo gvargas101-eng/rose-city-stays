@@ -10,6 +10,13 @@
 - [x] Extend the Master Calendar beyond a single month with continuous month loading while scrolling.
 - [x] Preserve correct reservation placement and month boundaries across the extended timeline.
 
+## Google Analytics 4 & Search Measurement (Sep 2026)
+
+- [ ] Create or connect a GA4 property and web data stream for www.rosecitystays.com.
+- [ ] Install the GA4 measurement tag using the configured Measurement ID.
+- [ ] Track property views, checkout starts, and completed direct bookings as analytics events.
+- [ ] Verify GA4 receives live traffic and document the Search Console connection steps.
+
 ## Hostaway Webhook Delivery Repair (Sep 2026)
 
 - [x] Diagnose recurring Hostaway webhook notification failures and identify the failing response or authentication path.

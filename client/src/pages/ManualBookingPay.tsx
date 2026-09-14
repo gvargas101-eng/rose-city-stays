@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -160,6 +161,21 @@ export default function ManualBookingPay() {
 
     setSubmitting(true);
     setSubmitError(null);
+
+    trackGoogleAnalyticsEvent("begin_checkout", {
+      currency: "USD",
+      value: Number(link.totalAmount),
+      property_id: link.propertySlug,
+      booking_type: "manual_link",
+      nights: Number(link.nights),
+      guest_count: Number(link.guestCount),
+      items: [{
+        item_id: link.propertySlug,
+        item_name: link.propertyName,
+        price: Number(link.nightlyRate),
+        quantity: Number(link.nights),
+      }],
+    });
 
     checkoutMutation.mutate({
       token: token!,

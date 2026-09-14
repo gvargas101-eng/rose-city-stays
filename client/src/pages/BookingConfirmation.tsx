@@ -5,6 +5,7 @@
  *   - ?pi=pi_xxx          (legacy PaymentIntent flow — kept for old links)
  */
 
+import { useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 // date-fns format() uses local timezone which shifts UTC-midnight dates back 1 day in CDT
 // Use toLocaleDateString with timeZone: 'UTC' instead
@@ -21,6 +22,7 @@ import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { properties } from "@/lib/properties";
+import { trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 
 export default function BookingConfirmation() {
   const search = useSearch();
@@ -54,6 +56,26 @@ export default function BookingConfirmation() {
   const property = booking
     ? properties.find((p) => p.id === booking.propertyId)
     : null;
+  const trackedPurchaseRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!booking || booking.status === "failed" || ("paymentStatus" in booking && booking.paymentStatus !== "paid")) return;
+    if (trackedPurchaseRef.current === confirmationRef) return;
+
+    trackedPurchaseRef.current = confirmationRef;
+    trackGoogleAnalyticsEvent("purchase", {
+      transaction_id: confirmationRef,
+      currency: "USD",
+      value: Number(booking.totalAmount),
+      items: [{
+        item_id: booking.propertyId,
+        item_name: property?.name ?? booking.propertyId,
+        item_category: "short_term_rental",
+        price: Number(booking.nightlyRate),
+        quantity: Number(booking.nights),
+      }],
+    });
+  }, [booking, confirmationRef, property?.name]);
 
   if (!sessionId && !paymentIntentId) {
     return (

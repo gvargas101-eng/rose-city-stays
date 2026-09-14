@@ -23,7 +23,7 @@ const sections = [
 - Browser type, device type, and operating system
 - IP address and approximate geographic location
 - Pages visited, time spent on the site, and referring URLs
-- Analytics data collected via Umami (privacy-friendly, no cross-site tracking)`,
+- Analytics data collected through Google Analytics 4, including pages viewed, referring URLs, approximate location, device/browser information, and site interactions. We do not send booking names, email addresses, phone numbers, payment details, government IDs, or guest messages to Google Analytics.`,
   },
   {
     title: "2. How We Use Your Information",
@@ -43,6 +43,7 @@ const sections = [
 - **Hostaway (property management system)** — your booking details are transmitted to Hostaway to create and manage your reservation
 - **Stripe (payment processor)** — payment information is processed by Stripe in accordance with their Privacy Policy (stripe.com/privacy)
 - **Amazon Web Services (S3)** — uploaded documents (including government ID) are stored securely in encrypted S3 storage
+- **Google Analytics** — aggregated website usage and booking-funnel event data is processed to help us understand website performance and improve our services
 - **Legal requirements** — we may disclose information if required by law, court order, or to protect the rights and safety of Rose City Stays, our guests, or the public
 - **Business transfers** — in the event of a sale or merger, your information may be transferred as part of that transaction`,
   },
@@ -60,9 +61,9 @@ Your payment card details are processed and stored by Stripe. Rose City Stays do
   },
   {
     title: "6. Cookies and Analytics",
-    content: `Our website uses Umami, a privacy-friendly analytics tool, to understand how visitors use our site. Umami does not use cookies, does not track you across other websites, and does not collect personally identifiable information.
+    content: `Our website uses Google Analytics 4 to understand how visitors use our site, including page views, property views, checkout starts, and completed direct bookings. Google Analytics may use cookies or similar technologies and may process device, browser, IP-derived, and approximate location information according to Google’s Privacy Policy.
 
-We do not use advertising cookies, retargeting pixels, or third-party tracking scripts.`,
+We configure analytics events to exclude guest names, email addresses, phone numbers, payment details, government IDs, and guest messages. We do not use advertising remarketing audiences or retargeting pixels through this website. You can manage or block cookies through your browser settings.`,
   },
   {
     title: "7. Data Retention",
