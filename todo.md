@@ -12,10 +12,10 @@
 
 ## Google Analytics 4 & Search Measurement (Sep 2026)
 
-- [ ] Create or connect a GA4 property and web data stream for www.rosecitystays.com.
-- [ ] Install the GA4 measurement tag using the configured Measurement ID.
-- [ ] Track property views, checkout starts, and completed direct bookings as analytics events.
-- [ ] Verify GA4 receives live traffic and document the Search Console connection steps.
+- [x] Create or connect a GA4 property and web data stream for www.rosecitystays.com.
+- [x] Install the GA4 measurement tag using the configured Measurement ID.
+- [x] Track property views, checkout starts, and completed direct bookings as analytics events.
+- [x] Verify GA4 receives live traffic and document the Search Console connection steps.
 
 ## Hostaway Webhook Delivery Repair (Sep 2026)
 
