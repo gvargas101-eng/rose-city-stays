@@ -10,12 +10,18 @@
 - [x] Extend the Master Calendar beyond a single month with continuous month loading while scrolling.
 - [x] Preserve correct reservation placement and month boundaries across the extended timeline.
 
-## Google Analytics 4 & Search Measurement (Sep 2026)
+## Google Analytics and Search Optimization (Sep 2026)
 
 - [x] Create or connect a GA4 property and web data stream for www.rosecitystays.com.
 - [x] Install the GA4 measurement tag using the configured Measurement ID.
 - [x] Track property views, checkout starts, and completed direct bookings as analytics events.
 - [x] Verify GA4 receives live traffic and document the Search Console connection steps.
+
+## Urgent Direct Checkout Failure (Sep 2026)
+
+- [x] Identify the live server error causing "Unable to start checkout" before Stripe opens — the live bookings table was missing `smsConsentAt` and `stripeCustomerId` columns required by the current checkout and retry code.
+- [x] Repair the direct-booking checkout session path and add regression coverage — added the two missing nullable columns without altering existing booking data and added a booking-schema regression test.
+- [x] Validate a successful checkout-session response and publish the repair — a controlled live non-payment request returned a real Stripe Checkout URL after the schema repair; the resulting verification record was immediately marked failed so it cannot be treated as a guest booking. All eight required columns now exist, 47 tests pass, and TypeScript is clean.
 
 ## Hostaway Webhook Delivery Repair (Sep 2026)
 
