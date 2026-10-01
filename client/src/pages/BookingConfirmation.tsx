@@ -52,6 +52,12 @@ export default function BookingConfirmation() {
 
   const { data: depositData } = trpc.settings.getSecurityDeposit.useQuery();
   const depositAmount = depositData?.amount ?? 500;
+  const confirmedDepositAmount = booking && "securityDepositAmount" in booking
+    ? Number(booking.securityDepositAmount)
+    : depositAmount;
+  const depositStatus = booking && "depositHoldStatus" in booking
+    ? String(booking.depositHoldStatus ?? "")
+    : undefined;
 
   const property = booking
     ? properties.find((p) => p.id === booking.propertyId)
@@ -259,15 +265,33 @@ export default function BookingConfirmation() {
             </div>
 
             {/* Security Deposit Hold Reminder */}
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
-              <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-800">
-                <p className="font-semibold mb-1">${depositAmount} security deposit hold placed</p>
-                <p className="leading-relaxed">
-                  A <strong>${depositAmount} authorization hold</strong> has been placed on your card. This is <em>not</em> a charge — it is a temporary hold that will appear as a pending transaction. The hold will be <strong>released within 3–5 business days after your checkout date</strong> if no damages are reported. If any damages occur, you will be contacted before any amount is captured.
-                </p>
+            {confirmedDepositAmount > 0 && depositStatus === "authorized" ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-semibold mb-1">${confirmedDepositAmount} security deposit hold placed</p>
+                  <p className="leading-relaxed">
+                    A <strong>${confirmedDepositAmount} authorization hold</strong> has been placed on your card. This is <em>not</em> a charge — it is a temporary hold that will appear as a pending transaction. The hold will be <strong>released within 3–5 business days after your checkout date</strong> if no damages are reported. If any damages occur, you will be contacted before any amount is captured.
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : confirmedDepositAmount > 0 && depositStatus === "failed" ? (
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-orange-900">
+                  <p className="font-semibold mb-1">Security deposit authorization needs attention</p>
+                  <p className="leading-relaxed">Your reservation and rental payment are confirmed. We were unable to place the ${confirmedDepositAmount} deposit hold automatically, and the host will contact you if anything further is needed.</p>
+                </div>
+              </div>
+            ) : confirmedDepositAmount > 0 ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-semibold mb-1">${confirmedDepositAmount} security deposit authorization processing</p>
+                  <p className="leading-relaxed">Your reservation and rental payment are confirmed. The security-deposit authorization is being finalized and is not a separate rental charge.</p>
+                </div>
+              </div>
+            ) : null}
 
             {/* What's next */}
             <div className="bg-card border border-border rounded-2xl p-6 space-y-4">

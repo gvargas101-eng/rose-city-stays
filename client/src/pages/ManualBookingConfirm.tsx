@@ -124,12 +124,29 @@ export default function ManualBookingConfirm() {
             </div>
 
             {/* Deposit hold notice */}
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-              <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <span>
-                A <strong>$500 security deposit hold</strong> has been placed on your card. This is an authorization only — not a charge — and will be released within 3–5 business days after checkout if no damages are reported.
-              </span>
-            </div>
+            {data.depositAmount > 0 && data.depositStatus === "authorized" ? (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  A <strong>{fmt(data.depositAmount)} security deposit hold</strong> has been placed on your card. This is an authorization only — not a charge — and will be released within 3–5 business days after checkout if no damages are reported.
+                </span>
+              </div>
+            ) : data.depositAmount > 0 && data.depositStatus === "failed" ? (
+              <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-900">
+                <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+                <span>Your rental payment is confirmed. The host will contact you if anything further is needed to finalize the {fmt(data.depositAmount)} security deposit authorization.</span>
+              </div>
+            ) : data.depositAmount > 0 ? (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>Your rental payment is confirmed. The {fmt(data.depositAmount)} security deposit authorization is being finalized and is not a separate rental charge.</span>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-xl p-3 text-xs text-muted-foreground">
+                <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>No security deposit hold is required for this booking.</span>
+              </div>
+            )}
           </div>
         )}
 

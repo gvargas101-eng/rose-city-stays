@@ -294,7 +294,7 @@ export default function AdminDeposits() {
                 ? (booking.depositHoldStatus as DepositStatus) ?? "pending"
                 : "none" as DepositStatus;
               const { label, className, icon } = statusConfig(depositStatus);
-              const depositAmount = fmt(booking.depositHoldIntentId ? 500 : null);
+              const depositAmount = fmt(booking.depositHoldIntentId ? booking.depositHoldAmount : null);
               const canRelease = depositStatus === "authorized" || depositStatus === "pending";
               const canCapture = depositStatus === "authorized" || depositStatus === "pending";
 
@@ -410,6 +410,12 @@ export default function AdminDeposits() {
                             {icon} {label}
                           </span>
                         </div>
+                        {booking.depositHoldAmount && (
+                          <div>
+                            <div className="text-xs text-muted-foreground">Hold Amount</div>
+                            <div className="font-medium">{fmt(booking.depositHoldAmount)}</div>
+                          </div>
+                        )}
                         {booking.depositHoldIntentId && (
                           <div className="sm:col-span-2">
                             <div className="text-xs text-muted-foreground">Stripe Deposit Intent</div>

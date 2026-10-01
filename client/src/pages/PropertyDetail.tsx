@@ -277,7 +277,10 @@ export default function PropertyDetail() {
   };
 
   const relatedProperties = staticProperties
-    .filter((p: Property) => p.id !== property.id)
+    // The live property record uses a numeric database ID while this fallback
+    // catalog uses the public slug as its ID. Compare public identities so the
+    // current home never appears as its own recommendation.
+    .filter((p: Property) => p.id !== propertySlug && p.slug !== propertySlug)
     .slice(0, 3);
 
   return (

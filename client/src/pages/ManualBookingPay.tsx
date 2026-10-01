@@ -225,8 +225,9 @@ export default function ManualBookingPay() {
   const requireTerms = !link.bypassTermsAcceptance;
   const requireId = !link.bypassIdUpload;
 
-  // Security deposit amount for this booking (override or global)
-  const depositAmount = link.securityDepositOverride ?? 500;
+  // Resolved server-side so manual links honor both the owner override and the
+  // current global security-deposit setting.
+  const depositAmount = link.securityDepositAmount;
 
   // Can submit?
   const canSubmit =
@@ -348,12 +349,19 @@ export default function ManualBookingPay() {
           </div>
 
           {/* Security deposit notice — uses override if set */}
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <span>
-              A <strong>{fmt(depositAmount)} security deposit hold</strong> will be placed on your card after payment. This is an authorization only — not a charge — and will be released within 3–5 business days after checkout if no damages are reported.
-            </span>
-          </div>
+          {depositAmount > 0 ? (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+              <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                A <strong>{fmt(depositAmount)} security deposit hold</strong> will be placed on your card after payment. This is an authorization only — not a charge — and will be released within 3–5 business days after checkout if no damages are reported.
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-xl p-3 text-xs text-muted-foreground">
+              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>No security deposit hold is required for this booking.</span>
+            </div>
+          )}
         </div>
 
         {/* ── Guest Info ── */}

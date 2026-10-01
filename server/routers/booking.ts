@@ -146,6 +146,112 @@ async function getActiveUpsellAddonLines(addonIds: number[]): Promise<Array<{ id
     }));
 }
 
+async function getSecurityDepositAmount(override?: number | null): Promise<number> {
+  if (override !== undefined && override !== null) {
+    return Math.max(0, roundCurrency(override));
+  }
+
+  const db = await getDb();
+  if (!db) return 500;
+  const [setting] = await db
+    .select()
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "securityDepositAmount"))
+    .limit(1);
+
+  const configuredAmount = setting ? Number(setting.value) : 500;
+  return Number.isFinite(configuredAmount) && configuredAmount >= 0
+    ? roundCurrency(configuredAmount)
+    : 500;
+}
+
+/**
+ * Authorize a manual-capture Stripe PaymentIntent using the payment method saved
+ * by Checkout. The parent rental payment has already succeeded at this point.
+ */
+async function createSecurityDepositHold(params: {
+  bookingId: number;
+  session: Stripe.Checkout.Session;
+  amount: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [booking] = await db
+    .select()
+    .from(bookings)
+    .where(eq(bookings.id, params.bookingId))
+    .limit(1);
+  if (!booking) throw new Error("Booking not found for deposit hold");
+
+  const amount = roundCurrency(params.amount);
+  if (amount <= 0) {
+    return { amount, status: "waived" as const, intentId: null };
+  }
+  if (booking.depositHoldIntentId) {
+    return {
+      amount: booking.depositHoldAmount === null ? amount : Number(booking.depositHoldAmount),
+      status: (booking.depositHoldStatus ?? "pending") as "pending" | "authorized" | "captured" | "released" | "failed",
+      intentId: booking.depositHoldIntentId,
+    };
+  }
+
+  const expandedSession = await stripe.checkout.sessions.retrieve(params.session.id, {
+    expand: ["payment_intent.payment_method", "customer"],
+  });
+  const paymentIntent = expandedSession.payment_intent as Stripe.PaymentIntent | null;
+  const paymentMethod = paymentIntent?.payment_method as Stripe.PaymentMethod | null;
+  const customerId =
+    (typeof paymentIntent?.customer === "string" ? paymentIntent.customer : (paymentIntent?.customer as Stripe.Customer | null)?.id) ??
+    (typeof expandedSession.customer === "string" ? expandedSession.customer : (expandedSession.customer as Stripe.Customer | null)?.id);
+
+  if (!paymentMethod?.id) {
+    throw new Error("No reusable payment method was saved by Stripe Checkout");
+  }
+  if (!customerId) {
+    throw new Error("Stripe Checkout did not create a customer for the saved payment method");
+  }
+
+  const depositIntent = await stripe.paymentIntents.create(
+    {
+      amount: dollarsToCents(amount),
+      currency: "usd",
+      capture_method: "manual",
+      confirm: true,
+      payment_method: paymentMethod.id,
+      customer: customerId,
+      description: `Security deposit hold — Booking #${params.bookingId} — ${booking.propertyId}`,
+      metadata: {
+        bookingId: String(params.bookingId),
+        propertyId: booking.propertyId,
+        guestName: booking.guestName,
+        guestEmail: booking.guestEmail,
+        type: "security_deposit_hold",
+      },
+      receipt_email: booking.guestEmail,
+      off_session: true,
+    },
+    { idempotencyKey: `security-deposit-hold-booking-${params.bookingId}` }
+  );
+  const holdStatus: "pending" | "authorized" | "captured" | "released" =
+    depositIntent.status === "requires_capture" ? "authorized" :
+    depositIntent.status === "succeeded" ? "captured" :
+    depositIntent.status === "canceled" ? "released" : "pending";
+
+  await db
+    .update(bookings)
+    .set({
+      depositHoldIntentId: depositIntent.id,
+      depositHoldStatus: holdStatus,
+      depositHoldAmount: String(amount),
+      stripeCustomerId: customerId,
+    })
+    .where(eq(bookings.id, params.bookingId));
+
+  console.log(`[deposit hold] $${amount} hold created: ${depositIntent.id} (${holdStatus})`);
+  return { amount, status: holdStatus, intentId: depositIntent.id };
+}
+
 async function confirmStoredBooking(params: {
   bookingId: number;
   stripePaymentIntentId?: string | null;
@@ -341,90 +447,24 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
     console.error("[Booking] Payment verification notification failed:", notifyErr);
   }
 
-  // ── $500 Security Deposit Hold (post-checkout) ──
-  // After the rental payment succeeds, retrieve the payment method from the
-  // completed checkout session and create + confirm a deposit authorization hold
-  // using capture_method: manual. This places a real hold on the guest's card
-  // that the owner can later capture (charge) or cancel (release).
-  let depositAmountDollars = 500; // default, overwritten from DB below
+  // ── Security Deposit Hold (post-checkout) ──────────────────────────────────
+  // A separate manual-capture PaymentIntent creates a true authorization hold
+  // using the payment method Checkout saved for the paid reservation.
+  let depositAmountDollars = 500;
   try {
-    const db = await getDb();
-    if (!db) throw new Error("Database not available");
-
-    const [booking] = await db
-      .select()
-      .from(bookings)
-      .where(eq(bookings.id, bookingId))
-      .limit(1);
-
-    if (!booking) throw new Error("Booking not found for deposit hold");
-
-    // Read configurable deposit amount from site_settings (default $500)
-    const [depositSetting] = await db
-      .select()
-      .from(siteSettings)
-      .where(eq(siteSettings.key, "securityDepositAmount"))
-      .limit(1);
-    depositAmountDollars = depositSetting ? parseFloat(depositSetting.value) : 500;
-    const depositAmountCents = Math.round(depositAmountDollars * 100);
-
-    // Expand the checkout session to get the payment intent + payment method
-    const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
-      expand: ["payment_intent.payment_method", "customer"],
+    depositAmountDollars = await getSecurityDepositAmount();
+    await createSecurityDepositHold({
+      bookingId,
+      session,
+      amount: depositAmountDollars,
     });
-
-    const pi = expandedSession.payment_intent as Stripe.PaymentIntent | null;
-    const pm = pi?.payment_method as Stripe.PaymentMethod | null;
-    const customerId =
-      (typeof pi?.customer === "string" ? pi.customer : (pi?.customer as Stripe.Customer | null)?.id) ??
-      (typeof expandedSession.customer === "string" ? expandedSession.customer : (expandedSession.customer as Stripe.Customer | null)?.id);
-
-    if (!pm?.id) {
-      throw new Error("No reusable payment method was saved by Stripe Checkout");
-    }
-    if (!customerId) {
-      throw new Error("Stripe Checkout did not create a customer for the saved payment method");
-    } else {
-      // Create and confirm the deposit hold in one step
-      const depositIntent = await stripe.paymentIntents.create({
-        amount: depositAmountCents, // configurable via admin settings
-        currency: "usd",
-        capture_method: "manual",
-        confirm: true,
-        payment_method: pm.id,
-        customer: customerId,
-        description: `Security deposit hold — Booking #${bookingId} — ${booking.propertyId}`,
-        metadata: {
-          bookingId: String(bookingId),
-          propertyId: booking.propertyId,
-          guestName: booking.guestName,
-          guestEmail: booking.guestEmail,
-          type: "security_deposit_hold",
-        },
-        receipt_email: booking.guestEmail,
-        // off_session because the guest is no longer in the browser flow
-        off_session: true,
-      });
-
-      const holdStatus =
-        depositIntent.status === "requires_capture" ? "authorized" :
-        depositIntent.status === "succeeded" ? "captured" :
-        depositIntent.status === "canceled" ? "released" : "pending";
-
-      await db
-        .update(bookings)
-        .set({ depositHoldIntentId: depositIntent.id, depositHoldStatus: holdStatus })
-        .where(eq(bookings.id, bookingId));
-
-      console.log(`[deposit hold] $${depositAmountDollars} hold created: ${depositIntent.id} (${holdStatus})`);
-    }
   } catch (depositErr: any) {
     // Non-fatal: log and notify owner but don't fail the booking confirmation
     console.error("[deposit hold] Failed to create post-checkout deposit hold:", depositErr?.message);
     try {
       const db = await getDb();
       await db?.update(bookings)
-        .set({ depositHoldStatus: "failed" })
+        .set({ depositHoldStatus: "failed", depositHoldAmount: String(depositAmountDollars) })
         .where(eq(bookings.id, bookingId));
     } catch (_) { /* preserve the original deposit error */ }
     try {
@@ -457,79 +497,103 @@ export async function confirmManualCheckoutSession(session: Stripe.Checkout.Sess
     .limit(1);
 
   if (!link) throw new Error("Manual booking link not found");
-  if (link.status === "paid") return { alreadyConfirmed: true, hostawayReservationId: link.hostawayReservationId };
+  if (link.status === "paid") {
+    return {
+      alreadyConfirmed: true,
+      bookingId: link.bookingId,
+      hostawayReservationId: link.hostawayReservationId,
+    };
+  }
 
   const guestName = session.metadata?.guest_name ?? link.guestName ?? "Guest";
   const guestEmail = session.metadata?.guest_email ?? link.guestEmail ?? "";
+  const guestPhone = session.metadata?.guest_phone || link.guestPhone || null;
   const guestIdUrl = session.metadata?.guest_id_url || null;
+  const hostawayListingId = link.hostawayListingId ?? PROPERTY_TO_HOSTAWAY_ID[link.propertySlug];
+  if (!hostawayListingId) throw new Error(`No Hostaway listing is configured for ${link.propertySlug}`);
+  const subtotal = roundCurrency(Number(link.nightlyRate) * link.nights);
+  const paymentIntentId = normalizePaymentIntentId(session.payment_intent) ?? session.id;
 
-  await db
-    .update(manualBookingLinks)
+  // Claim the link before creating any external reservation. A returning guest
+  // page and the Stripe webhook may arrive at nearly the same moment; the paid
+  // status is the durable idempotency guard that prevents a second reservation.
+  await db.update(manualBookingLinks)
     .set({ status: "paid", stripeCheckoutSessionId: session.id, guestIdUrl })
     .where(eq(manualBookingLinks.id, link.id));
 
-  if (link.discountCodeId && guestEmail && Number(link.discountAmount) > 0) {
-    try {
-      await db.insert(discountCodeUses).values({
-        discountCodeId: link.discountCodeId,
-        bookingId: null,
-        guestEmail: guestEmail.toLowerCase(),
-        discountAmount: String(link.discountAmount),
-      });
-    } catch (discountErr) {
-      console.error("[ManualBooking] Failed to record discount code use:", discountErr);
-    }
-  }
+  // Create the canonical booking record before external side effects. The manual
+  // link then retains the booking ID for Stripe/Hostaway/deposit administration.
+  const [inserted] = await db
+    .insert(bookings)
+    .values({
+      propertyId: link.propertySlug,
+      hostawayListingId,
+      guestName,
+      guestEmail: guestEmail.toLowerCase().trim(),
+      guestPhone,
+      guestCount: link.guestCount,
+      checkIn: link.checkIn,
+      checkOut: link.checkOut,
+      nights: link.nights,
+      nightlyRate: String(link.nightlyRate),
+      subtotal: String(subtotal),
+      cleaningFee: String(link.cleaningFee),
+      taxAmount: String(link.taxAmount),
+      taxRate: "0",
+      totalAmount: String(link.totalAmount),
+      stripePaymentIntentId: paymentIntentId,
+      stripeCheckoutSessionId: session.id,
+      status: "paid",
+      guestIdUrl,
+      agreementAcceptedAt: link.bypassTermsAcceptance ? null : Date.now(),
+      discountCodeId: link.discountCodeId ?? null,
+      discountCodeLabel: link.discountLabel ?? null,
+      discountCodeAmount: Number(link.discountAmount) > 0 ? String(link.discountAmount) : null,
+    })
+    .$returningId();
+  const bookingId = inserted.id;
 
-  let hostawayReservationId: number | null = null;
-  if (link.hostawayListingId) {
+  await db.update(manualBookingLinks)
+    .set({ bookingId })
+    .where(eq(manualBookingLinks.id, link.id));
+
+  const confirmed = await confirmStoredBooking({
+    bookingId,
+    stripePaymentIntentId: paymentIntentId,
+    stripeCheckoutSessionId: session.id,
+  });
+  const hostawayReservationId = confirmed.hostawayReservationId;
+  await db.update(manualBookingLinks)
+    .set({ hostawayReservationId: hostawayReservationId ?? null })
+    .where(eq(manualBookingLinks.id, link.id));
+
+  const depositAmount = await getSecurityDepositAmount(
+    link.securityDepositOverride === null ? null : Number(link.securityDepositOverride)
+  );
+  let depositStatus: "authorized" | "captured" | "released" | "pending" | "failed" | "waived" = "waived";
+  try {
+    const deposit = await createSecurityDepositHold({ bookingId, session, amount: depositAmount });
+    depositStatus = deposit.status;
+  } catch (depositErr: any) {
+    depositStatus = "failed";
+    console.error("[ManualBooking] Deposit hold failed:", depositErr?.message);
+    await db.update(bookings)
+      .set({ depositHoldStatus: "failed", depositHoldAmount: String(depositAmount) })
+      .where(eq(bookings.id, bookingId));
     try {
-      const res = await createHostawayReservation({
-        hostawayListingId: link.hostawayListingId,
-        guestName,
-        guestEmail,
-        guestPhone: session.metadata?.guest_phone || undefined,
-        checkIn: new Date(link.checkIn).toISOString().split("T")[0],
-        checkOut: new Date(link.checkOut).toISOString().split("T")[0],
-        adults: link.guestCount,
-        totalPrice: Number(link.totalAmount),
-        stripePaymentIntentId: normalizePaymentIntentId(session.payment_intent) ?? session.id,
-      });
-      hostawayReservationId = res?.id ? Number(res.id) : null;
-      await db
-        .update(manualBookingLinks)
-        .set({ hostawayReservationId: hostawayReservationId ? String(hostawayReservationId) : null })
-        .where(eq(manualBookingLinks.id, link.id));
-      if (hostawayReservationId) {
-        try {
-          await recordHostawayStripePayment({
-            reservationId: hostawayReservationId,
-            amount: Number(link.totalAmount),
-            stripePaymentIntentId: normalizePaymentIntentId(session.payment_intent) ?? session.id,
-          });
-        } catch (paymentSyncErr) {
-          console.error("[ManualBooking] Hostaway payment reconciliation failed:", paymentSyncErr);
-          await notifyOwner({
-            title: "⚠️ Manual Booking — Hostaway Payment Sync Failed",
-            content: `Stripe payment succeeded and Hostaway reservation #${hostawayReservationId} was created, but Hostaway still needs a paid charge recorded.\n\nGuest: ${guestName} (${guestEmail})\nProperty: ${link.propertyName}\nAmount: $${link.totalAmount}\n\nError: ${String(paymentSyncErr)}`,
-          });
-        }
-      }
-    } catch (err) {
-      console.error("[ManualBooking] Hostaway sync failed:", err);
       await notifyOwner({
-        title: "Manual Booking — Hostaway Sync Failed",
-        content: `Stripe payment succeeded, but Hostaway reservation creation failed.\n\nGuest: ${guestName} (${guestEmail})\nProperty: ${link.propertyName}\nDates: ${new Date(link.checkIn).toLocaleDateString("en-US", { timeZone: "UTC" })} – ${new Date(link.checkOut).toLocaleDateString("en-US", { timeZone: "UTC" })}\nTotal: $${link.totalAmount}\n\nPlease create the reservation manually in Hostaway.\n\nError: ${String(err)}`,
+        title: `⚠️ Deposit Hold Failed — Manual Booking #${bookingId}`,
+        content: `The $${depositAmount} security deposit hold could not be placed after the manual booking payment.\n\nGuest: ${guestName} (${guestEmail})\nProperty: ${link.propertyName}\n\nError: ${depositErr?.message ?? "Unknown error"}`,
       });
-    }
+    } catch (_) { /* keep the paid booking confirmed even if notification fails */ }
   }
 
   await notifyOwner({
     title: `New Manual Booking — ${link.propertyName}`,
-    content: `Guest: ${guestName}\nEmail: ${guestEmail}\nDates: ${new Date(link.checkIn).toLocaleDateString("en-US", { timeZone: "UTC" })} – ${new Date(link.checkOut).toLocaleDateString("en-US", { timeZone: "UTC" })}\nGuests: ${link.guestCount}\nTotal: $${link.totalAmount}${hostawayReservationId ? `\nHostaway #${hostawayReservationId}` : "\nHostaway: not created"}\n\nReply: mailto:${guestEmail}`,
+    content: `Guest: ${guestName}\nEmail: ${guestEmail}\nDates: ${new Date(link.checkIn).toLocaleDateString("en-US", { timeZone: "UTC" })} – ${new Date(link.checkOut).toLocaleDateString("en-US", { timeZone: "UTC" })}\nGuests: ${link.guestCount}\nTotal: $${link.totalAmount}\nSecurity deposit: $${depositAmount} (${depositStatus})${hostawayReservationId ? `\nHostaway #${hostawayReservationId}` : "\nHostaway: not created"}\n\nReply: mailto:${guestEmail}`,
   });
 
-  return { alreadyConfirmed: false, hostawayReservationId };
+  return { alreadyConfirmed: false, bookingId, hostawayReservationId, depositAmount, depositStatus };
 }
 
 export const bookingRouter = router({
@@ -973,6 +1037,10 @@ export const bookingRouter = router({
         hostawayReservationId: booking.hostawayReservationId,
         stripePaymentIntentId: booking.stripePaymentIntentId,
         checkoutSessionId: session.id,
+        securityDepositAmount: booking.depositHoldAmount === null
+          ? await getSecurityDepositAmount()
+          : Number(booking.depositHoldAmount),
+        depositHoldStatus: booking.depositHoldStatus,
         // Expose the Stripe-level payment status so the frontend can distinguish
         // a confirmed booking from a failed/unpaid one without relying solely on
         // the DB status field.
@@ -995,6 +1063,9 @@ export const bookingRouter = router({
       if (link.status === "revoked") throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has been revoked" });
       if (link.status === "paid") throw new TRPCError({ code: "FORBIDDEN", message: "This booking has already been paid" });
       if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
+      const securityDepositAmount = await getSecurityDepositAmount(
+        link.securityDepositOverride === null ? null : Number(link.securityDepositOverride)
+      );
       // Return safe fields only (no internal IDs)
       return {
         id: link.id,
@@ -1019,7 +1090,7 @@ export const bookingRouter = router({
         guestEmail: link.guestEmail,
         expiresAt: link.expiresAt,
         status: link.status,
-        securityDepositOverride: link.securityDepositOverride ? Number(link.securityDepositOverride) : null,
+        securityDepositAmount,
         guestNote: link.guestNote ?? null,
         customLineItems: link.customLineItems
           ? (JSON.parse(link.customLineItems) as { label: string; amount: number }[])
@@ -1157,7 +1228,13 @@ export const bookingRouter = router({
         payment_method_types: ["card"],
         line_items: lineItems,
         mode: "payment",
+        // The paid booking's card is reused for a separate manual-capture
+        // security deposit authorization after Checkout completes.
+        customer_creation: "always",
         customer_email: input.guestEmail,
+        payment_intent_data: {
+          setup_future_usage: "off_session",
+        },
         success_url: `${input.origin}/booking/manual-confirm?token=${input.token}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${input.origin}/booking/pay/${input.token}`,
         metadata: {
@@ -1207,102 +1284,31 @@ export const bookingRouter = router({
         .where(eq(manualBookingLinks.token, input.token))
         .limit(1);
       if (!link) throw new TRPCError({ code: "NOT_FOUND" });
-      if (link.status === "paid") return { alreadyConfirmed: true };
-
-      // Verify with Stripe
       const session = await stripe.checkout.sessions.retrieve(input.sessionId);
       if (session.payment_status !== "paid") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Payment not completed" });
       }
-
-      const guestName = session.metadata?.guest_name ?? link.guestName ?? "Guest";
-      const guestEmail = session.metadata?.guest_email ?? link.guestEmail ?? "";
-      const guestIdUrl = session.metadata?.guest_id_url || null;
-
-      // Mark link as paid and save guest ID URL
-      await db
-        .update(manualBookingLinks)
-        .set({ status: "paid", stripeCheckoutSessionId: session.id, guestIdUrl })
-        .where(eq(manualBookingLinks.id, link.id));
-
-      // Record a pre-applied loyalty-code use only after Stripe confirms payment.
-      // The paid-link guard above keeps this insert idempotent for normal retries.
-      if (link.discountCodeId && guestEmail && Number(link.discountAmount) > 0) {
-        try {
-          await db.insert(discountCodeUses).values({
-            discountCodeId: link.discountCodeId,
-            bookingId: null,
-            guestEmail: guestEmail.toLowerCase(),
-            discountAmount: String(link.discountAmount),
-          });
-        } catch (discountErr) {
-          console.error("[ManualBooking] Failed to record discount code use:", discountErr);
-        }
-      }
-
-      // Create Hostaway reservation if listing ID is available
-      let hostawayReservationId: number | null = null;
-      if (link.hostawayListingId) {
-        try {
-          const checkInDate = new Date(link.checkIn).toISOString().split("T")[0];
-          const checkOutDate = new Date(link.checkOut).toISOString().split("T")[0];
-          const res = await createHostawayReservation({
-            hostawayListingId: link.hostawayListingId!,
-            guestName,
-            guestEmail,
-            guestPhone: session.metadata?.guest_phone || undefined,
-            checkIn: checkInDate,
-            checkOut: checkOutDate,
-            adults: link.guestCount,
-            totalPrice: Number(link.totalAmount),
-            stripePaymentIntentId: session.payment_intent as string ?? "",
-          });
-          hostawayReservationId = res?.id ? Number(res.id) : null;
-          await db
-            .update(manualBookingLinks)
-            .set({ hostawayReservationId: hostawayReservationId ? String(hostawayReservationId) : null })
-            .where(eq(manualBookingLinks.id, link.id));
-          if (hostawayReservationId) {
-            try {
-              await recordHostawayStripePayment({
-                reservationId: hostawayReservationId,
-                amount: Number(link.totalAmount),
-                stripePaymentIntentId: normalizePaymentIntentId(session.payment_intent) ?? session.id,
-              });
-            } catch (paymentSyncErr) {
-              console.error("[ManualBooking] Hostaway payment reconciliation failed:", paymentSyncErr);
-              await notifyOwner({
-                title: "⚠️ Manual Booking — Hostaway Payment Sync Failed",
-                content: `Stripe payment succeeded and Hostaway reservation #${hostawayReservationId} was created, but Hostaway still needs a paid charge recorded.\n\nGuest: ${guestName} (${guestEmail})\nProperty: ${link.propertyName}\nAmount: $${link.totalAmount}\n\nError: ${String(paymentSyncErr)}`,
-              });
-            }
-          }
-        } catch (err) {
-          console.error("[ManualBooking] Hostaway sync failed:", err);
-          await notifyOwner({
-            title: "Manual Booking — Hostaway Sync Failed",
-            content: `Guest: ${guestName} (${guestEmail})\nProperty: ${link.propertyName}\nDates: ${new Date(link.checkIn).toLocaleDateString()} – ${new Date(link.checkOut).toLocaleDateString()}\nTotal: $${link.totalAmount}\n\nHostaway calendar was NOT updated. Please add manually.`,
-          });
-        }
-      }
-
-      // Notify owner
-      await notifyOwner({
-        title: `New Manual Booking — ${link.propertyName}`,
-        content: `Guest: ${guestName}\nEmail: ${guestEmail}\nDates: ${new Date(link.checkIn).toLocaleDateString()} – ${new Date(link.checkOut).toLocaleDateString()}\nGuests: ${link.guestCount}\nTotal: $${link.totalAmount}${hostawayReservationId ? `\nHostaway #${hostawayReservationId}` : ""}\n\nReply: mailto:${guestEmail}`,
-      });
+      const result = await confirmManualCheckoutSession(session);
+      const [booking] = result.bookingId
+        ? await db.select().from(bookings).where(eq(bookings.id, result.bookingId)).limit(1)
+        : [];
+      const depositAmount = result.depositAmount ?? (booking?.depositHoldAmount === null || booking?.depositHoldAmount === undefined
+        ? (link.securityDepositOverride === null ? await getSecurityDepositAmount() : Number(link.securityDepositOverride))
+        : Number(booking.depositHoldAmount));
 
       return {
-        alreadyConfirmed: false,
+        alreadyConfirmed: result.alreadyConfirmed,
         propertyName: link.propertyName,
         propertySlug: link.propertySlug,
-        guestName,
+        guestName: session.metadata?.guest_name ?? link.guestName ?? "Guest",
         checkIn: link.checkIn,
         checkOut: link.checkOut,
         nights: link.nights,
         guestCount: link.guestCount,
         totalAmount: link.totalAmount,
-        hostawayReservationId,
+        hostawayReservationId: result.hostawayReservationId,
+        depositAmount,
+        depositStatus: result.depositStatus ?? booking?.depositHoldStatus ?? (depositAmount > 0 ? "pending" : "waived"),
       };
     }),
 });

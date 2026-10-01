@@ -169,6 +169,13 @@
       "when": 1787263397684,
       "tag": "0023_nebulous_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1790824980452,
+      "tag": "0024_left_titania",
+      "breakpoints": true
     }
   ]
 }

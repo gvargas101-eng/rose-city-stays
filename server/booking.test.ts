@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockCheckoutSessionCreate = vi.fn();
 const mockCheckoutSessionRetrieve = vi.fn();
 const mockPaymentIntentRetrieve = vi.fn();
+const mockPaymentIntentCreate = vi.fn();
 
 vi.mock("stripe", () => ({
   default: vi.fn().mockImplementation(() => ({
@@ -20,6 +21,7 @@ vi.mock("stripe", () => ({
     },
     paymentIntents: {
       retrieve: mockPaymentIntentRetrieve,
+      create: mockPaymentIntentCreate,
     },
   })),
 }));
@@ -82,6 +84,15 @@ const mockSelectFrom = vi.fn().mockImplementation((table: unknown) => {
       orderBy: vi.fn().mockResolvedValue([]),
     };
   }
+  // manual_booking_links has a cleaningFee too, so identify it before the
+  // properties-table fallback below.
+  if (tableAny?.token && tableAny?.propertySlug) {
+    return {
+      where: vi.fn().mockReturnValue({
+        limit: vi.fn().mockImplementation(() => Promise.resolve([mockBookingRow])),
+      }),
+    };
+  }
   // properties table (getCleaningFee) — has cleaningFee but NOT stripePaymentIntentId
   if (tableAny?.cleaningFee) {
     return {
@@ -129,7 +140,7 @@ const { bookingRouter } = await import("./routers/booking");
 
 // Helper: call a procedure directly (bypasses tRPC HTTP layer)
 async function callProcedure(
-  procedure: "createCheckoutSession" | "confirmBooking" | "getByPaymentIntent",
+  procedure: "createCheckoutSession" | "createManualBookingCheckout" | "confirmBooking" | "getByPaymentIntent",
   input: Record<string, unknown>,
   ctx: Record<string, unknown> = {}
 ) {
@@ -423,5 +434,52 @@ describe("bookingRouter.confirmBooking", () => {
     expect(result.hostawayReservationId).toBe("HA-98765");
     // Should NOT call Hostaway again
     expect(mockCreateHostawayReservation).not.toHaveBeenCalled();
+  });
+});
+
+describe("bookingRouter.createManualBookingCheckout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBookingRow = {
+      id: 99,
+      token: "manual-token",
+      propertySlug: "the-briar",
+      propertyName: "The Briar",
+      hostawayListingId: 329641,
+      checkIn: new Date("2026-10-10T00:00:00Z").getTime(),
+      checkOut: new Date("2026-10-13T00:00:00Z").getTime(),
+      nights: 3,
+      guestCount: 2,
+      nightlyRate: "150.00",
+      cleaningFee: "125.00",
+      discountAmount: "0.00",
+      extraGuestFee: "0.00",
+      taxAmount: "40.50",
+      totalAmount: "615.50",
+      bypassAvailabilityCheck: 0,
+      status: "active",
+      expiresAt: Date.now() + 86_400_000,
+    };
+  });
+
+  it("saves the customer payment method so a manual booking can create its deposit hold", async () => {
+    mockCheckoutSessionCreate.mockResolvedValue({
+      id: "cs_manual_deposit",
+      url: "https://checkout.stripe.com/pay/cs_manual_deposit",
+    });
+
+    const result = await callProcedure("createManualBookingCheckout", {
+      token: "manual-token",
+      guestName: "Manual Guest",
+      guestEmail: "manual@example.com",
+      guestPhone: "555-0100",
+      origin: "https://www.rosecitystays.com",
+    });
+
+    expect(result.checkoutUrl).toBe("https://checkout.stripe.com/pay/cs_manual_deposit");
+    const sessionInput = mockCheckoutSessionCreate.mock.calls[0][0];
+    expect(sessionInput.customer_creation).toBe("always");
+    expect(sessionInput.payment_intent_data.setup_future_usage).toBe("off_session");
+    expect(sessionInput.metadata.manual_booking_token).toBe("manual-token");
   });
 });

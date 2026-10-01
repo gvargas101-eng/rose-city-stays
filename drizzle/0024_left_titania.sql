@@ -1,0 +1,1 @@
+ALTER TABLE `bookings` ADD `depositHoldAmount` decimal(10,2);

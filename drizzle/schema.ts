@@ -114,6 +114,7 @@ export const bookings = mysqlTable("bookings", {
   smsConsentAt: bigint("smsConsentAt", { mode: "number" }), // Optional guest consent timestamp for SMS communications
   depositHoldIntentId: varchar("depositHoldIntentId", { length: 256 }), // Stripe PaymentIntent ID for $500 security deposit hold
   depositHoldStatus: mysqlEnum("depositHoldStatus", ["pending", "authorized", "captured", "released", "failed"]), // Current state of the deposit hold
+  depositHoldAmount: decimal("depositHoldAmount", { precision: 10, scale: 2 }), // Actual hold amount, including per-manual-booking overrides
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
