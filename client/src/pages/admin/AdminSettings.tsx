@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AdminLayout from "./AdminLayout";
 import { Link } from "wouter";
+import { Streamdown } from "streamdown";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,7 @@ export default function AdminSettings() {
   });
 
   const [confirmDeleteBlogId, setConfirmDeleteBlogId] = useState<number | null>(null);
+  const [previewBlogPostId, setPreviewBlogPostId] = useState<number | null>(null);
 
   // ── Tax Rate ──────────────────────────────────────────────────────────────
   const { data: settings, isLoading: settingsLoading } = trpc.admin.getSettings.useQuery();
@@ -651,60 +653,92 @@ export default function AdminSettings() {
                 <p className="text-sm text-muted-foreground">No posts yet. Generate your first one above.</p>
               ) : (
                 <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {blogPosts.map((post) => (
-                    <div key={post.id} className="flex items-center gap-3 p-3 bg-background/60 border border-border rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground truncate">{post.title}</span>
-                          {post.aiGenerated === 1 && (
-                            <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded shrink-0">AI</span>
-                          )}
-                          {post.published === 0 && (
-                            <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded shrink-0">Draft</span>
-                          )}
+                  {blogPosts.map((post) => {
+                    const isDraft = post.published === 0;
+                    const previewing = previewBlogPostId === post.id;
+                    return (
+                      <div key={post.id} className="bg-background/60 border border-border rounded-lg">
+                        <div className="flex items-center gap-3 p-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-foreground truncate">{post.title}</span>
+                              {post.aiGenerated === 1 && (
+                                <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded shrink-0">AI</span>
+                              )}
+                              {isDraft && (
+                                <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded shrink-0">Draft</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {post.category} · {new Date(post.publishedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isDraft ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => setPreviewBlogPostId(previewing ? null : post.id)}
+                                title={previewing ? "Close draft preview" : "Preview draft"}
+                              >
+                                {previewing ? <X className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                              </Button>
+                            ) : (
+                              <Link href={`/blog/${post.slug}`}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" title="View published post">
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </Button>
+                              </Link>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => toggleBlogPost.mutate({ id: post.id, published: isDraft ? 1 : 0 })}
+                              title={isDraft ? "Publish" : "Unpublish"}
+                            >
+                              {isDraft ? <EyeIcon className="w-3.5 h-3.5" /> : <EyeOffIcon className="w-3.5 h-3.5" />}
+                            </Button>
+                            {confirmDeleteBlogId === post.id ? (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => { deleteBlogPost.mutate({ id: post.id }); setConfirmDeleteBlogId(null); }}>
+                                  <Check className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmDeleteBlogId(null)}>
+                                  <X className="w-3.5 h-3.5" />
+                                </Button>
+                              </>
+                            ) : (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-600" onClick={() => setConfirmDeleteBlogId(post.id)} title="Delete post">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {post.category} · {new Date(post.publishedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Link href={`/blog/${post.slug}`}>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => toggleBlogPost.mutate({ id: post.id, published: post.published === 1 ? 0 : 1 })}
-                          title={post.published === 1 ? "Unpublish" : "Publish"}
-                        >
-                          {post.published === 1 ? <EyeOffIcon className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />}
-                        </Button>
-                        {confirmDeleteBlogId === post.id ? (
-                          <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => { deleteBlogPost.mutate({ id: post.id }); setConfirmDeleteBlogId(null); }}>
-                              <Check className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmDeleteBlogId(null)}>
-                              <X className="w-3.5 h-3.5" />
-                            </Button>
-                          </>
-                        ) : (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-600" onClick={() => setConfirmDeleteBlogId(post.id)}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                        {previewing && (
+                          <div className="border-t border-border bg-card px-4 py-5">
+                            <div className="mb-4 flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Draft preview — not visible to guests</p>
+                                <p className="mt-1 text-sm text-muted-foreground">{post.metaDescription}</p>
+                              </div>
+                              <Button variant="outline" size="sm" onClick={() => setPreviewBlogPostId(null)}>Close</Button>
+                            </div>
+                            <div className="prose prose-sm max-w-none text-foreground dark:prose-invert">
+                              <Streamdown>{post.content}</Streamdown>
+                            </div>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             <p className="text-xs text-muted-foreground border-t border-border pt-3">
-              ⏰ Auto-generates a new post every 2 weeks. Posts are published immediately and appear on the public blog.
+              Event research drafts are saved for review first. Preview and publish only when you are ready for guests to see them.
             </p>
           </section>
         </div>
