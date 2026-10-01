@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getThreeMonthCoverage, htmlToReferenceText } from "./monthly-local-events-blog";
+import { getThreeMonthCoverage, htmlToReferenceText, MONTHLY_EVENT_SOURCES } from "./monthly-local-events-blog";
 
 describe("monthly local events blog helpers", () => {
   it("covers the prior, current, and next calendar months", () => {
@@ -10,5 +10,13 @@ describe("monthly local events blog helpers", () => {
   it("removes scripts and markup from fetched event references", () => {
     expect(htmlToReferenceText("<script>ignore()</script><h1>Tyler Arts Festival</h1><p>Sept. 19</p>"))
       .toBe("Tyler Arts Festival Sept. 19");
+  });
+
+  it("uses authoritative Tyler-area event sources", () => {
+    expect(MONTHLY_EVENT_SOURCES).toEqual(expect.arrayContaining([
+      "https://www.visittyler.com/p/events",
+      "https://www.texasrosefestival.org/",
+      "https://www.etstatefair.com/events",
+    ]));
   });
 });
