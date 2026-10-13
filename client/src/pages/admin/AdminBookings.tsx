@@ -80,6 +80,8 @@ export default function AdminBookings() {
   const [changePropertyId, setChangePropertyId] = useState<string>("");
   const [changeCheckIn, setChangeCheckIn] = useState<string>("");
   const [changeCheckOut, setChangeCheckOut] = useState<string>("");
+  const [changePriceAdjustment, setChangePriceAdjustment] = useState<string>("0");
+  const [changeAdjustmentReason, setChangeAdjustmentReason] = useState<string>("");
   const [changeQuote, setChangeQuote] = useState<any>(null);
   const [changePaymentUrl, setChangePaymentUrl] = useState<string | null>(null);
   const [refundPending, setRefundPending] = useState<{ changeId: number; amount: number } | null>(null);
@@ -142,6 +144,8 @@ export default function AdminBookings() {
     setChangePropertyId(booking.propertyId);
     setChangeCheckIn(new Date(booking.checkIn).toISOString().slice(0, 10));
     setChangeCheckOut(new Date(booking.checkOut).toISOString().slice(0, 10));
+    setChangePriceAdjustment("0");
+    setChangeAdjustmentReason("");
     setChangeQuote(null);
     setChangePaymentUrl(null);
     setRefundPending(null);
@@ -423,7 +427,6 @@ export default function AdminBookings() {
                                {(() => {
                                  const discountAmount = b.discountCodeAmount ? parseFloat(b.discountCodeAmount) : 0;
                                  const addonsTotal = parseFloat(b.totalAmount) - parseFloat(b.subtotal) - parseFloat(b.cleaningFee) - parseFloat(b.taxAmount) + discountAmount;
-                                  if (addonsTotal <= 0.01) return null;
                                   // Try to parse named add-ons from snapshot
                                   let addonLines: { name: string; price: number }[] = [];
                                   try {
@@ -441,6 +444,7 @@ export default function AdminBookings() {
                                       </>
                                     );
                                   }
+                                  if (addonsTotal <= 0.01) return null;
                                   // Fallback: no snapshot (older booking) — show generic total
                                   return (
                                     <div className="flex justify-between px-3 py-2">
@@ -602,7 +606,7 @@ export default function AdminBookings() {
                             <div className="flex items-start justify-between gap-3 mb-3">
                               <div>
                                 <h3 className="text-sm font-semibold text-foreground">Move or change stay</h3>
-                                <p className="text-xs text-muted-foreground mt-0.5">Live Hostaway availability and pricing are checked before anything changes. The original payment is applied as credit. If the revised stay costs more, a guest payment link is created; if it costs less, you can refund or retain the balance as a documented credit.</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Live Hostaway availability and pricing are checked before anything changes. Add a positive adjustment to charge more or a negative adjustment to give a credit. The original payment is applied as credit.</p>
                               </div>
                               <button onClick={() => setChangeBookingId(null)} className="text-xs text-muted-foreground hover:text-foreground">Close</button>
                             </div>
@@ -622,9 +626,34 @@ export default function AdminBookings() {
                                 <input type="date" value={changeCheckOut} onChange={(event) => { setChangeCheckOut(event.target.value); setChangeQuote(null); setChangePaymentUrl(null); setRefundPending(null); }} className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground" />
                               </label>
                             </div>
+                            <div className="mt-2 grid sm:grid-cols-3 gap-2 items-end">
+                              <label className="grid gap-1 text-xs text-muted-foreground">
+                                Owner price adjustment ($)
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="-100000"
+                                  max="100000"
+                                  value={changePriceAdjustment}
+                                  onChange={(event) => { setChangePriceAdjustment(event.target.value); setChangeQuote(null); setChangePaymentUrl(null); setRefundPending(null); }}
+                                  className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                                  placeholder="0.00"
+                                />
+                              </label>
+                              <label className="grid gap-1 text-xs text-muted-foreground sm:col-span-2">
+                                Adjustment reason (optional)
+                                <input
+                                  value={changeAdjustmentReason}
+                                  maxLength={256}
+                                  onChange={(event) => { setChangeAdjustmentReason(event.target.value); setChangeQuote(null); setChangePaymentUrl(null); setRefundPending(null); }}
+                                  className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                                  placeholder="Example: goodwill credit or upgraded unit rate"
+                                />
+                              </label>
+                            </div>
                             <button
                               disabled={!changePropertyId || !changeCheckIn || !changeCheckOut || quoteChange.isPending}
-                              onClick={() => quoteChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: new Date(`${changeCheckIn}T00:00:00Z`).getTime(), newCheckOut: new Date(`${changeCheckOut}T00:00:00Z`).getTime() })}
+                              onClick={() => quoteChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: new Date(`${changeCheckIn}T00:00:00Z`).getTime(), newCheckOut: new Date(`${changeCheckOut}T00:00:00Z`).getTime(), priceAdjustment: Number(changePriceAdjustment || 0), adjustmentReason: changeAdjustmentReason || undefined })}
                               className="mt-3 rounded bg-foreground px-3 py-1.5 text-xs font-medium text-background disabled:opacity-50"
                             >
                               {quoteChange.isPending ? "Checking…" : "Get live quote"}
@@ -633,7 +662,9 @@ export default function AdminBookings() {
                               <div className="mt-3 rounded border border-border bg-background p-3 text-sm">
                                 <div className="grid sm:grid-cols-2 gap-2">
                                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">Original payment</span><span>${Number(changeQuote.originalTotal).toFixed(2)}</span></div>
-                                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Revised Hostaway total</span><span className="font-semibold">${Number(changeQuote.revisedTotal).toFixed(2)}</span></div>
+                                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Live Hostaway total</span><span>${Number(changeQuote.hostawayQuotedTotal).toFixed(2)}</span></div>
+                                  {Number(changeQuote.priceAdjustment) !== 0 && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Owner adjustment</span><span className={Number(changeQuote.priceAdjustment) < 0 ? "text-green-700" : "text-amber-700"}>{Number(changeQuote.priceAdjustment) > 0 ? "+" : "−"}${Math.abs(Number(changeQuote.priceAdjustment)).toFixed(2)}</span></div>}
+                                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Final revised total</span><span className="font-semibold">${Number(changeQuote.revisedTotal).toFixed(2)}</span></div>
                                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">Payment credit applied</span><span>−${Number(changeQuote.creditApplied).toFixed(2)}</span></div>
                                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">New stay length</span><span>{changeQuote.newNights} night{changeQuote.newNights === 1 ? "" : "s"}</span></div>
                                 </div>
@@ -646,7 +677,7 @@ export default function AdminBookings() {
                                         disabled={createChange.isPending}
                                         onClick={() => {
                                           if (confirm(`Move ${b.guestName} to the revised stay and mark $${Number(changeQuote.refundAmount).toFixed(2)} for refund to the original card? Hostaway creates the replacement first, then cancels the original reservation.`)) {
-                                            createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, settlementChoice: "refund" });
+                                            createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, priceAdjustment: Number(changePriceAdjustment || 0), adjustmentReason: changeAdjustmentReason || undefined, settlementChoice: "refund" });
                                           }
                                         }}
                                         className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
@@ -657,7 +688,7 @@ export default function AdminBookings() {
                                         disabled={createChange.isPending}
                                         onClick={() => {
                                           if (confirm(`Move ${b.guestName} to the revised stay and retain $${Number(changeQuote.refundAmount).toFixed(2)} as documented guest credit? Hostaway creates the replacement first, then cancels the original reservation.`)) {
-                                            createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, settlementChoice: "credit" });
+                                            createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, priceAdjustment: Number(changePriceAdjustment || 0), adjustmentReason: changeAdjustmentReason || undefined, settlementChoice: "credit" });
                                           }
                                         }}
                                         className="rounded border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
@@ -672,7 +703,7 @@ export default function AdminBookings() {
                                         const detail = Number(changeQuote.balanceDue) > 0
                                           ? `Create a guest payment link for $${Number(changeQuote.balanceDue).toFixed(2)}. The original reservation remains unchanged until Stripe confirms payment.`
                                           : `Confirm ${b.guestName}'s revised stay. Hostaway creates the replacement first, then cancels the original reservation.`;
-                                        if (confirm(detail)) createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, settlementChoice: "refund" });
+                                        if (confirm(detail)) createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, priceAdjustment: Number(changePriceAdjustment || 0), adjustmentReason: changeAdjustmentReason || undefined, settlementChoice: "refund" });
                                       }}
                                       className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
                                     >

@@ -93,7 +93,16 @@ async function assertChangeAvailability(
   return listingId;
 }
 
-async function quoteChange(bookingId: number, propertyId: string, newCheckIn: number, newCheckOut: number) {
+async function quoteChange(
+  bookingId: number,
+  propertyId: string,
+  newCheckIn: number,
+  newCheckOut: number,
+  priceAdjustment = 0,
+) {
+  if (!Number.isFinite(priceAdjustment) || Math.abs(priceAdjustment) > 100_000) {
+    throw new Error("Price adjustment must be between -$100,000.00 and $100,000.00");
+  }
   const { booking } = await getConfirmedBooking(bookingId);
   const listingId = await assertChangeAvailability(booking, propertyId, newCheckIn, newCheckOut);
   const newNights = daysBetween(newCheckIn, newCheckOut);
@@ -103,15 +112,21 @@ async function quoteChange(bookingId: number, propertyId: string, newCheckIn: nu
     checkOut: asDateOnly(newCheckOut),
     guestCount: booking.guestCount,
   });
+  const hostawayQuotedTotal = roundMoney(quote.totalPrice);
+  const normalizedAdjustment = roundMoney(priceAdjustment);
+  const revisedTotal = roundMoney(hostawayQuotedTotal + normalizedAdjustment);
+  if (revisedTotal < 0) throw new Error("The price adjustment cannot reduce the revised stay below $0.00");
   const originalTotal = Number(booking.totalAmount);
-  const creditApplied = roundMoney(Math.min(originalTotal, quote.totalPrice));
-  const balanceDue = roundMoney(Math.max(0, quote.totalPrice - originalTotal));
-  const refundAmount = roundMoney(Math.max(0, originalTotal - quote.totalPrice));
+  const creditApplied = roundMoney(Math.min(originalTotal, revisedTotal));
+  const balanceDue = roundMoney(Math.max(0, revisedTotal - originalTotal));
+  const refundAmount = roundMoney(Math.max(0, originalTotal - revisedTotal));
   return {
     booking,
     listingId,
     newNights,
-    total: quote.totalPrice,
+    hostawayQuotedTotal,
+    priceAdjustment: normalizedAdjustment,
+    total: revisedTotal,
     components: quote.components,
     originalTotal,
     creditApplied,
@@ -174,9 +189,11 @@ async function finalizeChange(changeId: number, paymentIntentId: string | null) 
     checkOut: asDateOnly(change.newCheckOut),
     guestCount: booking.guestCount,
   });
-  if (roundMoney(quote.totalPrice) !== roundMoney(Number(change.newTotalAmount))) {
+  if (roundMoney(quote.totalPrice) !== roundMoney(Number(change.hostawayQuotedTotal))) {
     throw new Error("Hostaway price changed since the quote. Refresh the quote before confirming this change.");
   }
+  const revisedTotal = roundMoney(quote.totalPrice + Number(change.priceAdjustment));
+  if (revisedTotal < 0) throw new Error("The price adjustment cannot reduce the revised stay below $0.00");
   const breakdown = changeBreakdown(quote.components, quote.totalPrice, newNights);
   const isSameProperty = booking.propertyId === change.newPropertyId;
   let replacementReservationId: string | null = null;
@@ -193,7 +210,7 @@ async function finalizeChange(changeId: number, paymentIntentId: string | null) 
         guestCount: booking.guestCount,
         newCheckIn: asDateOnly(change.newCheckIn),
         newCheckOut: asDateOnly(change.newCheckOut),
-        totalPrice: quote.totalPrice,
+        totalPrice: revisedTotal,
       });
       replacementReservationId = booking.hostawayReservationId;
       if (Number(change.balanceDue) > 0) {
@@ -213,8 +230,8 @@ async function finalizeChange(changeId: number, paymentIntentId: string | null) 
         checkIn: asDateOnly(change.newCheckIn),
         checkOut: asDateOnly(change.newCheckOut),
         adults: booking.guestCount,
-        totalPrice: quote.totalPrice,
-        message: `Replacement for Hostaway reservation #${booking.hostawayReservationId}. Original website payment applied as credit.`,
+        totalPrice: revisedTotal,
+        message: `Replacement for Hostaway reservation #${booking.hostawayReservationId}. Original website payment applied as credit.${Number(change.priceAdjustment) ? ` Owner price adjustment: $${Number(change.priceAdjustment).toFixed(2)}${change.adjustmentReason ? ` (${change.adjustmentReason})` : ""}.` : ""}`,
         stripePaymentIntentId: booking.stripePaymentIntentId ?? paymentIntentId ?? `booking-change-${change.id}`,
       });
       replacementReservationId = replacement.id;
@@ -256,8 +273,10 @@ async function finalizeChange(changeId: number, paymentIntentId: string | null) 
       cleaningFee: String(breakdown.cleaningFee),
       taxAmount: String(breakdown.taxAmount),
       taxRate: String(breakdown.taxRate),
-      totalAmount: String(roundMoney(quote.totalPrice)),
-      addonsSnapshot: null,
+      totalAmount: String(revisedTotal),
+      addonsSnapshot: Number(change.priceAdjustment)
+        ? JSON.stringify([{ name: change.adjustmentReason ? `Stay change adjustment — ${change.adjustmentReason}` : "Stay change adjustment", price: Number(change.priceAdjustment) }])
+        : null,
       hostawayReservationId: replacementReservationId,
     }).where(eq(bookings.id, booking.id));
     await db.update(bookingChanges).set({
@@ -274,6 +293,9 @@ async function finalizeChange(changeId: number, paymentIntentId: string | null) 
         `Booking #${booking.id}`,
         `Old Hostaway reservation: #${booking.hostawayReservationId} (${change.originalPropertyId}, ${asDateOnly(change.originalCheckIn)} – ${asDateOnly(change.originalCheckOut)})`,
         `${isSameProperty ? "Updated" : "New"} Hostaway reservation: #${replacementReservationId} (${change.newPropertyId}, ${asDateOnly(change.newCheckIn)} – ${asDateOnly(change.newCheckOut)})`,
+        `Hostaway quoted total: $${Number(change.hostawayQuotedTotal).toFixed(2)}`,
+        Number(change.priceAdjustment) ? `Owner price adjustment: $${Number(change.priceAdjustment).toFixed(2)}${change.adjustmentReason ? ` (${change.adjustmentReason})` : ""}` : null,
+        `Revised total: $${revisedTotal.toFixed(2)}`,
         `Original payment credit: $${Number(change.creditApplied).toFixed(2)}`,
         Number(change.balanceDue) > 0 ? `Additional payment: $${Number(change.balanceDue).toFixed(2)}` : null,
         Number(change.refundAmount) > 0 ? `Refund/credit remaining: $${Number(change.refundAmount).toFixed(2)} (${settlement.replaceAll("_", " ")})` : null,
@@ -296,14 +318,16 @@ async function finalizeChange(changeId: number, paymentIntentId: string | null) 
   }
 }
 
-export async function quoteBookingChange(params: { bookingId: number; propertyId: string; newCheckIn: number; newCheckOut: number }) {
-  const quote = await quoteChange(params.bookingId, params.propertyId, params.newCheckIn, params.newCheckOut);
+export async function quoteBookingChange(params: { bookingId: number; propertyId: string; newCheckIn: number; newCheckOut: number; priceAdjustment?: number }) {
+  const quote = await quoteChange(params.bookingId, params.propertyId, params.newCheckIn, params.newCheckOut, params.priceAdjustment);
   return {
     propertyId: params.propertyId,
     newCheckIn: params.newCheckIn,
     newCheckOut: params.newCheckOut,
     newNights: quote.newNights,
     originalTotal: quote.originalTotal,
+    hostawayQuotedTotal: quote.hostawayQuotedTotal,
+    priceAdjustment: quote.priceAdjustment,
     revisedTotal: quote.total,
     creditApplied: quote.creditApplied,
     balanceDue: quote.balanceDue,
@@ -316,16 +340,19 @@ export async function createBookingChange(params: {
   propertyId: string;
   newCheckIn: number;
   newCheckOut: number;
+  priceAdjustment?: number;
+  adjustmentReason?: string;
   settlementChoice: SettlementChoice;
   origin: string;
 }) {
-  const quote = await quoteChange(params.bookingId, params.propertyId, params.newCheckIn, params.newCheckOut);
+  const quote = await quoteChange(params.bookingId, params.propertyId, params.newCheckIn, params.newCheckOut, params.priceAdjustment);
   const { db, booking } = await getConfirmedBooking(params.bookingId);
   const [existing] = await db.select().from(bookingChanges).where(and(
     eq(bookingChanges.bookingId, booking.id),
     eq(bookingChanges.newPropertyId, params.propertyId),
     eq(bookingChanges.newCheckIn, params.newCheckIn),
     eq(bookingChanges.newCheckOut, params.newCheckOut),
+    eq(bookingChanges.priceAdjustment, String(quote.priceAdjustment)),
   )).limit(1);
   if (existing && ["quoted", "payment_link_sent", "completed"].includes(existing.status)) {
     throw new Error(`This reservation change already exists (${existing.status.replaceAll("_", " ")})`);
@@ -341,6 +368,9 @@ export async function createBookingChange(params: {
     newCheckIn: params.newCheckIn,
     newCheckOut: params.newCheckOut,
     originalTotalAmount: String(quote.originalTotal),
+    hostawayQuotedTotal: String(quote.hostawayQuotedTotal),
+    priceAdjustment: String(quote.priceAdjustment),
+    adjustmentReason: params.adjustmentReason?.trim().slice(0, 256) || null,
     newTotalAmount: String(quote.total),
     creditApplied: String(quote.creditApplied),
     balanceDue: String(quote.balanceDue),

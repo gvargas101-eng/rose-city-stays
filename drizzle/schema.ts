@@ -171,6 +171,9 @@ export const bookingChanges = mysqlTable("booking_changes", {
   newCheckOut: bigint("newCheckOut", { mode: "number" }).notNull(),
 
   originalTotalAmount: decimal("originalTotalAmount", { precision: 10, scale: 2 }).notNull(),
+  hostawayQuotedTotal: decimal("hostawayQuotedTotal", { precision: 10, scale: 2 }).notNull().default("0"),
+  priceAdjustment: decimal("priceAdjustment", { precision: 10, scale: 2 }).notNull().default("0"),
+  adjustmentReason: varchar("adjustmentReason", { length: 256 }),
   newTotalAmount: decimal("newTotalAmount", { precision: 10, scale: 2 }).notNull(),
   creditApplied: decimal("creditApplied", { precision: 10, scale: 2 }).notNull().default("0"),
   balanceDue: decimal("balanceDue", { precision: 10, scale: 2 }).notNull().default("0"),

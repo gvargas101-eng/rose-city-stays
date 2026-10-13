@@ -15,6 +15,9 @@ describe("reservation change persistence schema", () => {
   it("defines the fields required for audited moves, extensions, payments, and refunds", () => {
     expect(bookingChanges.bookingId.name).toBe("bookingId");
     expect(bookingChanges.replacementHostawayReservationId.name).toBe("replacementHostawayReservationId");
+    expect(bookingChanges.hostawayQuotedTotal.name).toBe("hostawayQuotedTotal");
+    expect(bookingChanges.priceAdjustment.name).toBe("priceAdjustment");
+    expect(bookingChanges.adjustmentReason.name).toBe("adjustmentReason");
     expect(bookingChanges.balanceDue.name).toBe("balanceDue");
     expect(bookingChanges.refundAmount.name).toBe("refundAmount");
     expect(bookingChanges.stripeRefundId.name).toBe("stripeRefundId");

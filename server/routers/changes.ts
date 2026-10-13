@@ -17,6 +17,8 @@ const changeInput = z.object({
   propertyId: z.string().min(1).max(64),
   newCheckIn: z.number().int().positive(),
   newCheckOut: z.number().int().positive(),
+  priceAdjustment: z.number().finite().min(-100_000).max(100_000).default(0),
+  adjustmentReason: z.string().trim().max(256).optional(),
 });
 
 export const changesRouter = router({

@@ -85,6 +85,25 @@ describe("reservation change quote", () => {
     });
   });
 
+  it("applies an owner price adjustment after preserving the live Hostaway quote", async () => {
+    const quote = await quoteBookingChange({
+      bookingId: 19,
+      propertyId: "alamo-house",
+      newCheckIn: Date.parse("2026-11-04T00:00:00Z"),
+      newCheckOut: Date.parse("2026-11-07T00:00:00Z"),
+      priceAdjustment: -50,
+    });
+
+    expect(quote).toMatchObject({
+      hostawayQuotedTotal: 725,
+      priceAdjustment: -50,
+      revisedTotal: 675,
+      creditApplied: 650,
+      balanceDue: 25,
+      refundAmount: 0,
+    });
+  });
+
   it("does not quote a destination stay when Hostaway says a required night is unavailable", async () => {
     mockGetPropertyCalendar.mockResolvedValue([
       { date: "2026-11-04", isAvailable: true, status: "available", price: 200, minimumStay: 1 },
