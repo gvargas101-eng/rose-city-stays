@@ -153,6 +153,45 @@ export const bookingExtensions = mysqlTable("booking_extensions", {
 export type BookingExtension = typeof bookingExtensions.$inferSelect;
 
 /**
+ * Reservation moves and date changes are kept as a separate ledger from the
+ * original booking. A replacement Hostaway reservation is created before the
+ * original is cancelled, and any card refund remains an explicit owner action.
+ */
+export const bookingChanges = mysqlTable("booking_changes", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("bookingId").notNull(),
+  originalHostawayReservationId: varchar("originalHostawayReservationId", { length: 64 }).notNull(),
+  replacementHostawayReservationId: varchar("replacementHostawayReservationId", { length: 64 }),
+
+  originalPropertyId: varchar("originalPropertyId", { length: 64 }).notNull(),
+  newPropertyId: varchar("newPropertyId", { length: 64 }).notNull(),
+  originalCheckIn: bigint("originalCheckIn", { mode: "number" }).notNull(),
+  originalCheckOut: bigint("originalCheckOut", { mode: "number" }).notNull(),
+  newCheckIn: bigint("newCheckIn", { mode: "number" }).notNull(),
+  newCheckOut: bigint("newCheckOut", { mode: "number" }).notNull(),
+
+  originalTotalAmount: decimal("originalTotalAmount", { precision: 10, scale: 2 }).notNull(),
+  newTotalAmount: decimal("newTotalAmount", { precision: 10, scale: 2 }).notNull(),
+  creditApplied: decimal("creditApplied", { precision: 10, scale: 2 }).notNull().default("0"),
+  balanceDue: decimal("balanceDue", { precision: 10, scale: 2 }).notNull().default("0"),
+  refundAmount: decimal("refundAmount", { precision: 10, scale: 2 }).notNull().default("0"),
+
+  status: mysqlEnum("status", ["quoted", "payment_link_sent", "completed", "failed", "cancelled"]).notNull().default("quoted"),
+  settlement: mysqlEnum("settlement", ["none", "paid", "refund_pending", "refunded", "credit_retained"]).notNull().default("none"),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 256 }),
+  stripeRefundId: varchar("stripeRefundId", { length: 256 }),
+  failureReason: text("failureReason"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("booking_changes_booking_idx").on(table.bookingId),
+]);
+
+export type BookingChange = typeof bookingChanges.$inferSelect;
+export type InsertBookingChange = typeof bookingChanges.$inferInsert;
+
+/**
  * Admin credentials — standalone password-based admin login (independent of Manus OAuth).
  * Only one row is needed (the site owner). Password is bcrypt-hashed.
  */

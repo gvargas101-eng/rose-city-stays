@@ -35,6 +35,7 @@ import LeaveReview from "./pages/LeaveReview";
 import ManualBookingPay from "./pages/ManualBookingPay";
 import ManualBookingConfirm from "./pages/ManualBookingConfirm";
 import ExtensionConfirmation from "./pages/ExtensionConfirmation";
+import ChangeConfirmation from "./pages/ChangeConfirmation";
 import { trackGoogleAnalyticsPageView } from "@/lib/googleAnalytics";
 
 function GoogleAnalyticsPageViews() {
@@ -81,6 +82,7 @@ function Router() {
       <Route path={"/booking/pay/:token"} component={ManualBookingPay} />
       <Route path={"/booking/manual-confirm"} component={ManualBookingConfirm} />
       <Route path={"/booking/extension-confirmation"} component={ExtensionConfirmation} />
+      <Route path={"/booking/change-confirmation"} component={ChangeConfirmation} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

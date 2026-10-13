@@ -17,6 +17,7 @@ import { scheduledMonthlyLocalEventsBlogHandler } from "../scheduled-monthly-loc
 import Stripe from "stripe";
 import { confirmManualCheckoutSession, confirmStripeCheckoutSession } from "../routers/booking";
 import { confirmExtensionCheckoutSession } from "../booking-extensions";
+import { confirmBookingChangeCheckoutSession } from "../booking-changes";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -80,7 +81,10 @@ async function startServer() {
           // Only direct website bookings have a numeric booking reference. Stripe
           // can also send events for Hostaway or other products connected to the
           // same account; those must not enter the Rose City Stays booking flow.
-          if (session.metadata?.extensionId) {
+          if (session.metadata?.changeId) {
+            await confirmBookingChangeCheckoutSession(session);
+            console.log(`[Webhook] Reservation change payment confirmed for session ${session.id}`);
+          } else if (session.metadata?.extensionId) {
             await confirmExtensionCheckoutSession(session);
             console.log(`[Webhook] Extension payment confirmed for session ${session.id}`);
           } else if (session.metadata?.manual_booking_token) {

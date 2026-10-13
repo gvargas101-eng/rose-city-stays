@@ -51,12 +51,26 @@ export interface UpdateHostawayReservationForExtensionInput {
   totalPrice: number;
 }
 
-async function calculateHostawayReservationPrice(input: {
+export interface HostawayPriceComponent {
+  type?: string;
+  name?: string;
+  title?: string;
+  total?: number;
+  value?: number;
+  isIncludedInTotalPrice?: number;
+}
+
+export interface HostawayStayQuote {
+  totalPrice: number;
+  components: HostawayPriceComponent[];
+}
+
+export async function quoteHostawayStay(input: {
   hostawayListingId: number;
   checkIn: string;
   checkOut: string;
   guestCount: number;
-}): Promise<number> {
+}): Promise<HostawayStayQuote> {
   const token = await getAccessToken();
   const response = await fetch(`${HOSTAWAY_API_BASE}/listings/${input.hostawayListingId}/calendar/priceDetails`, {
     method: "POST",
@@ -76,9 +90,13 @@ async function calculateHostawayReservationPrice(input: {
     throw new Error(`Hostaway extension price calculation failed: ${response.status} — ${await response.text()}`);
   }
   const data = await response.json();
-  const value = Number((data.result ?? data).totalPrice);
+  const quote = data.result ?? data;
+  const value = Number(quote.totalPrice);
   if (!Number.isFinite(value) || value < 0) throw new Error("Hostaway returned an invalid extension price");
-  return Math.round(value * 100) / 100;
+  return {
+    totalPrice: Math.round(value * 100) / 100,
+    components: Array.isArray(quote.components) ? quote.components : [],
+  };
 }
 
 /**
@@ -87,22 +105,22 @@ async function calculateHostawayReservationPrice(input: {
  */
 export async function quoteHostawayExtension(input: ExtensionPriceInput) {
   const [currentTotal, extendedTotal] = await Promise.all([
-    calculateHostawayReservationPrice({
+    quoteHostawayStay({
       hostawayListingId: input.hostawayListingId,
       checkIn: input.checkIn,
       checkOut: input.currentCheckOut,
       guestCount: input.guestCount,
     }),
-    calculateHostawayReservationPrice({
+    quoteHostawayStay({
       hostawayListingId: input.hostawayListingId,
       checkIn: input.checkIn,
       checkOut: input.newCheckOut,
       guestCount: input.guestCount,
     }),
   ]);
-  const extensionAmount = Math.round((extendedTotal - currentTotal) * 100) / 100;
+  const extensionAmount = Math.round((extendedTotal.totalPrice - currentTotal.totalPrice) * 100) / 100;
   if (extensionAmount < 0) throw new Error("Hostaway returned a negative extension balance");
-  return { currentTotal, extendedTotal, extensionAmount };
+  return { currentTotal: currentTotal.totalPrice, extendedTotal: extendedTotal.totalPrice, extensionAmount };
 }
 
 /** Updates only the supported reservation fields needed for a paid stay extension. */
@@ -132,6 +150,34 @@ export async function updateHostawayReservationForExtension(
   });
   if (!response.ok) {
     throw new Error(`Hostaway reservation extension failed: ${response.status} — ${await response.text()}`);
+  }
+}
+
+/** Updates dates and total for a change that remains at the same property. */
+export async function updateHostawayReservationForStayChange(
+  input: Omit<UpdateHostawayReservationForExtensionInput, "checkIn" | "newCheckOut"> & { newCheckIn: string; newCheckOut: string }
+): Promise<void> {
+  return updateHostawayReservationForExtension({
+    ...input,
+    checkIn: input.newCheckIn,
+    newCheckOut: input.newCheckOut,
+  });
+}
+
+/** Cancels a reservation only after its replacement has been created successfully. */
+export async function cancelHostawayReservation(reservationId: string): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch(`${HOSTAWAY_API_BASE}/reservations/${reservationId}/statuses/cancelled`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "Cache-control": "no-cache",
+    },
+    body: JSON.stringify({ cancelledBy: "host" }),
+  });
+  if (!response.ok) {
+    throw new Error(`Hostaway reservation cancellation failed: ${response.status} — ${await response.text()}`);
   }
 }
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import AdminLayout from "./AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Calendar, CalendarPlus, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare, Phone } from "lucide-react";
+import { Calendar, CalendarPlus, ArrowLeftRight, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare, Phone } from "lucide-react";
 import { Copy, Check } from "lucide-react";
 import { Search } from "lucide-react";
 import { properties } from "@/lib/properties";
@@ -75,6 +75,13 @@ export default function AdminBookings() {
   const [extensionCheckOut, setExtensionCheckOut] = useState<string>("");
   const [extensionQuote, setExtensionQuote] = useState<any>(null);
   const [extensionPaymentUrl, setExtensionPaymentUrl] = useState<string | null>(null);
+  const [changeBookingId, setChangeBookingId] = useState<number | null>(null);
+  const [changePropertyId, setChangePropertyId] = useState<string>("");
+  const [changeCheckIn, setChangeCheckIn] = useState<string>("");
+  const [changeCheckOut, setChangeCheckOut] = useState<string>("");
+  const [changeQuote, setChangeQuote] = useState<any>(null);
+  const [changePaymentUrl, setChangePaymentUrl] = useState<string | null>(null);
+  const [refundPending, setRefundPending] = useState<{ changeId: number; amount: number } | null>(null);
 
   const quoteExtension = trpc.extensions.quote.useMutation({
     onSuccess: (result) => {
@@ -91,12 +98,52 @@ export default function AdminBookings() {
     },
     onError: (error) => toast.error(error.message),
   });
+  const quoteChange = trpc.changes.quote.useMutation({
+    onSuccess: (result) => {
+      setChangeQuote(result);
+      setChangePaymentUrl(null);
+      setRefundPending(null);
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const createChange = trpc.changes.create.useMutation({
+    onSuccess: (result) => {
+      refetchBookings();
+      setChangePaymentUrl(result.paymentUrl);
+      if (result.refundAmount && result.refundAmount > 0) {
+        setRefundPending({ changeId: result.changeId, amount: result.refundAmount });
+        toast.success("Stay changed. Review and issue the remaining refund when ready.");
+      } else if (result.status === "payment_link_sent") {
+        toast.success("A guest payment link is ready. The move completes after payment.");
+      } else {
+        toast.success("Stay changed and Hostaway was updated.");
+      }
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const refundChange = trpc.changes.refund.useMutation({
+    onSuccess: (result) => {
+      setRefundPending(null);
+      toast.success(`Refunded $${Number(result.amount).toFixed(2)} to the original card.`);
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   const openExtension = (bookingId: number, currentCheckOut: number) => {
     setExtensionBookingId(bookingId);
     setExtensionCheckOut("");
     setExtensionQuote(null);
     setExtensionPaymentUrl(null);
+  };
+
+  const openChange = (booking: { id: number; propertyId: string; checkIn: number; checkOut: number }) => {
+    setChangeBookingId(booking.id);
+    setChangePropertyId(booking.propertyId);
+    setChangeCheckIn(new Date(booking.checkIn).toISOString().slice(0, 10));
+    setChangeCheckOut(new Date(booking.checkOut).toISOString().slice(0, 10));
+    setChangeQuote(null);
+    setChangePaymentUrl(null);
+    setRefundPending(null);
   };
 
   const filtered = (bookings ?? []).filter(
@@ -521,6 +568,14 @@ export default function AdminBookings() {
                               <CalendarPlus className="w-3.5 h-3.5" /> Extend stay
                             </button>
                           )}
+                          {b.status === "confirmed" && b.hostawayReservationId && (
+                            <button
+                              onClick={() => openChange(b)}
+                              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
+                            >
+                              <ArrowLeftRight className="w-3.5 h-3.5" /> Change stay
+                            </button>
+                          )}
                           <p className="text-xs text-muted-foreground">Update status:</p>
                           <div className="flex gap-1.5 flex-wrap">
                             {STATUS_OPTIONS.map((s) => (
@@ -537,6 +592,115 @@ export default function AdminBookings() {
                             ))}
                           </div>
                         </div>
+                        {changeBookingId === b.id && (
+                          <div className="mt-4 rounded-lg border border-primary/25 bg-primary/[0.035] p-4 max-w-2xl">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div>
+                                <h3 className="text-sm font-semibold text-foreground">Move or change stay</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">Live Hostaway availability and pricing are checked before anything changes. The original payment is applied as credit. If the revised stay costs more, a guest payment link is created; if it costs less, you can refund or retain the balance as a documented credit.</p>
+                              </div>
+                              <button onClick={() => setChangeBookingId(null)} className="text-xs text-muted-foreground hover:text-foreground">Close</button>
+                            </div>
+                            <div className="grid sm:grid-cols-3 gap-2 items-end">
+                              <label className="grid gap-1 text-xs text-muted-foreground">
+                                New property
+                                <select value={changePropertyId} onChange={(event) => { setChangePropertyId(event.target.value); setChangeQuote(null); setChangePaymentUrl(null); setRefundPending(null); }} className="min-h-9 rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground">
+                                  {properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}
+                                </select>
+                              </label>
+                              <label className="grid gap-1 text-xs text-muted-foreground">
+                                New check-in
+                                <input type="date" value={changeCheckIn} onChange={(event) => { setChangeCheckIn(event.target.value); setChangeQuote(null); setChangePaymentUrl(null); setRefundPending(null); }} className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground" />
+                              </label>
+                              <label className="grid gap-1 text-xs text-muted-foreground">
+                                New check-out
+                                <input type="date" value={changeCheckOut} onChange={(event) => { setChangeCheckOut(event.target.value); setChangeQuote(null); setChangePaymentUrl(null); setRefundPending(null); }} className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground" />
+                              </label>
+                            </div>
+                            <button
+                              disabled={!changePropertyId || !changeCheckIn || !changeCheckOut || quoteChange.isPending}
+                              onClick={() => quoteChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: new Date(`${changeCheckIn}T00:00:00Z`).getTime(), newCheckOut: new Date(`${changeCheckOut}T00:00:00Z`).getTime() })}
+                              className="mt-3 rounded bg-foreground px-3 py-1.5 text-xs font-medium text-background disabled:opacity-50"
+                            >
+                              {quoteChange.isPending ? "Checking…" : "Get live quote"}
+                            </button>
+                            {changeQuote && (
+                              <div className="mt-3 rounded border border-border bg-background p-3 text-sm">
+                                <div className="grid sm:grid-cols-2 gap-2">
+                                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Original payment</span><span>${Number(changeQuote.originalTotal).toFixed(2)}</span></div>
+                                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Revised Hostaway total</span><span className="font-semibold">${Number(changeQuote.revisedTotal).toFixed(2)}</span></div>
+                                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Payment credit applied</span><span>−${Number(changeQuote.creditApplied).toFixed(2)}</span></div>
+                                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">New stay length</span><span>{changeQuote.newNights} night{changeQuote.newNights === 1 ? "" : "s"}</span></div>
+                                </div>
+                                {Number(changeQuote.balanceDue) > 0 && <p className="mt-3 rounded bg-amber-50 px-3 py-2 text-xs text-amber-900">Guest balance due: <strong>${Number(changeQuote.balanceDue).toFixed(2)}</strong>. The original booking is not changed until the guest pays.</p>}
+                                {Number(changeQuote.refundAmount) > 0 && <p className="mt-3 rounded bg-sky-50 px-3 py-2 text-xs text-sky-900">Remaining value: <strong>${Number(changeQuote.refundAmount).toFixed(2)}</strong>. Choose a refund to the original card or a guest credit.</p>}
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {Number(changeQuote.refundAmount) > 0 ? (
+                                    <>
+                                      <button
+                                        disabled={createChange.isPending}
+                                        onClick={() => {
+                                          if (confirm(`Move ${b.guestName} to the revised stay and mark $${Number(changeQuote.refundAmount).toFixed(2)} for refund to the original card? Hostaway creates the replacement first, then cancels the original reservation.`)) {
+                                            createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, settlementChoice: "refund" });
+                                          }
+                                        }}
+                                        className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                                      >
+                                        {createChange.isPending ? "Updating…" : "Confirm change & prepare refund"}
+                                      </button>
+                                      <button
+                                        disabled={createChange.isPending}
+                                        onClick={() => {
+                                          if (confirm(`Move ${b.guestName} to the revised stay and retain $${Number(changeQuote.refundAmount).toFixed(2)} as documented guest credit? Hostaway creates the replacement first, then cancels the original reservation.`)) {
+                                            createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, settlementChoice: "credit" });
+                                          }
+                                        }}
+                                        className="rounded border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                                      >
+                                        Retain as credit
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      disabled={createChange.isPending}
+                                      onClick={() => {
+                                        const detail = Number(changeQuote.balanceDue) > 0
+                                          ? `Create a guest payment link for $${Number(changeQuote.balanceDue).toFixed(2)}. The original reservation remains unchanged until Stripe confirms payment.`
+                                          : `Confirm ${b.guestName}'s revised stay. Hostaway creates the replacement first, then cancels the original reservation.`;
+                                        if (confirm(detail)) createChange.mutate({ bookingId: b.id, propertyId: changePropertyId, newCheckIn: changeQuote.newCheckIn, newCheckOut: changeQuote.newCheckOut, settlementChoice: "refund" });
+                                      }}
+                                      className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                                    >
+                                      {createChange.isPending ? "Updating…" : Number(changeQuote.balanceDue) > 0 ? "Create payment link" : "Confirm change"}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {changePaymentUrl && (
+                              <div className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                                <p className="font-medium">Guest payment required before the reservation moves</p>
+                                <div className="mt-2 flex gap-2">
+                                  <a href={changePaymentUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">Open payment link</a>
+                                  <button onClick={() => navigator.clipboard.writeText(changePaymentUrl).then(() => toast.success("Change payment link copied."))} className="underline font-medium">Copy link</button>
+                                </div>
+                              </div>
+                            )}
+                            {refundPending && (
+                              <div className="mt-3 rounded border border-sky-300 bg-sky-50 p-3 text-xs text-sky-900">
+                                <p className="font-medium">Refund ready for review</p>
+                                <p className="mt-0.5">The stay was changed. Issue the exact ${refundPending.amount.toFixed(2)} balance back to the original card only if that is what you intend.</p>
+                                <button
+                                  disabled={refundChange.isPending}
+                                  onClick={() => { if (confirm(`Refund $${refundPending.amount.toFixed(2)} to ${b.guestName}'s original card now? This Stripe action cannot be undone.`)) refundChange.mutate({ changeId: refundPending.changeId }); }}
+                                  className="mt-2 rounded bg-sky-700 px-3 py-1.5 font-medium text-white disabled:opacity-50"
+                                >
+                                  {refundChange.isPending ? "Issuing refund…" : `Issue $${refundPending.amount.toFixed(2)} refund`}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {extensionBookingId === b.id && (
                           <div className="mt-4 rounded-lg border border-primary/25 bg-primary/[0.035] p-4 max-w-xl">
                             <div className="flex items-start justify-between gap-3 mb-3">

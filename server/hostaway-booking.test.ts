@@ -4,7 +4,7 @@ vi.mock("./hostaway-auth", () => ({
   getAccessToken: vi.fn().mockResolvedValue("hostaway-test-token"),
 }));
 
-import { quoteHostawayExtension, recordHostawayStripePayment, updateHostawayReservationForExtension } from "./hostaway-booking";
+import { cancelHostawayReservation, quoteHostawayExtension, quoteHostawayStay, recordHostawayStripePayment, updateHostawayReservationForExtension } from "./hostaway-booking";
 
 describe("recordHostawayStripePayment", () => {
   beforeEach(() => {
@@ -82,5 +82,43 @@ describe("Hostaway reservation extensions", () => {
       totalPrice: 900,
       numberOfGuests: 4,
     });
+  });
+});
+
+describe("Hostaway reservation change helpers", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns the full stay total and price components for a replacement quote", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      result: {
+        totalPrice: 575.48,
+        components: [{ name: "baseRate", type: "accommodation", total: 400, isIncludedInTotalPrice: 1 }],
+      },
+    }), { status: 200 }));
+
+    await expect(quoteHostawayStay({
+      hostawayListingId: 123,
+      checkIn: "2026-11-01",
+      checkOut: "2026-11-04",
+      guestCount: 2,
+    })).resolves.toEqual({
+      totalPrice: 575.48,
+      components: [{ name: "baseRate", type: "accommodation", total: 400, isIncludedInTotalPrice: 1 }],
+    });
+  });
+
+  it("cancels an original reservation only through Hostaway's host cancellation endpoint", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ result: {} }), { status: 200 }));
+
+    await cancelHostawayReservation("64756333");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.hostaway.com/v1/reservations/64756333/statuses/cancelled",
+      expect.objectContaining({ method: "PUT" })
+    );
+    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toEqual({ cancelledBy: "host" });
   });
 });
