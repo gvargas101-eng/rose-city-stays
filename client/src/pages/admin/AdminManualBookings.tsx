@@ -51,6 +51,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { properties as staticProperties } from "@/lib/properties";
+import { openGoogleMessagesWithCopiedText } from "@/lib/googleMessages";
 import AdminLayout from "./AdminLayout";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -314,6 +315,12 @@ export default function AdminManualBookings() {
     set("nightlyRate", livePriceSummary.nightlyRate);
     setManualRateOverrideKey(null);
     setLastAutoFilledRateKey(liveRateKey);
+  }
+
+  function openGoogleMessages(message: string) {
+    void openGoogleMessagesWithCopiedText(message).then(() => {
+      toast.success("Message copied. Choose the guest in Google Messages, then paste and send.");
+    });
   }
 
   function addCustomLineItem() {
@@ -1031,11 +1038,9 @@ export default function AdminManualBookings() {
           const emailBody = encodeURIComponent(
             `Hi${form.guestName ? ` ${form.guestName.split(" ")[0]}` : ""},\n\nHere is your secure payment link for ${propertyLabel}${checkInLabel ? ` (${checkInLabel} – ${checkOutLabel})` : ""}:\n\n${bookingUrl}\n\nThis link will expire on ${generatedExpiry ? fmtDateTime(generatedExpiry) : "the date shown on the page"}.\n\nPlease let me know if you have any questions.\n\nThank you!`
           );
-          const smsBody = encodeURIComponent(
+          const googleMessage =
             `Hi${form.guestName ? ` ${form.guestName.split(" ")[0]}` : ""}! Here is your booking payment link for ${propertyLabel}${checkInLabel ? ` (${checkInLabel} – ${checkOutLabel})` : ""}: ${bookingUrl}`
-          );
           const mailtoHref = `mailto:${form.guestEmail || ""}?subject=${emailSubject}&body=${emailBody}`;
-          const smsHref = `sms:${""}&body=${smsBody}`;
 
           return (
             <div className="bg-green-50 border border-green-200 rounded-2xl p-5 space-y-3">
@@ -1070,16 +1075,16 @@ export default function AdminManualBookings() {
                     Send via Email
                   </Button>
                 </a>
-                <a href={smsHref}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 border-green-300 text-green-800 hover:bg-green-100"
-                  >
-                    <Smartphone className="w-3.5 h-3.5" />
-                    Send via SMS
-                  </Button>
-                </a>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openGoogleMessages(googleMessage)}
+                  className="gap-1.5 border-green-300 text-green-800 hover:bg-green-100"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  Open Google Messages
+                </Button>
               </div>
 
               {generatedExpiry && (
@@ -1231,11 +1236,15 @@ export default function AdminManualBookings() {
                                   <a href={`tel:${link.guestPhone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80">
                                     <Phone className="w-3 h-3" />{link.guestPhone}
                                   </a>
-                                  <a
-                                    href={`sms:${link.guestPhone}?body=${encodeURIComponent(`Hi ${link.guestName ?? ""}! Here is your booking payment link for ${link.propertyName}: ${window?.location?.origin ?? ""}/booking/pay/${link.token}`)}`}
+                                  <button
+                                    type="button"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      openGoogleMessages(`Hi ${link.guestName ?? ""}! Here is your booking payment link for ${link.propertyName}: ${window.location.origin}/booking/pay/${link.token}`);
+                                    }}
                                     className="inline-flex items-center gap-0.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
-                                    <MessageSquare className="w-3 h-3" />SMS
-                                  </a>
+                                    <MessageSquare className="w-3 h-3" />Google Messages
+                                  </button>
                                   <button
                                     onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(link.guestPhone!); }}
                                     className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
@@ -1293,9 +1302,8 @@ export default function AdminManualBookings() {
                             const emailBody = encodeURIComponent(
                               `Hi${link.guestName ? ` ${link.guestName.split(" ")[0]}` : ""},\n\nHere is your secure payment link for ${link.propertyName} (${checkInLabel} – ${checkOutLabel}):\n\n${url}\n\nThis link expires on ${fmtDateTime(link.expiresAt)}.\n\nPlease let me know if you have any questions.\n\nThank you!`
                             );
-                            const smsBody = encodeURIComponent(
+                            const googleMessage =
                               `Hi${link.guestName ? ` ${link.guestName.split(" ")[0]}` : ""}! Here is your booking payment link for ${link.propertyName} (${checkInLabel} – ${checkOutLabel}): ${url}`
-                            );
                             return (
                               <>
                                 <a href={`mailto:${link.guestEmail || ""}?subject=${emailSubject}&body=${emailBody}`}>
@@ -1304,12 +1312,10 @@ export default function AdminManualBookings() {
                                     Email
                                   </Button>
                                 </a>
-                                <a href={`sms:${""}&body=${smsBody}`}>
-                                  <Button size="sm" variant="outline" className="gap-1.5">
-                                    <Smartphone className="w-3.5 h-3.5" />
-                                    SMS
-                                  </Button>
-                                </a>
+                                <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => openGoogleMessages(googleMessage)}>
+                                  <Smartphone className="w-3.5 h-3.5" />
+                                  Google Messages
+                                </Button>
                               </>
                             );
                           })()}

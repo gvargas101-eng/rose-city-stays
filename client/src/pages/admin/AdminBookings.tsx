@@ -7,6 +7,7 @@ import { Copy, Check } from "lucide-react";
 import { Search } from "lucide-react";
 import { properties } from "@/lib/properties";
 import { matchesSmsConsentFilter, type SmsConsentFilter } from "@/lib/bookingFilters";
+import { openGoogleMessagesWithCopiedText } from "@/lib/googleMessages";
 
 const STATUS_OPTIONS = ["pending", "paid", "confirmed", "cancelled", "failed"] as const;
 type BookingStatus = typeof STATUS_OPTIONS[number];
@@ -190,12 +191,14 @@ export default function AdminBookings() {
     window.open(`mailto:${link.guestEmail ?? ""}?subject=${subject}&body=${body}`, "_blank");
   };
 
-  const sendSMS = (link: { guestName?: string | null; propertyName: string; checkIn: number; checkOut: number; token: string }) => {
+  const openGoogleMessages = (link: { guestName?: string | null; propertyName: string; checkIn: number; checkOut: number; token: string }) => {
     const url = `${window.location.origin}/booking/pay/${link.token}`;
-    const body = encodeURIComponent(
+    const body =
       `Hi${link.guestName ? ` ${link.guestName}` : ""}! Here is your booking link for ${link.propertyName} (${formatDate(link.checkIn)} – ${formatDate(link.checkOut)}): ${url}`
-    );
-    window.open(`sms:?body=${body}`, "_blank");
+    ;
+    void openGoogleMessagesWithCopiedText(body).then(() => {
+      toast.success("Message copied. Choose the guest in Google Messages, then paste and send.");
+    });
   };
 
   return (
@@ -338,13 +341,15 @@ export default function AdminBookings() {
                                   onClick={e => e.stopPropagation()}>
                                   <Phone className="w-3 h-3" />{b.guestPhone}
                                 </a>
-                                <a
-                                  href={`sms:${b.guestPhone}?body=${encodeURIComponent(`Hi ${b.guestName}! This is Rose City Stays regarding your stay at ${properties.find(p => p.id === b.propertyId)?.name ?? b.propertyId} (${new Date(b.checkIn).toLocaleDateString()} – ${new Date(b.checkOut).toLocaleDateString()}).`)}`}
+                                <button
                                   className="inline-flex items-center gap-0.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
-                                  onClick={e => e.stopPropagation()}
-                                  title="Send SMS">
-                                  <MessageSquare className="w-3 h-3" />SMS
-                                </a>
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    void openGoogleMessagesWithCopiedText(`Hi ${b.guestName}! This is Rose City Stays regarding your stay at ${properties.find(p => p.id === b.propertyId)?.name ?? b.propertyId} (${formatDate(b.checkIn)} – ${formatDate(b.checkOut)}).`).then(() => toast.success("Message copied. Choose the guest in Google Messages, then paste and send."));
+                                  }}
+                                  title="Copy message and open Google Messages">
+                                  <MessageSquare className="w-3 h-3" />Google Messages
+                                </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(b.guestPhone!); }}
                                   className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
@@ -893,9 +898,9 @@ export default function AdminBookings() {
                             <Mail className="w-3.5 h-3.5" /> Send Email
                           </button>
                           <button
-                            onClick={() => sendSMS(link)}
+                            onClick={() => openGoogleMessages(link)}
                             className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors">
-                            <MessageSquare className="w-3.5 h-3.5" /> Send SMS
+                            <MessageSquare className="w-3.5 h-3.5" /> Google Messages
                           </button>
                           {link.status === "active" && (
                             <button
