@@ -44,6 +44,7 @@ import { trpc } from "@/lib/trpc";
 import BookingPanel, { type BookingSelection } from "@/components/BookingPanel";
 import CheckoutModal from "@/components/CheckoutModal";
 import CameraGuestCountModal from "@/components/CameraGuestCountModal";
+import type { StaySelection } from "@/lib/staySelection";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -87,6 +88,8 @@ export default function PropertyDetail() {
   const [showInquiry, setShowInquiry] = useState(false);
   const [pendingBooking, setPendingBooking] = useState<BookingSelection | null>(null);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [selectedStay, setSelectedStay] = useState<StaySelection | null>(null);
+  const bookingPanelRef = useRef<HTMLDivElement>(null);
 
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
@@ -161,6 +164,19 @@ export default function PropertyDetail() {
       .sort((a, b) => a.date.localeCompare(b.date))[0];
     return nextAvail?.minimumStay ?? 1;
   })();
+
+  const handleStaySelection = (range: StaySelection | null) => {
+    setSelectedStay(range);
+    if (!range || typeof window === "undefined") return;
+
+    // The sidebar stays visible on desktop. On phones, return guests to the
+    // booking controls after they select both dates in the larger calendar.
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      window.requestAnimationFrame(() => {
+        bookingPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  };
 
   // ── SEO / AEO / GEO — must be called before early returns (React rules of hooks) ──
   const seoProperty = property || staticProperty;
@@ -473,7 +489,12 @@ export default function PropertyDetail() {
 
             {/* Availability Calendar */}
             <div className="mb-10">
-              <AvailabilityCalendar propertyId={propertySlug} />
+              <AvailabilityCalendar
+                propertyId={propertySlug}
+                minStay={defaultMinStay}
+                minStayMap={minStayMap}
+                onRangeChange={handleStaySelection}
+              />
             </div>
 
             <div className="rule-thin mb-8" />
@@ -586,7 +607,7 @@ export default function PropertyDetail() {
 
           {/* Right: Booking Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
+            <div ref={bookingPanelRef} className="sticky top-24 space-y-6">
               <BookingPanel
                 propertyId={propertySlug}
                 propertyName={property.name}
@@ -597,6 +618,8 @@ export default function PropertyDetail() {
                 minStay={defaultMinStay}
                 minStayMap={minStayMap}
                 maxGuests={property.guests || 16}
+                selectedStay={selectedStay}
+                onStaySelectionChange={handleStaySelection}
                 onBookNow={(booking) => {
                   setPendingBooking(booking);
                   setShowCameraModal(true);

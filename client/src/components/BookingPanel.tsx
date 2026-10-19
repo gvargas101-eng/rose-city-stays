@@ -4,12 +4,13 @@
  * Replaces the old "Book on Hostaway" button with a native booking flow
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Users, Star, ChevronDown, ChevronUp, Moon, ShieldCheck } from "lucide-react";
 import DateRangePicker from "@/components/DateRangePicker";
 import type { CalendarDay } from "@/lib/calendar-types";
+import type { StaySelection } from "@/lib/staySelection";
 import { trpc } from "@/lib/trpc";
 
 interface BookingPanelProps {
@@ -25,15 +26,15 @@ interface BookingPanelProps {
   minStayMap?: Record<string, number>;
   /** Maximum number of guests allowed at this property (from Hostaway personCapacity) */
   maxGuests?: number;
+  /** A valid stay selected from the visible availability calendar. */
+  selectedStay?: StaySelection | null;
+  /** Keeps the visible availability calendar and this selector in sync. */
+  onStaySelectionChange?: (range: StaySelection | null, checkInDateStr?: string) => void;
   onBookNow: (booking: BookingSelection) => void;
   onInquiry: () => void;
 }
 
-export interface BookingSelection {
-  checkIn: Date;
-  checkOut: Date;
-  nights: number;
-  avgNightlyRate: number;
+export interface BookingSelection extends StaySelection {
   guestCount: number;
 }
 
@@ -60,17 +61,14 @@ export default function BookingPanel({
   minStay = 1,
   minStayMap = {},
   maxGuests = 16,
+  selectedStay,
+  onStaySelectionChange,
   onBookNow,
   onInquiry,
 }: BookingPanelProps) {
   const [showPicker, setShowPicker] = useState(false);
   const [guestCount, setGuestCount] = useState(Math.min(2, maxGuests));
-  const [selection, setSelection] = useState<{
-    checkIn: Date;
-    checkOut: Date;
-    nights: number;
-    avgNightlyRate: number;
-  } | null>(null);
+  const [selection, setSelection] = useState<StaySelection | null>(selectedStay ?? null);
 
   const EXTRA_GUEST_FEE_PER_NIGHT = 10;
   const MAX_INCLUDED_GUESTS = 4;
@@ -91,6 +89,11 @@ export default function BookingPanel({
     ? (minStayMap[pendingCheckIn] ?? minStay)
     : minStay;
 
+  useEffect(() => {
+    setSelection(selectedStay ?? null);
+    setPendingCheckIn(selectedStay ? format(selectedStay.checkIn, "yyyy-MM-dd") : null);
+  }, [selectedStay]);
+
   const handleRangeChange = (
     range: { checkIn: Date; checkOut: Date; nights: number; avgNightlyRate: number } | null,
     checkInDateStr?: string
@@ -99,6 +102,7 @@ export default function BookingPanel({
       setPendingCheckIn(checkInDateStr);
     }
     setSelection(range);
+    onStaySelectionChange?.(range, checkInDateStr);
     if (range) setShowPicker(false);
   };
 

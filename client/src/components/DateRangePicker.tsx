@@ -1,21 +1,17 @@
 /**
- * DateRangePicker — uses react-day-picker to let guests select check-in/check-out
- * Integrates with the live Hostaway calendar to disable booked dates and enforce
- * per-date minimum stay requirements.
+ * DateRangePicker — lets guests select a Hostaway-valid check-in/check-out range.
  */
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
-import { format, differenceInCalendarDays, addDays, isBefore, startOfDay } from "date-fns";
+import { differenceInCalendarDays, format, isBefore, startOfDay } from "date-fns";
 import "react-day-picker/style.css";
 import type { CalendarDay } from "@/lib/calendar-types";
+import { validateStaySelection, type StaySelection } from "@/lib/staySelection";
 
 interface DateRangePickerProps {
   calendarDays: CalendarDay[];
-  onRangeChange: (
-    range: { checkIn: Date; checkOut: Date; nights: number; avgNightlyRate: number } | null,
-    checkInDateStr?: string
-  ) => void;
+  onRangeChange: (range: StaySelection | null, checkInDateStr?: string) => void;
   /** Default minimum stay (used before a check-in date is selected) */
   minStay?: number;
   /** Per-date minimum stay map from Hostaway: date string -> minimumStay nights */
@@ -33,20 +29,13 @@ export default function DateRangePicker({
   const [effectiveMin, setEffectiveMin] = useState(minStay);
   const today = startOfDay(new Date());
 
-  // Build a set of unavailable date strings for fast lookup
   const unavailableDates = new Set(
-    calendarDays.filter(d => !d.isAvailable).map(d => d.date)
-  );
-
-  // Build a price map for available dates
-  const priceMap = new Map(
-    calendarDays.filter(d => d.isAvailable && d.price > 0).map(d => [d.date, d.price])
+    calendarDays.filter((day) => !day.isAvailable).map((day) => day.date)
   );
 
   const isDateDisabled = useCallback((date: Date) => {
     if (isBefore(date, today)) return true;
-    const dateStr = format(date, "yyyy-MM-dd");
-    return unavailableDates.has(dateStr);
+    return unavailableDates.has(format(date, "yyyy-MM-dd"));
   }, [unavailableDates, today]);
 
   const handleSelect = (newRange: DateRange | undefined) => {
@@ -58,60 +47,31 @@ export default function DateRangePicker({
       return;
     }
 
-    const checkInStr = format(newRange.from, "yyyy-MM-dd");
-    // Look up the minimum stay for this specific check-in date
-    const dateMinStay = minStayMap[checkInStr] ?? minStay;
+    const checkInDate = format(newRange.from, "yyyy-MM-dd");
+    const dateMinStay = minStayMap[checkInDate] ?? minStay;
     setEffectiveMin(dateMinStay);
 
-    if (!newRange?.to) {
-      onRangeChange(null, checkInStr);
+    if (!newRange.to) {
+      onRangeChange(null, checkInDate);
       return;
     }
 
-    const nights = differenceInCalendarDays(newRange.to, newRange.from);
-    if (nights < 1) {
-      onRangeChange(null, checkInStr);
+    const validation = validateStaySelection({
+      checkInDate,
+      checkOutDate: format(newRange.to, "yyyy-MM-dd"),
+      calendarDays,
+      minStay,
+      minStayMap,
+    });
+
+    if (!validation.valid) {
+      setTooShort(validation.reason === "minimum-stay");
+      if (validation.reason === "unavailable") setRange(undefined);
+      onRangeChange(null, checkInDate);
       return;
     }
 
-    // Enforce minimum stay for this check-in date
-    if (nights < dateMinStay) {
-      setTooShort(true);
-      onRangeChange(null, checkInStr);
-      return;
-    }
-
-    // Check if any date in range is unavailable
-    let hasUnavailable = false;
-    let totalPrice = 0;
-    let pricedNights = 0;
-
-    for (let i = 0; i < nights; i++) {
-      const d = addDays(newRange.from, i);
-      const dateStr = format(d, "yyyy-MM-dd");
-      if (unavailableDates.has(dateStr)) {
-        hasUnavailable = true;
-        break;
-      }
-      const price = priceMap.get(dateStr);
-      if (price) {
-        totalPrice += price;
-        pricedNights++;
-      }
-    }
-
-    if (hasUnavailable) {
-      setRange(undefined);
-      onRangeChange(null, checkInStr);
-      return;
-    }
-
-    const avgNightlyRate = pricedNights > 0 ? Math.round(totalPrice / pricedNights) : 0;
-
-    onRangeChange(
-      { checkIn: newRange.from, checkOut: newRange.to, nights, avgNightlyRate },
-      checkInStr
-    );
+    onRangeChange(validation.selection, checkInDate);
   };
 
   const selectedNights = range?.from && range?.to
@@ -127,13 +87,8 @@ export default function DateRangePicker({
           font-family: var(--font-body);
           font-size: 0.875rem;
         }
-        .rdp-wrapper .rdp-day_button {
-          border-radius: 0.375rem;
-        }
-        .rdp-wrapper .rdp-selected .rdp-day_button {
-          background-color: var(--color-primary);
-          color: white;
-        }
+        .rdp-wrapper .rdp-day_button { border-radius: 0.375rem; }
+        .rdp-wrapper .rdp-selected .rdp-day_button { background-color: var(--color-primary); color: white; }
         .rdp-wrapper .rdp-range_middle .rdp-day_button {
           background-color: color-mix(in oklch, var(--color-primary) 15%, transparent);
           color: var(--color-foreground);
@@ -154,20 +109,16 @@ export default function DateRangePicker({
         fromDate={today}
         showOutsideDays={false}
       />
-      {/* Minimum stay warning */}
       {tooShort && range?.from && range?.to && (
         <div className="mt-2 text-xs text-destructive text-center font-medium">
           Minimum stay is {effectiveMin} nights — please select a longer stay
         </div>
       )}
-      {/* Valid selection summary */}
       {!tooShort && range?.from && range?.to && selectedNights >= effectiveMin && (
         <div className="mt-2 text-sm text-muted-foreground text-center">
-          {format(range.from, "MMM d")} → {format(range.to, "MMM d, yyyy")} &nbsp;·&nbsp;{" "}
-          {selectedNights} nights
+          {format(range.from, "MMM d")} → {format(range.to, "MMM d, yyyy")} &nbsp;·&nbsp; {selectedNights} nights
         </div>
       )}
-      {/* Prompt to select checkout */}
       {range?.from && !range?.to && (
         <div className="mt-2 text-sm text-muted-foreground text-center">
           Select your check-out date{effectiveMin > 1 ? ` (${effectiveMin}-night minimum)` : ""}
