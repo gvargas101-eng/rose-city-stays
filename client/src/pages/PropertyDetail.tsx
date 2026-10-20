@@ -1,7 +1,7 @@
 // Rose City Stays — Property Detail Page
 // Design: Rose City Luxe — full-width image gallery, booking sidebar
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ import BookingPanel, { type BookingSelection } from "@/components/BookingPanel";
 import CheckoutModal from "@/components/CheckoutModal";
 import CameraGuestCountModal from "@/components/CameraGuestCountModal";
 import type { StaySelection } from "@/lib/staySelection";
+import { calculateStayEstimate } from "@/lib/stayEstimate";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -89,6 +90,8 @@ export default function PropertyDetail() {
   const [pendingBooking, setPendingBooking] = useState<BookingSelection | null>(null);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [selectedStay, setSelectedStay] = useState<StaySelection | null>(null);
+  const [selectedGuestCount, setSelectedGuestCount] = useState(2);
+  const [calendarClearSignal, setCalendarClearSignal] = useState(0);
   const bookingPanelRef = useRef<HTMLDivElement>(null);
 
   const openLightbox = (index: number) => {
@@ -165,8 +168,11 @@ export default function PropertyDetail() {
     return nextAvail?.minimumStay ?? 1;
   })();
 
-  const handleStaySelection = (range: StaySelection | null) => {
+  const handleStaySelection = (range: StaySelection | null, checkInDateStr?: string) => {
     setSelectedStay(range);
+    if (!range && checkInDateStr === undefined) {
+      setCalendarClearSignal((signal) => signal + 1);
+    }
     if (!range || typeof window === "undefined") return;
 
     // The sidebar stays visible on desktop. On phones, return guests to the
@@ -177,6 +183,28 @@ export default function PropertyDetail() {
       });
     }
   };
+
+  const handleGuestCountChange = useCallback((guestCount: number) => {
+    setSelectedGuestCount(guestCount);
+  }, []);
+
+  // Keep the large calendar's estimate aligned with the checkout pricing model.
+  // Add-ons and discounts are optional choices made later in checkout.
+  const calendarCleaningFee = Number(dbProperty?.cleaningFee ?? 125) || 125;
+  const calendarEstimate = selectedStay
+    ? calculateStayEstimate({
+        selection: selectedStay,
+        cleaningFee: calendarCleaningFee,
+        taxRate: liveTaxRate,
+        guestCount: selectedGuestCount,
+        customFees: activeFees.map((fee) => ({
+          id: fee.id,
+          name: fee.name,
+          type: fee.type,
+          amount: fee.amount,
+        })),
+      })
+    : null;
 
   // ── SEO / AEO / GEO — must be called before early returns (React rules of hooks) ──
   const seoProperty = property || staticProperty;
@@ -493,6 +521,9 @@ export default function PropertyDetail() {
                 propertyId={propertySlug}
                 minStay={defaultMinStay}
                 minStayMap={minStayMap}
+                selectedStay={selectedStay}
+                estimate={calendarEstimate}
+                clearSelectionSignal={calendarClearSignal}
                 onRangeChange={handleStaySelection}
               />
             </div>
@@ -615,11 +646,20 @@ export default function PropertyDetail() {
                 rating={property.rating}
                 reviewCount={property.reviewCount}
                 calendarDays={calendarData?.days || []}
+                cleaningFee={calendarCleaningFee}
+                taxRate={liveTaxRate}
+                customFees={activeFees.map((fee) => ({
+                  id: fee.id,
+                  name: fee.name,
+                  type: fee.type,
+                  amount: fee.amount,
+                }))}
                 minStay={defaultMinStay}
                 minStayMap={minStayMap}
                 maxGuests={property.guests || 16}
                 selectedStay={selectedStay}
                 onStaySelectionChange={handleStaySelection}
+                onGuestCountChange={handleGuestCountChange}
                 onBookNow={(booking) => {
                   setPendingBooking(booking);
                   setShowCameraModal(true);

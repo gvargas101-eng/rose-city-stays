@@ -11,6 +11,7 @@ import { CalendarDays, Users, Star, ChevronDown, ChevronUp, Moon, ShieldCheck } 
 import DateRangePicker from "@/components/DateRangePicker";
 import type { CalendarDay } from "@/lib/calendar-types";
 import type { StaySelection } from "@/lib/staySelection";
+import { calculateStayEstimate, type CheckoutCustomFee } from "@/lib/stayEstimate";
 import { trpc } from "@/lib/trpc";
 
 interface BookingPanelProps {
@@ -20,6 +21,12 @@ interface BookingPanelProps {
   rating: number;
   reviewCount: number;
   calendarDays: CalendarDay[];
+  /** Admin-managed per-property cleaning fee used in checkout. */
+  cleaningFee?: number;
+  /** Current occupancy tax rate used in checkout. */
+  taxRate?: number;
+  /** Active required fees shown in checkout. */
+  customFees?: CheckoutCustomFee[];
   /** Default minimum stay shown before a check-in date is selected (from next available day) */
   minStay?: number;
   /** Per-date minimum stay map from Hostaway: date string -> minimumStay nights */
@@ -30,6 +37,8 @@ interface BookingPanelProps {
   selectedStay?: StaySelection | null;
   /** Keeps the visible availability calendar and this selector in sync. */
   onStaySelectionChange?: (range: StaySelection | null, checkInDateStr?: string) => void;
+  /** Keeps the calendar estimate accurate when guests adjust the party size. */
+  onGuestCountChange?: (guestCount: number) => void;
   onBookNow: (booking: BookingSelection) => void;
   onInquiry: () => void;
 }
@@ -58,11 +67,15 @@ export default function BookingPanel({
   rating,
   reviewCount,
   calendarDays,
+  cleaningFee,
+  taxRate = 0.09,
+  customFees = [],
   minStay = 1,
   minStayMap = {},
   maxGuests = 16,
   selectedStay,
   onStaySelectionChange,
+  onGuestCountChange,
   onBookNow,
   onInquiry,
 }: BookingPanelProps) {
@@ -76,12 +89,20 @@ export default function BookingPanel({
   const { data: depositData } = trpc.settings.getSecurityDeposit.useQuery();
   const depositAmount = depositData?.amount ?? 500;
 
-  const cleaningFee = CLEANING_FEES[propertyId] ?? 125;
+  const effectiveCleaningFee = cleaningFee ?? CLEANING_FEES[propertyId] ?? 125;
   const nightlyRate = selection?.avgNightlyRate || basePrice || 0;
-  const subtotal = nightlyRate * (selection?.nights || 0);
   const extraGuests = Math.max(0, guestCount - MAX_INCLUDED_GUESTS);
-  const overageFee = extraGuests * EXTRA_GUEST_FEE_PER_NIGHT * (selection?.nights || 0);
-  const total = subtotal + cleaningFee + overageFee;
+  const estimate = selection
+    ? calculateStayEstimate({
+        selection,
+        cleaningFee: effectiveCleaningFee,
+        taxRate,
+        customFees,
+        guestCount,
+        includedGuestCount: MAX_INCLUDED_GUESTS,
+        extraGuestFeePerNight: EXTRA_GUEST_FEE_PER_NIGHT,
+      })
+    : null;
 
   // When a check-in date is selected, use its specific minimum stay from Hostaway
   const [pendingCheckIn, setPendingCheckIn] = useState<string | null>(null);
@@ -93,6 +114,10 @@ export default function BookingPanel({
     setSelection(selectedStay ?? null);
     setPendingCheckIn(selectedStay ? format(selectedStay.checkIn, "yyyy-MM-dd") : null);
   }, [selectedStay]);
+
+  useEffect(() => {
+    onGuestCountChange?.(guestCount);
+  }, [guestCount, onGuestCountChange]);
 
   const handleRangeChange = (
     range: { checkIn: Date; checkOut: Date; nights: number; avgNightlyRate: number } | null,
@@ -211,28 +236,44 @@ export default function BookingPanel({
       </div>
 
       {/* Price breakdown (only when dates selected) */}
-      {selection && nightlyRate > 0 && (
+      {selection && estimate && nightlyRate > 0 && (
         <div className="space-y-2 text-sm border-t border-border pt-4">
           <div className="flex justify-between text-foreground">
             <span>${nightlyRate} × {selection.nights} nights</span>
-            <span>${subtotal.toLocaleString()}</span>
+            <span>${estimate.nightlySubtotal.toLocaleString()}</span>
           </div>
-          {overageFee > 0 && (
+          {estimate.extraGuestFee > 0 && (
             <div className="flex justify-between text-amber-700">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
                 {extraGuests} extra guest{extraGuests > 1 ? 's' : ''} × ${EXTRA_GUEST_FEE_PER_NIGHT}/night × {selection.nights} nights
               </span>
-              <span>+${overageFee.toLocaleString()}</span>
+              <span>+${estimate.extraGuestFee.toLocaleString()}</span>
             </div>
           )}
           <div className="flex justify-between text-foreground">
             <span>Cleaning fee</span>
-            <span>${cleaningFee}</span>
+            <span>${estimate.cleaningFee.toLocaleString()}</span>
           </div>
+          <div className="flex justify-between text-foreground">
+            <span>Occupancy tax ({Math.round(taxRate * 100)}%)</span>
+            <span>${estimate.taxAmount.toLocaleString()}</span>
+          </div>
+          {customFees.map((fee) => (
+            <div key={fee.id} className="flex justify-between text-foreground">
+              <span>{fee.name}{fee.type === "percent" ? ` (${fee.amount}%)` : ""}</span>
+              <span>${(fee.type === "flat" ? fee.amount : (estimate.nightlySubtotal * fee.amount) / 100).toLocaleString()}</span>
+            </div>
+          ))}
+          {estimate.customFeesTotal > 0 && customFees.length === 0 && (
+            <div className="flex justify-between text-foreground">
+              <span>Required fees</span>
+              <span>${estimate.customFeesTotal.toLocaleString()}</span>
+            </div>
+          )}
           <div className="flex justify-between font-semibold text-foreground border-t border-border pt-2 mt-2">
-            <span>Total</span>
-            <span>${total.toLocaleString()}</span>
+            <span>Estimated total</span>
+            <span>${estimate.total.toLocaleString()}</span>
           </div>
         </div>
       )}

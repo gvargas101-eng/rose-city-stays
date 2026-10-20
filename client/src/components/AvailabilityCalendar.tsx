@@ -1,12 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { validateStaySelection, type StaySelection } from "@/lib/staySelection";
+import { getBestValueNightlyRate, type StayEstimate } from "@/lib/stayEstimate";
 
 interface AvailabilityCalendarProps {
   propertyId: string;
   minStay?: number;
   minStayMap?: Record<string, number>;
+  selectedStay?: StaySelection | null;
+  estimate?: StayEstimate | null;
+  clearSelectionSignal?: number;
   onRangeChange?: (range: StaySelection | null, checkInDateStr?: string) => void;
 }
 
@@ -24,6 +28,9 @@ export default function AvailabilityCalendar({
   propertyId,
   minStay = 1,
   minStayMap = {},
+  selectedStay,
+  estimate,
+  clearSelectionSignal = 0,
   onRangeChange,
 }: AvailabilityCalendarProps) {
   const today = new Date();
@@ -56,6 +63,24 @@ export default function AvailabilityCalendar({
     });
     return map;
   }, [data]);
+
+  const bestValueRate = useMemo(
+    () => getBestValueNightlyRate(data?.days ?? []),
+    [data?.days]
+  );
+
+  useEffect(() => {
+    if (!selectedStay) return;
+    setCheckInDate(selectedStay.checkIn.toISOString().slice(0, 10));
+    setCheckOutDate(selectedStay.checkOut.toISOString().slice(0, 10));
+  }, [selectedStay]);
+
+  useEffect(() => {
+    if (clearSelectionSignal === 0) return;
+    setCheckInDate(null);
+    setCheckOutDate(null);
+    setSelectionMessage("Dates cleared. Click an available date to choose check-in.");
+  }, [clearSelectionSignal]);
 
   const goToPrevMonth = () => {
     if (viewMonth === 0) {
@@ -111,6 +136,13 @@ export default function AvailabilityCalendar({
     onRangeChange?.(validation.selection, checkInDate);
   };
 
+  const clearDateSelection = () => {
+    setCheckInDate(null);
+    setCheckOutDate(null);
+    setSelectionMessage("Dates cleared. Click an available date to choose check-in.");
+    onRangeChange?.(null);
+  };
+
   const renderMonth = (year: number, month: number) => {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -131,6 +163,7 @@ export default function AvailabilityCalendar({
       const isCheckOut = checkOutDate === date;
       const isWithinRange = Boolean(checkInDate && checkOutDate && date > checkInDate && date < checkOutDate);
       const rangeSelected = isCheckIn || isCheckOut || isWithinRange;
+      const isBestValue = isAvailable && bestValueRate !== null && info.price === bestValueRate;
       const label = isPast
         ? `${date}, unavailable because it is in the past`
         : isAvailable
@@ -154,8 +187,14 @@ export default function AvailabilityCalendar({
             ${isAvailable && isWithinRange ? "bg-primary/15 text-foreground cursor-pointer border-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1" : ""}
             ${isUnavailable ? "bg-red-50 text-red-400 cursor-not-allowed border-red-100" : ""}
             ${!isPast && !info ? "text-muted-foreground border-transparent cursor-not-allowed" : ""}
+            ${isBestValue && !rangeSelected ? "ring-1 ring-amber-400 ring-offset-1" : ""}
           `}
         >
+          {isBestValue && !rangeSelected && (
+            <span className="absolute top-0.5 right-0.5 rounded-full bg-amber-300 px-1 text-[7px] font-bold uppercase leading-3 text-amber-950">
+              Best
+            </span>
+          )}
           <span className={`font-semibold leading-tight ${isAvailable && !isWithinRange ? "text-inherit" : ""} ${isUnavailable ? "line-through text-red-300" : ""}`}>
             {day}
           </span>
@@ -186,6 +225,15 @@ export default function AvailabilityCalendar({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {(checkInDate || checkOutDate) && (
+            <button
+              type="button"
+              onClick={clearDateSelection}
+              className="mr-1 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+            >
+              Clear dates
+            </button>
+          )}
           <button onClick={goToPrevMonth} disabled={!canGoPrev} aria-label="Previous month" className="p-1.5 rounded-md hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -198,6 +246,7 @@ export default function AvailabilityCalendar({
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-5" style={{ fontFamily: "var(--font-body)" }}>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-100 border border-emerald-200 inline-block" />Available</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-primary inline-block" />Selected</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-amber-300 border border-amber-400 inline-block" />Best value</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-50 border border-red-200 inline-block" />Booked</span>
       </div>
 
@@ -219,6 +268,31 @@ export default function AvailabilityCalendar({
             ))}
           </div>
           <p aria-live="polite" className="text-xs text-center mt-4 text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>{selectionMessage}</p>
+          {estimate && checkInDate && checkOutDate && (
+            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4" aria-live="polite">
+              <div className="flex items-baseline justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground" style={{ fontFamily: "var(--font-body)" }}>Estimated checkout total</p>
+                  <p className="text-xs text-muted-foreground mt-0.5" style={{ fontFamily: "var(--font-body)" }}>
+                    Includes your stay, cleaning, occupancy tax, and required fees.
+                  </p>
+                </div>
+                <span className="text-xl font-semibold text-primary" style={{ fontFamily: "var(--font-display)" }}>
+                  ${estimate.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="mt-3 space-y-1 text-xs text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
+                <div className="flex justify-between gap-4"><span>Nightly stay</span><span>${estimate.nightlySubtotal.toFixed(2)}</span></div>
+                <div className="flex justify-between gap-4"><span>Cleaning fee</span><span>${estimate.cleaningFee.toFixed(2)}</span></div>
+                <div className="flex justify-between gap-4"><span>Occupancy tax</span><span>${estimate.taxAmount.toFixed(2)}</span></div>
+                {estimate.customFeesTotal > 0 && <div className="flex justify-between gap-4"><span>Required fees</span><span>${estimate.customFeesTotal.toFixed(2)}</span></div>}
+                {estimate.extraGuestFee > 0 && <div className="flex justify-between gap-4"><span>Extra guests</span><span>${estimate.extraGuestFee.toFixed(2)}</span></div>}
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
+                Based on {estimate.guestCount} guest{estimate.guestCount === 1 ? "" : "s"}. Optional add-ons, promotional discounts, and the refundable security deposit hold are shown separately at checkout.
+              </p>
+            </div>
+          )}
         </>
       )}
 
