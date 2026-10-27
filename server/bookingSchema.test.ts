@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingChanges, bookings } from "../drizzle/schema";
+import { bookingChanges, bookingExtensions, bookings } from "../drizzle/schema";
 
 describe("bookings checkout persistence schema", () => {
   it("defines the fields required by direct checkout, security holds, SMS consent, and reusable Stripe customers", () => {
@@ -21,5 +21,18 @@ describe("reservation change persistence schema", () => {
     expect(bookingChanges.balanceDue.name).toBe("balanceDue");
     expect(bookingChanges.refundAmount.name).toBe("refundAmount");
     expect(bookingChanges.stripeRefundId.name).toBe("stripeRefundId");
+  });
+});
+
+describe("stay extension persistence schema", () => {
+  it("defines the ledger fields required before an extension can update Hostaway or Stripe", () => {
+    expect(bookingExtensions.bookingId.name).toBe("bookingId");
+    expect(bookingExtensions.hostawayReservationId.name).toBe("hostawayReservationId");
+    expect(bookingExtensions.previousCheckOut.name).toBe("previousCheckOut");
+    expect(bookingExtensions.newCheckOut.name).toBe("newCheckOut");
+    expect(bookingExtensions.additionalNights.name).toBe("additionalNights");
+    expect(bookingExtensions.amount.name).toBe("amount");
+    expect(bookingExtensions.hostawayNewTotal.name).toBe("hostawayNewTotal");
+    expect(bookingExtensions.stripePaymentIntentId.name).toBe("stripePaymentIntentId");
   });
 });
