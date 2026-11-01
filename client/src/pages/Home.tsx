@@ -32,6 +32,7 @@ import Footer from "@/components/Footer";
 import PropertyCard from "@/components/PropertyCard";
 import { properties as staticProperties, type Property } from "@/lib/properties";
 import { getAllBlogArticles } from "@/lib/blog";
+import { inquirySubmissionErrorMessage, normalizeInquiryDraft } from "@/lib/inquiryForm";
 import { Link } from "wouter";
 
 // Generated hero image
@@ -213,8 +214,8 @@ export default function Home() {
       setContactForm({ name: "", email: "", phone: "", dates: "", guests: "", property: "", message: "" });
       setSubmitting(false);
     },
-    onError: () => {
-      toast.error("Something went wrong. Please email us directly at gustavo@rosecitystays.com");
+    onError: (error) => {
+      toast.error(inquirySubmissionErrorMessage(error));
       setSubmitting(false);
     },
   });
@@ -222,15 +223,7 @@ export default function Home() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    submitInquiry.mutate({
-      name: contactForm.name,
-      email: contactForm.email,
-      phone: contactForm.phone || undefined,
-      dates: contactForm.dates || undefined,
-      guests: contactForm.guests || undefined,
-      property: contactForm.property || undefined,
-      message: contactForm.message || undefined,
-    });
+    submitInquiry.mutate(normalizeInquiryDraft(contactForm));
   };
 
   return (

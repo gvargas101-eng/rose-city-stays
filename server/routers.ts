@@ -193,13 +193,13 @@ export const appRouter = router({
     submit: publicProcedure
       .input(
         z.object({
-          name: z.string().min(1),
-          email: z.string().email(),
-          phone: z.string().optional(),
-          dates: z.string().optional(),
-          guests: z.string().optional(),
-          property: z.string().optional(),
-          message: z.string().optional(),
+          name: z.string().trim().min(1),
+          email: z.string().trim().email(),
+          phone: z.string().trim().optional(),
+          dates: z.string().trim().optional(),
+          guests: z.string().trim().optional(),
+          property: z.string().trim().optional(),
+          message: z.string().trim().optional(),
         })
       )
       .mutation(async ({ input }) => {

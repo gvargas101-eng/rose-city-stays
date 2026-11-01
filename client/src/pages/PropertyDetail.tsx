@@ -46,6 +46,7 @@ import CheckoutModal from "@/components/CheckoutModal";
 import CameraGuestCountModal from "@/components/CameraGuestCountModal";
 import type { StaySelection } from "@/lib/staySelection";
 import { calculateStayEstimate } from "@/lib/stayEstimate";
+import { inquirySubmissionErrorMessage, normalizeInquiryDraft } from "@/lib/inquiryForm";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -119,8 +120,8 @@ export default function PropertyDetail() {
       setInquiryForm({ name: "", email: "", dates: "", guests: "2", message: "" });
       setSubmitting(false);
     },
-    onError: () => {
-      toast.error("Failed to send inquiry. Please email us directly.");
+    onError: (error) => {
+      toast.error(inquirySubmissionErrorMessage(error));
       setSubmitting(false);
     },
   });
@@ -310,14 +311,10 @@ export default function PropertyDetail() {
   const handleInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    submitInquiry.mutate({
-      name: inquiryForm.name,
-      email: inquiryForm.email,
-      dates: inquiryForm.dates,
-      guests: inquiryForm.guests,
+    submitInquiry.mutate(normalizeInquiryDraft({
+      ...inquiryForm,
       property: property!.shortName,
-      message: inquiryForm.message,
-    });
+    }));
   };
 
   const relatedProperties = staticProperties

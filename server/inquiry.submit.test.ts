@@ -50,6 +50,18 @@ describe("inquiry.submit", () => {
     expect(result).toEqual({ success: true });
   });
 
+  it("accepts a valid name and email with accidental surrounding spaces", async () => {
+    const ctx = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+
+    const result = await caller.inquiry.submit({
+      name: "  Jane Smith  ",
+      email: "  jane@example.com  ",
+    });
+
+    expect(result).toEqual({ success: true });
+  });
+
   it("throws on invalid email", async () => {
     const ctx = createPublicContext();
     const caller = appRouter.createCaller(ctx);
