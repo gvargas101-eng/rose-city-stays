@@ -8,7 +8,7 @@ import { TRPCError } from "@trpc/server";
 import { publicProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { properties, propertyPhotos, propertyAmenities } from "../../drizzle/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 
 export const propertiesRouter = router({
   /** List all active properties ordered by sortOrder */
@@ -59,7 +59,7 @@ export const propertiesRouter = router({
       const [prop] = await db
         .select()
         .from(properties)
-        .where(eq(properties.slug, input.slug))
+        .where(and(eq(properties.slug, input.slug), eq(properties.active, 1)))
         .limit(1);
 
       if (!prop) throw new TRPCError({ code: "NOT_FOUND", message: "Property not found" });

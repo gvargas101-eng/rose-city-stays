@@ -51,6 +51,7 @@ vi.mock("./hostaway", () => ({
     "hollytree-king-bed": 329649,
     "hollytree-townhouse": 366803,
     "cozy-3-bedrooms-walk-to-hospitals-downtown-stanleys": 560227,
+    "alamo-crossing-retreat": 630308,
   },
   getPropertyCalendar: mockGetPropertyCalendar,
 }));
@@ -65,6 +66,7 @@ const mockUpdate = vi.fn().mockReturnValue({ set: mockUpdateSet });
 
 let mockBookingRow: Record<string, unknown> = {};
 let mockCleaningFee = "150.00";
+let mockPropertyActive = 1;
 let mockActiveCustomFees: Array<Record<string, unknown>> = [];
 // mockSelectResult controls what .limit(1) returns; defaults to mockBookingRow.
 // For getCleaningFee (properties table) we return a property row with cleaningFee.
@@ -97,7 +99,7 @@ const mockSelectFrom = vi.fn().mockImplementation((table: unknown) => {
   if (tableAny?.cleaningFee) {
     return {
       where: vi.fn().mockReturnValue({
-        limit: vi.fn().mockImplementation(() => Promise.resolve([{ cleaningFee: mockCleaningFee }])),
+        limit: vi.fn().mockImplementation(() => Promise.resolve([{ cleaningFee: mockCleaningFee, active: mockPropertyActive }])),
       }),
     };
   }
@@ -155,7 +157,19 @@ describe("bookingRouter.createCheckoutSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCleaningFee = "150.00";
+    mockPropertyActive = 1;
     mockActiveCustomFees = [];
+  });
+
+  it("rejects public checkout for a private house before availability, Stripe, or booking creation", async () => {
+    mockPropertyActive = 0;
+    await expect(callProcedure("createCheckoutSession", {
+      propertyId: "alamo-crossing-retreat",
+      propertyName: "Alamo Crossing Retreat",
+    })).rejects.toThrow("not available for public booking");
+    expect(mockGetPropertyCalendar).not.toHaveBeenCalled();
+    expect(mockCheckoutSessionCreate).not.toHaveBeenCalled();
+    expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it("rejects a direct checkout without a valid guest phone number", async () => {
@@ -440,6 +454,8 @@ describe("bookingRouter.confirmBooking", () => {
 describe("bookingRouter.createManualBookingCheckout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPropertyActive = 0; // Manual links must work even when public booking is disabled.
+    mockGetPropertyCalendar.mockResolvedValue([]);
     mockBookingRow = {
       id: 99,
       token: "manual-token",
@@ -460,6 +476,27 @@ describe("bookingRouter.createManualBookingCheckout", () => {
       status: "active",
       expiresAt: Date.now() + 86_400_000,
     };
+  });
+
+  it("allows an owner-created private house link without creating a Hostaway reservation before payment", async () => {
+    mockBookingRow = { ...mockBookingRow, propertySlug: "alamo-crossing-retreat", propertyName: "Alamo Crossing Retreat", hostawayListingId: 630308 };
+    mockCheckoutSessionCreate.mockResolvedValue({ id: "cs_private", url: "https://checkout.stripe.com/pay/cs_private" });
+    const result = await callProcedure("createManualBookingCheckout", {
+      token: "manual-token", guestName: "Private Guest", guestEmail: "private@example.com", guestPhone: "555-0100", origin: "https://www.rosecitystays.com",
+    });
+    expect(result.checkoutUrl).toBe("https://checkout.stripe.com/pay/cs_private");
+    expect(mockGetPropertyCalendar).toHaveBeenCalledWith("alamo-crossing-retreat", "2026-10-10", "2026-10-13");
+    expect(mockCreateHostawayReservation).not.toHaveBeenCalled();
+  });
+
+  it("still blocks unavailable nights on a private house link before Stripe checkout", async () => {
+    mockBookingRow = { ...mockBookingRow, propertySlug: "alamo-crossing-retreat", propertyName: "Alamo Crossing Retreat", hostawayListingId: 630308 };
+    mockGetPropertyCalendar.mockResolvedValue([{ date: "2026-10-10", isAvailable: false, status: "reserved", price: 185, minimumStay: 1 }]);
+    await expect(callProcedure("createManualBookingCheckout", {
+      token: "manual-token", guestName: "Private Guest", guestEmail: "private@example.com", guestPhone: "555-0100", origin: "https://www.rosecitystays.com",
+    })).rejects.toThrow("no longer available");
+    expect(mockCheckoutSessionCreate).not.toHaveBeenCalled();
+    expect(mockCreateHostawayReservation).not.toHaveBeenCalled();
   });
 
   it("saves the customer payment method so a manual booking can create its deposit hold", async () => {

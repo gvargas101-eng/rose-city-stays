@@ -20,6 +20,8 @@ export const PROPERTY_TO_HOSTAWAY_ID: Record<string, number> = {
   "hollytree-king-bed": 329649,
   "hollytree-townhouse": 366803,
   "cozy-3-bedrooms-walk-to-hospitals-downtown-stanleys": 560227,
+  // Admin-only until the owner activates its database property record.
+  "alamo-crossing-retreat": 630308,
 };
 
 /** Fetch base prices for multiple properties in parallel */

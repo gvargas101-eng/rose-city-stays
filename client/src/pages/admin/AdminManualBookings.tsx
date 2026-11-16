@@ -455,7 +455,7 @@ export default function AdminManualBookings() {
     const slugs = new Set<string>();
     const result: { slug: string; name: string }[] = [];
     (dbProperties ?? []).forEach(p => {
-      if (!slugs.has(p.slug)) { slugs.add(p.slug); result.push({ slug: p.slug, name: p.name }); }
+      if (!slugs.has(p.slug)) { slugs.add(p.slug); result.push({ slug: p.slug, name: Number(p.active) === 0 ? `${p.name} (Private / unpublished)` : p.name }); }
     });
     staticProperties.forEach(p => {
       const id = String(p.id);

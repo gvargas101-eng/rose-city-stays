@@ -22,6 +22,7 @@ const PROPERTY_NAMES: Record<string, string> = {
   "hollytree-king-bed": "Hollytree King",
   "hollytree-townhouse": "Hollytree Townhouse",
   "cozy-3-bedrooms-walk-to-hospitals-downtown-stanleys": "Cozy 3BR Downtown",
+  "alamo-crossing-retreat": "Alamo Crossing Retreat",
 };
 
 const PROPERTY_ORDER = Object.keys(PROPERTY_NAMES);

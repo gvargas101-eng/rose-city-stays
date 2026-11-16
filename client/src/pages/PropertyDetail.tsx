@@ -58,12 +58,13 @@ export default function PropertyDetail() {
   );
 
   // Load property from DB (falls back to static data while loading)
-  const { data: dbProperty, isLoading: dbLoading } = trpc.properties.bySlug.useQuery(
+  const { data: dbProperty, isLoading: dbLoading, error: dbPropertyError } = trpc.properties.bySlug.useQuery(
     { slug: id || "" },
     { enabled: !!id, staleTime: 5 * 60 * 1000, retry: false }
   );
 
-  const staticProperty = getPropertyById(id || "");
+  // A deliberate NOT_FOUND (including hidden listings) must never expose static content.
+  const staticProperty = dbPropertyError?.data?.code === "NOT_FOUND" ? null : getPropertyById(id || "");
   const property: Property | null = dbProperty
     ? ({
         ...(staticProperty ?? {}),

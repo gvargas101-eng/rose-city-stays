@@ -630,6 +630,15 @@ export const bookingRouter = router({
         throw new Error(`Property not found: ${input.propertyId}`);
       }
 
+      // Private listings are bookable only through an owner-created manual link.
+      const visibilityDb = await getDb();
+      if (!visibilityDb) throw new Error("Database not available");
+      const [publicProperty] = await visibilityDb.select({ active: properties.active })
+        .from(properties).where(eq(properties.slug, input.propertyId)).limit(1);
+      if (!publicProperty || Number(publicProperty.active) !== 1) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "This property is not available for public booking. Please contact us for a private booking link." });
+      }
+
       // ── Availability guard: check Hostaway calendar before accepting payment ──
       try {
         // Use the input strings directly — they are already yyyy-MM-dd from the frontend
