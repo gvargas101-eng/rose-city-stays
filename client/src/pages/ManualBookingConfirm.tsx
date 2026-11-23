@@ -7,18 +7,31 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Loader2, AlertTriangle, CalendarDays, Users, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  AlertTriangle,
+  CalendarDays,
+  Users,
+  ShieldCheck,
+} from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 function fmt(n: number | string) {
-  return Number(n).toLocaleString("en-US", { style: "currency", currency: "USD" });
+  return Number(n).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
 }
 
 function fmtDate(ms: number) {
   return new Date(ms).toLocaleDateString("en-US", {
     timeZone: "UTC",
-    weekday: "short", month: "long", day: "numeric", year: "numeric",
+    weekday: "short",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -46,7 +59,9 @@ export default function ManualBookingConfirm() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-3">
           <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground text-sm">Confirming your booking…</p>
+          <p className="text-muted-foreground text-sm">
+            Confirming your booking…
+          </p>
         </div>
       </div>
     );
@@ -58,13 +73,22 @@ export default function ManualBookingConfirm() {
         <Navbar />
         <div className="max-w-lg mx-auto px-4 py-24 text-center">
           <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-semibold text-foreground mb-2" style={{ fontFamily: "var(--font-display)" }}>
+          <h1
+            className="text-2xl font-semibold text-foreground mb-2"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
             Confirmation Issue
           </h1>
-          <p className="text-muted-foreground mb-6" style={{ fontFamily: "var(--font-body)" }}>
-            Your payment was received but we had trouble confirming your booking automatically. Please contact us and we will sort it out right away.
+          <p
+            className="text-muted-foreground mb-6"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            We could not verify this payment or confirm the reservation status.
+            Please contact Rose City Stays before paying again.
           </p>
-          <Button onClick={() => navigate("/")} variant="outline">Back to Home</Button>
+          <Button onClick={() => navigate("/")} variant="outline">
+            Back to Home
+          </Button>
         </div>
         <Footer />
       </div>
@@ -73,17 +97,45 @@ export default function ManualBookingConfirm() {
 
   const data = confirmMutation.data;
 
-  if (data?.bookingStatus === "cancelled") {
-    return <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="max-w-lg mx-auto px-4 py-24 text-center">
-        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h1 className="text-2xl font-semibold text-foreground mb-3">Reservation Canceled</h1>
-        <p className="text-muted-foreground mb-6">This reservation is no longer active. Payment and any refund are handled separately; please contact Rose City Stays with questions.</p>
-        <Button onClick={() => navigate("/")} variant="outline">Back to Home</Button>
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center space-y-3">
+          {token && sessionId ? (
+            <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+          ) : (
+            <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
+          )}
+          <p className="text-muted-foreground">
+            {token && sessionId
+              ? "Verifying your payment…"
+              : "This payment confirmation link is incomplete. Please contact your host."}
+          </p>
+        </div>
       </div>
-      <Footer />
-    </div>;
+    );
+  }
+
+  if (data?.bookingStatus === "cancelled") {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="max-w-lg mx-auto px-4 py-24 text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-semibold text-foreground mb-3">
+            Reservation Canceled
+          </h1>
+          <p className="text-muted-foreground mb-6">
+            This reservation is no longer active. Payment and any refund are
+            handled separately; please contact Rose City Stays with questions.
+          </p>
+          <Button onClick={() => navigate("/")} variant="outline">
+            Back to Home
+          </Button>
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   return (
@@ -96,31 +148,50 @@ export default function ManualBookingConfirm() {
             <CheckCircle2 className="w-9 h-9 text-green-600" />
           </div>
           <div>
-            <h1 className="text-3xl font-light text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-              You're Booked!
+            <h1
+              className="text-3xl font-light text-foreground"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {data.existingReservation
+                ? "Balance Payment Received"
+                : "You're Booked!"}
             </h1>
-            <p className="text-muted-foreground mt-2" style={{ fontFamily: "var(--font-body)" }}>
-              {data?.propertyName ?? "Your reservation"} is confirmed. A receipt has been sent to your email.
+            <p
+              className="text-muted-foreground mt-2"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              {data.existingReservation
+                ? `Your payment was applied to your existing reservation at ${data.propertyName}. No additional reservation was created.`
+                : `${data.propertyName ?? "Your reservation"} is confirmed.`}
             </p>
           </div>
         </div>
 
         {data && (
           <div className="bg-card border border-border rounded-2xl p-6 text-left space-y-4">
-            <h2 className="text-sm font-semibold text-foreground" style={{ fontFamily: "var(--font-body)" }}>Booking Details</h2>
+            <h2
+              className="text-sm font-semibold text-foreground"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Booking Details
+            </h2>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="flex items-start gap-2">
                 <CalendarDays className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs text-muted-foreground">Check-in</div>
-                  <div className="font-medium">{data.checkIn ? fmtDate(data.checkIn) : "—"}</div>
+                  <div className="font-medium">
+                    {data.checkIn ? fmtDate(data.checkIn) : "—"}
+                  </div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <CalendarDays className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs text-muted-foreground">Check-out</div>
-                  <div className="font-medium">{data.checkOut ? fmtDate(data.checkOut) : "—"}</div>
+                  <div className="font-medium">
+                    {data.checkOut ? fmtDate(data.checkOut) : "—"}
+                  </div>
                 </div>
               </div>
               <div className="flex items-start gap-2">
@@ -131,33 +202,71 @@ export default function ManualBookingConfirm() {
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Total Paid</div>
-                <div className="font-semibold text-foreground">{data.totalAmount != null ? fmt(data.totalAmount) : "—"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {data.existingReservation
+                    ? "This balance payment"
+                    : "Total Paid"}
+                </div>
+                <div className="font-semibold text-foreground">
+                  {data.totalAmount != null ? fmt(data.totalAmount) : "—"}
+                </div>
               </div>
             </div>
+            {data.existingReservation && (
+              <div className="border-t border-border pt-3 text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span>Reservation total</span>
+                  <span>{fmt(data.originalReservationTotal ?? 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total received</span>
+                  <span>{fmt(data.amountPaid ?? 0)}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>Remaining balance</span>
+                  <span>{fmt(data.balanceDue ?? 0)}</span>
+                </div>
+              </div>
+            )}
 
             {/* Deposit hold notice */}
             {data.depositAmount > 0 && data.depositStatus === "authorized" ? (
               <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
                 <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <span>
-                  A <strong>{fmt(data.depositAmount)} security deposit hold</strong> has been placed on your card. This is an authorization only — not a charge — and will be released within 3–5 business days after checkout if no damages are reported.
+                  A{" "}
+                  <strong>
+                    {fmt(data.depositAmount)} security deposit hold
+                  </strong>{" "}
+                  has been placed on your card. This is an authorization only —
+                  not a charge — and will be released within 3–5 business days
+                  after checkout if no damages are reported.
                 </span>
               </div>
             ) : data.depositAmount > 0 && data.depositStatus === "failed" ? (
               <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-900">
                 <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-                <span>Your rental payment is confirmed. The host will contact you if anything further is needed to finalize the {fmt(data.depositAmount)} security deposit authorization.</span>
+                <span>
+                  Your rental payment is confirmed. The host will contact you if
+                  anything further is needed to finalize the{" "}
+                  {fmt(data.depositAmount)} security deposit authorization.
+                </span>
               </div>
             ) : data.depositAmount > 0 ? (
               <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
                 <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <span>Your rental payment is confirmed. The {fmt(data.depositAmount)} security deposit authorization is being finalized and is not a separate rental charge.</span>
+                <span>
+                  Your rental payment is confirmed. The{" "}
+                  {fmt(data.depositAmount)} security deposit authorization is
+                  being finalized and is not a separate rental charge.
+                </span>
               </div>
             ) : (
               <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-xl p-3 text-xs text-muted-foreground">
                 <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>No security deposit hold is required for this booking.</span>
+                <span>
+                  No security deposit hold is required for this booking.
+                </span>
               </div>
             )}
           </div>
@@ -167,9 +276,15 @@ export default function ManualBookingConfirm() {
           <Button onClick={() => navigate("/")} className="w-full rounded-full">
             Back to Home
           </Button>
-          <p className="text-xs text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
+          <p
+            className="text-xs text-muted-foreground"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
             Questions? Contact us at{" "}
-            <a href="mailto:info@rosecitystays.com" className="text-primary hover:underline">
+            <a
+              href="mailto:info@rosecitystays.com"
+              className="text-primary hover:underline"
+            >
               info@rosecitystays.com
             </a>
           </p>

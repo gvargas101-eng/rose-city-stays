@@ -44,13 +44,19 @@ import { trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function fmt(n: number | string) {
-  return Number(n).toLocaleString("en-US", { style: "currency", currency: "USD" });
+  return Number(n).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
 }
 
 function fmtDate(ms: number) {
   return new Date(ms).toLocaleDateString("en-US", {
     timeZone: "UTC",
-    weekday: "short", month: "long", day: "numeric", year: "numeric",
+    weekday: "short",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -81,7 +87,11 @@ export default function ManualBookingPay() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Load booking link
-  const { data: link, isLoading, error } = trpc.booking.getManualBookingLink.useQuery(
+  const {
+    data: link,
+    isLoading,
+    error,
+  } = trpc.booking.getManualBookingLink.useQuery(
     { token: token! },
     { enabled: !!token, retry: false }
   );
@@ -91,20 +101,23 @@ export default function ManualBookingPay() {
     if (link && !prefilled) {
       if (link.guestName) setGuestName(link.guestName);
       if (link.guestEmail) setGuestEmail(link.guestEmail);
+      if (link.guestPhone) setGuestPhone(link.guestPhone);
       setPrefilled(true);
     }
   }, [link, prefilled]);
 
   // Checkout mutation
-  const checkoutMutation = trpc.booking.createManualBookingCheckout.useMutation({
-    onSuccess: (data) => {
-      window.location.href = data.checkoutUrl;
-    },
-    onError: (err) => {
-      setSubmitError(err.message || "Failed to create checkout session");
-      setSubmitting(false);
-    },
-  });
+  const checkoutMutation = trpc.booking.createManualBookingCheckout.useMutation(
+    {
+      onSuccess: data => {
+        window.location.href = data.checkoutUrl;
+      },
+      onError: err => {
+        setSubmitError(err.message || "Failed to create checkout session");
+        setSubmitting(false);
+      },
+    }
+  );
 
   // ── ID Upload ──────────────────────────────────────────────────────────────
 
@@ -123,7 +136,11 @@ export default function ManualBookingPay() {
     try {
       const formData = new FormData();
       formData.append("idFile", file);
-      const res = await fetch("/api/upload/guest-id", { method: "POST", body: formData, credentials: "include" });
+      const res = await fetch("/api/upload/guest-id", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Upload failed");
       const json = await res.json();
       setIdUrl(json.url);
@@ -169,12 +186,14 @@ export default function ManualBookingPay() {
       booking_type: "manual_link",
       nights: Number(link.nights),
       guest_count: Number(link.guestCount),
-      items: [{
-        item_id: link.propertySlug,
-        item_name: link.propertyName,
-        price: Number(link.nightlyRate),
-        quantity: Number(link.nights),
-      }],
+      items: [
+        {
+          item_id: link.propertySlug,
+          item_name: link.propertyName,
+          price: Number(link.nightlyRate),
+          quantity: Number(link.nights),
+        },
+      ],
     });
 
     checkoutMutation.mutate({
@@ -184,6 +203,9 @@ export default function ManualBookingPay() {
       guestIdUrl: idUrl ?? undefined,
       origin: window.location.origin,
       guestPhone: guestPhone.trim() || undefined,
+      cameraDisclosureAccepted: ackCamera,
+      guestCountConfirmed: ackGuestCount,
+      termsAccepted: ackTerms,
     });
   }
 
@@ -200,17 +222,28 @@ export default function ManualBookingPay() {
   // ── Render: Error / Invalid ────────────────────────────────────────────────
 
   if (error || !link) {
-    const msg = (error as any)?.message ?? "This booking link is invalid or has expired.";
+    const msg =
+      (error as any)?.message ?? "This booking link is invalid or has expired.";
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="max-w-lg mx-auto px-4 py-24 text-center">
           <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-semibold text-foreground mb-2" style={{ fontFamily: "var(--font-display)" }}>
+          <h1
+            className="text-2xl font-semibold text-foreground mb-2"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
             Link Unavailable
           </h1>
-          <p className="text-muted-foreground mb-6" style={{ fontFamily: "var(--font-body)" }}>{msg}</p>
-          <Button onClick={() => navigate("/")} variant="outline">Back to Home</Button>
+          <p
+            className="text-muted-foreground mb-6"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            {msg}
+          </p>
+          <Button onClick={() => navigate("/")} variant="outline">
+            Back to Home
+          </Button>
         </div>
         <Footer />
       </div>
@@ -244,17 +277,29 @@ export default function ManualBookingPay() {
       <Navbar />
 
       <div className="max-w-2xl mx-auto px-4 py-16 space-y-8">
-
         {/* ── Header ── */}
         <div>
-          <div className="flex items-center gap-2 text-primary text-xs tracking-widest uppercase mb-3" style={{ fontFamily: "var(--font-body)" }}>
+          <div
+            className="flex items-center gap-2 text-primary text-xs tracking-widest uppercase mb-3"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
             <ShieldCheck className="w-4 h-4" />
-            Secure Booking Link
+            {link.existingReservation
+              ? "Secure Balance Payment"
+              : "Secure Booking Link"}
           </div>
-          <h1 className="text-3xl font-light text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-            Complete Your Booking
+          <h1
+            className="text-3xl font-light text-foreground"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {link.existingReservation
+              ? "Pay Your Reservation Balance"
+              : "Complete Your Booking"}
           </h1>
-          <p className="text-muted-foreground mt-2" style={{ fontFamily: "var(--font-body)" }}>
+          <p
+            className="text-muted-foreground mt-2"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
             {link.propertyName}
           </p>
         </div>
@@ -264,53 +309,90 @@ export default function ManualBookingPay() {
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-900">
             <MessageSquare className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <div className="text-sm font-semibold mb-1">Note from your host</div>
-              <p className="text-sm leading-relaxed whitespace-pre-line">{link.guestNote}</p>
+              <div className="text-sm font-semibold mb-1">
+                Note from your host
+              </div>
+              <p className="text-sm leading-relaxed whitespace-pre-line">
+                {link.guestNote}
+              </p>
             </div>
           </div>
         )}
 
         {/* ── Booking Summary ── */}
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-foreground" style={{ fontFamily: "var(--font-body)" }}>Booking Summary</h2>
+          <h2
+            className="text-sm font-semibold text-foreground"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            Booking Summary
+          </h2>
 
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-start gap-2">
               <CalendarDays className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div>
                 <div className="text-xs text-muted-foreground">Check-in</div>
-                <div className="font-medium text-foreground">{fmtDate(link.checkIn)}</div>
+                <div className="font-medium text-foreground">
+                  {fmtDate(link.checkIn)}
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <CalendarDays className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div>
                 <div className="text-xs text-muted-foreground">Check-out</div>
-                <div className="font-medium text-foreground">{fmtDate(link.checkOut)}</div>
+                <div className="font-medium text-foreground">
+                  {fmtDate(link.checkOut)}
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <BedDouble className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div>
                 <div className="text-xs text-muted-foreground">Duration</div>
-                <div className="font-medium text-foreground">{link.nights} night{link.nights !== 1 ? "s" : ""}</div>
+                <div className="font-medium text-foreground">
+                  {link.nights} night{link.nights !== 1 ? "s" : ""}
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <Users className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div>
                 <div className="text-xs text-muted-foreground">Guests</div>
-                <div className="font-medium text-foreground">{link.guestCount} guest{link.guestCount !== 1 ? "s" : ""}</div>
+                <div className="font-medium text-foreground">
+                  {link.guestCount} guest{link.guestCount !== 1 ? "s" : ""}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Price breakdown */}
           <div className="border-t border-border pt-4 space-y-2 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>{fmt(link.nightlyRate)} × {link.nights} night{link.nights !== 1 ? "s" : ""}</span>
-              <span>{fmt(Number(link.nightlyRate) * link.nights)}</span>
-            </div>
+            {link.existingReservation ? (
+              <>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Reservation total</span>
+                  <span>{fmt(link.originalReservationTotal ?? 0)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Already received</span>
+                  <span>{fmt(link.amountPaid ?? 0)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your reservation already exists. This payment settles its
+                  outstanding balance and does not create another reservation.
+                </p>
+              </>
+            ) : (
+              <div className="flex justify-between text-muted-foreground">
+                <span>
+                  {fmt(link.nightlyRate)} × {link.nights} night
+                  {link.nights !== 1 ? "s" : ""}
+                </span>
+                <span>{fmt(Number(link.nightlyRate) * link.nights)}</span>
+              </div>
+            )}
             {Number(link.cleaningFee) > 0 && (
               <div className="flex justify-between text-muted-foreground">
                 <span>Cleaning fee</span>
@@ -324,15 +406,26 @@ export default function ManualBookingPay() {
               </div>
             )}
             {/* Custom line items */}
-            {link.customLineItems && link.customLineItems.length > 0 && link.customLineItems.map((item, i) => (
-              <div key={i} className={`flex justify-between ${item.amount < 0 ? "text-green-700" : "text-muted-foreground"}`}>
-                <span>{item.label}</span>
-                <span>{item.amount < 0 ? "−" : ""}{fmt(Math.abs(item.amount))}</span>
-              </div>
-            ))}
+            {link.customLineItems &&
+              link.customLineItems.length > 0 &&
+              link.customLineItems.map((item, i) => (
+                <div
+                  key={i}
+                  className={`flex justify-between ${item.amount < 0 ? "text-green-700" : "text-muted-foreground"}`}
+                >
+                  <span>{item.label}</span>
+                  <span>
+                    {item.amount < 0 ? "−" : ""}
+                    {fmt(Math.abs(item.amount))}
+                  </span>
+                </div>
+              ))}
             {Number(link.discountAmount) > 0 && (
               <div className="flex justify-between text-green-700">
-                <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> {link.discountLabel || "Discount"}</span>
+                <span className="flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5" />{" "}
+                  {link.discountLabel || "Discount"}
+                </span>
                 <span>−{fmt(link.discountAmount)}</span>
               </div>
             )}
@@ -343,7 +436,9 @@ export default function ManualBookingPay() {
               </div>
             )}
             <div className="flex justify-between font-semibold text-foreground text-base pt-2 border-t border-border">
-              <span>Total</span>
+              <span>
+                {link.existingReservation ? "Balance due now" : "Total"}
+              </span>
               <span>{fmt(link.totalAmount)}</span>
             </div>
           </div>
@@ -353,13 +448,18 @@ export default function ManualBookingPay() {
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
               <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                A <strong>{fmt(depositAmount)} security deposit hold</strong> will be placed on your card after payment. This is an authorization only — not a charge — and will be released within 3–5 business days after checkout if no damages are reported.
+                A <strong>{fmt(depositAmount)} security deposit hold</strong>{" "}
+                will be placed on your card after payment. This is an
+                authorization only — not a charge — and will be released within
+                3–5 business days after checkout if no damages are reported.
               </span>
             </div>
           ) : (
             <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-xl p-3 text-xs text-muted-foreground">
               <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>No security deposit hold is required for this booking.</span>
+              <span>
+                No security deposit hold is required for this booking.
+              </span>
             </div>
           )}
         </div>
@@ -367,10 +467,17 @@ export default function ManualBookingPay() {
         {/* ── Guest Info ── */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <h2 className="text-sm font-semibold text-foreground" style={{ fontFamily: "var(--font-body)" }}>Your Information</h2>
+            <h2
+              className="text-sm font-semibold text-foreground"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Your Information
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Full Name *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  Full Name *
+                </label>
                 <Input
                   value={guestName}
                   onChange={e => setGuestName(e.target.value)}
@@ -379,7 +486,9 @@ export default function ManualBookingPay() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email Address *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  Email Address *
+                </label>
                 <Input
                   type="email"
                   value={guestEmail}
@@ -389,7 +498,9 @@ export default function ManualBookingPay() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Phone Number *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  Phone Number *
+                </label>
                 <Input
                   type="tel"
                   value={guestPhone}
@@ -401,15 +512,22 @@ export default function ManualBookingPay() {
             </div>
             {(link.guestName || link.guestEmail) && (
               <p className="text-xs text-muted-foreground">
-                Your information has been pre-filled by your host. Please verify it is correct before proceeding.
+                Your information has been pre-filled by your host. Please verify
+                it is correct before proceeding.
               </p>
             )}
           </div>
 
           {/* ── Hard Stops ── */}
-          {(requireId || requireCamera || requireGuestCount || requireTerms) && (
+          {(requireId ||
+            requireCamera ||
+            requireGuestCount ||
+            requireTerms) && (
             <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground" style={{ fontFamily: "var(--font-body)" }}>
+              <h2
+                className="text-sm font-semibold text-foreground"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
                 Required Acknowledgments
               </h2>
 
@@ -420,22 +538,36 @@ export default function ManualBookingPay() {
                     <CreditCard className="w-4 h-4 text-primary" />
                     Government-Issued Photo ID
                   </div>
-                  <p className="text-xs text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
-                    Upload a clear photo of your government-issued ID (passport, driver's license, or state ID). Your ID must match the name on the credit card used for payment. This is required for identity verification and security purposes.
+                  <p
+                    className="text-xs text-muted-foreground"
+                    style={{ fontFamily: "var(--font-body)" }}
+                  >
+                    Upload a clear photo of your government-issued ID (passport,
+                    driver's license, or state ID). Your ID must match the name
+                    on the credit card used for payment. This is required for
+                    identity verification and security purposes.
                   </p>
                   {!idUrl ? (
-                    <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${
-                      idError ? "border-red-300 bg-red-50" : "border-border hover:border-primary/50 hover:bg-muted/30"
-                    }`}>
+                    <label
+                      className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${
+                        idError
+                          ? "border-red-300 bg-red-50"
+                          : "border-border hover:border-primary/50 hover:bg-muted/30"
+                      }`}
+                    >
                       {idUploading ? (
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />
                       ) : (
                         <Upload className="w-6 h-6 text-muted-foreground" />
                       )}
                       <span className="text-sm text-muted-foreground">
-                        {idUploading ? "Uploading…" : "Click to upload ID (JPEG, PNG, PDF — max 10 MB)"}
+                        {idUploading
+                          ? "Uploading…"
+                          : "Click to upload ID (JPEG, PNG, PDF — max 10 MB)"}
                       </span>
-                      {idError && <span className="text-xs text-red-600">{idError}</span>}
+                      {idError && (
+                        <span className="text-xs text-red-600">{idError}</span>
+                      )}
                       <input
                         type="file"
                         accept="image/*,application/pdf"
@@ -452,12 +584,19 @@ export default function ManualBookingPay() {
                     <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-3">
                       <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-green-800">ID uploaded successfully</div>
-                        <div className="text-xs text-green-700 truncate">{idFile?.name}</div>
+                        <div className="text-sm font-medium text-green-800">
+                          ID uploaded successfully
+                        </div>
+                        <div className="text-xs text-green-700 truncate">
+                          {idFile?.name}
+                        </div>
                       </div>
                       <button
                         type="button"
-                        onClick={() => { setIdUrl(null); setIdFile(null); }}
+                        onClick={() => {
+                          setIdUrl(null);
+                          setIdFile(null);
+                        }}
                         className="text-xs text-green-700 hover:text-green-900 underline shrink-0"
                       >
                         Replace
@@ -469,9 +608,13 @@ export default function ManualBookingPay() {
 
               {/* Camera Disclosure */}
               {requireCamera && (
-                <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  ackCamera ? "border-primary/60 bg-primary/5" : "border-border hover:border-primary/30"
-                }`}>
+                <label
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    ackCamera
+                      ? "border-primary/60 bg-primary/5"
+                      : "border-border hover:border-primary/30"
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={ackCamera}
@@ -483,8 +626,14 @@ export default function ManualBookingPay() {
                       <Camera className="w-3.5 h-3.5 text-primary" />
                       Outdoor Security Cameras
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1" style={{ fontFamily: "var(--font-body)" }}>
-                      I acknowledge that this property has outdoor security cameras at entry points (front door, driveway, and exterior access areas) for security and guest count verification. Cameras do not monitor interior spaces.
+                    <p
+                      className="text-xs text-muted-foreground mt-1"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      I acknowledge that this property has outdoor security
+                      cameras at entry points (front door, driveway, and
+                      exterior access areas) for security and guest count
+                      verification. Cameras do not monitor interior spaces.
                     </p>
                   </div>
                 </label>
@@ -492,9 +641,13 @@ export default function ManualBookingPay() {
 
               {/* Guest Count */}
               {requireGuestCount && (
-                <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  ackGuestCount ? "border-primary/60 bg-primary/5" : "border-border hover:border-primary/30"
-                }`}>
+                <label
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    ackGuestCount
+                      ? "border-primary/60 bg-primary/5"
+                      : "border-border hover:border-primary/30"
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={ackGuestCount}
@@ -506,8 +659,15 @@ export default function ManualBookingPay() {
                       <Users className="w-3.5 h-3.5 text-primary" />
                       Guest Count Accuracy
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1" style={{ fontFamily: "var(--font-body)" }}>
-                      I confirm that the guest count of <strong>{link.guestCount}</strong> is accurate and includes all individuals who will be on the property. I understand that undisclosed guests may result in additional charges or cancellation of the reservation.
+                    <p
+                      className="text-xs text-muted-foreground mt-1"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
+                      I confirm that the guest count of{" "}
+                      <strong>{link.guestCount}</strong> is accurate and
+                      includes all individuals who will be on the property. I
+                      understand that undisclosed guests may result in
+                      additional charges or cancellation of the reservation.
                     </p>
                   </div>
                 </label>
@@ -515,9 +675,13 @@ export default function ManualBookingPay() {
 
               {/* Terms & Conditions */}
               {requireTerms && (
-                <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  ackTerms ? "border-primary/60 bg-primary/5" : "border-border hover:border-primary/30"
-                }`}>
+                <label
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    ackTerms
+                      ? "border-primary/60 bg-primary/5"
+                      : "border-border hover:border-primary/30"
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={ackTerms}
@@ -529,17 +693,35 @@ export default function ManualBookingPay() {
                       <FileText className="w-3.5 h-3.5 text-primary" />
                       Terms, Rental Agreement & House Rules
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1" style={{ fontFamily: "var(--font-body)" }}>
+                    <p
+                      className="text-xs text-muted-foreground mt-1"
+                      style={{ fontFamily: "var(--font-body)" }}
+                    >
                       I have read and agree to the{" "}
-                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-0.5"
+                      >
                         Terms & Conditions <ExternalLink className="w-3 h-3" />
                       </a>
                       ,{" "}
-                      <a href="/rental-agreement" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                      <a
+                        href="/rental-agreement"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-0.5"
+                      >
                         Rental Agreement <ExternalLink className="w-3 h-3" />
                       </a>
                       , and{" "}
-                      <a href="/house-rules" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                      <a
+                        href="/house-rules"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-0.5"
+                      >
                         House Rules <ExternalLink className="w-3 h-3" />
                       </a>
                       .
@@ -578,8 +760,12 @@ export default function ManualBookingPay() {
             )}
           </Button>
 
-          <p className="text-center text-xs text-muted-foreground" style={{ fontFamily: "var(--font-body)" }}>
-            You will be redirected to Stripe's secure checkout. Your card information is never stored on our servers.
+          <p
+            className="text-center text-xs text-muted-foreground"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            You will be redirected to Stripe's secure checkout. Your card
+            information is never stored on our servers.
           </p>
         </form>
       </div>

@@ -50,6 +50,7 @@ export async function quoteExtension(bookingId: number, newCheckOut: number) {
   const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1);
   if (!booking?.hostawayReservationId) throw new Error("This booking has no Hostaway reservation to extend");
   if (booking.status !== "confirmed") throw new Error("Only confirmed bookings can be extended");
+  if (booking.bookingSource === "owner") throw new Error("Extend owner-created stays in Hostaway; website extensions do not yet support partial-payment accounting.");
   await assertExtensionAvailability(booking, newCheckOut);
   const quote = await quoteHostawayExtension({
     hostawayListingId: booking.hostawayListingId,

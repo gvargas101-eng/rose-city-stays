@@ -18,9 +18,11 @@ import { reviewsRouter } from "./routers/reviews";
 import { discountCodesRouter } from "./routers/discountCodes";
 import { extensionsRouter } from "./routers/extensions";
 import { changesRouter } from "./routers/changes";
+import { ownerBookingsRouter } from "./routers/ownerBookings";
 
 export const appRouter = router({
   booking: bookingRouter,
+  ownerBookings: ownerBookingsRouter,
   admin: adminRouter,
   properties: propertiesRouter,
   adminAuth: adminAuthRouter,

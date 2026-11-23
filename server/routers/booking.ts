@@ -25,6 +25,7 @@ import { createHostawayReservation, recordHostawayStripePayment } from "../hosta
 import { notifyOwner } from "../_core/notification";
 import { validateManualBookingAmounts, type ManualAdjustmentItem } from "../../shared/manualBookingAmounts";
 import { getManualBookingStatus, hostawayCancellationKey } from "../../shared/bookingCancellation";
+import { createOwnerBalanceCheckout, getOwnerBookingBalance, settleOwnerBookingCheckout, validateOwnerBalanceLink } from "../owner-booking-payments";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia",
 });
@@ -186,6 +187,9 @@ async function createSecurityDepositHold(params: {
   if (!booking) throw new Error("Booking not found for deposit hold");
 
   const amount = roundCurrency(params.amount);
+  if (booking.bookingSource === "owner" && (booking.status !== "confirmed" || getOwnerBookingBalance(booking).balanceDue > 0)) {
+    throw new Error("Owner reservation must be fully paid and not canceled before authorizing a deposit hold");
+  }
   if (amount <= 0) {
     return { amount, status: "waived" as const, intentId: null };
   }
@@ -269,6 +273,10 @@ async function confirmStoredBooking(params: {
 
   if (!booking) {
     throw new Error("Booking record not found");
+  }
+
+  if (booking.bookingSource === "owner") {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Owner reservation payments must use their existing-reservation balance payment link." });
   }
 
   if (booking.status === "cancelled") {
@@ -401,6 +409,11 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
     throw new Error(`Checkout session not paid. Status: ${session.payment_status}`);
   }
 
+  if (session.metadata?.owner_booking_id) {
+    await confirmManualCheckoutSession(session);
+    return { success: true };
+  }
+
   const bookingId = Number(session.client_reference_id);
   if (!bookingId || Number.isNaN(bookingId)) {
     throw new Error("Checkout session missing client_reference_id booking ID");
@@ -412,6 +425,13 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
   // or place a new deposit hold. Acknowledge it without financial side effects.
   const db = await getDb();
   const [existing] = db ? await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1) : [];
+  if (existing?.bookingSource === "owner") {
+    if (session.metadata?.owner_booking_id === String(bookingId) && session.metadata?.manual_booking_token) {
+      await confirmManualCheckoutSession(session);
+      return { success: true };
+    }
+    throw new Error("Owner reservation cannot be fulfilled by legacy client reference; use its balance payment link");
+  }
   if (existing?.status === "cancelled") return { success: true, cancelled: true };
 
   // First confirm the booking (Hostaway + status update)
@@ -494,8 +514,40 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
   return { success: true };
 }
 
+/** Existing owner reservations settle money only; reservation confirmation already occurred. */
+async function confirmOwnerBalanceSession(session: Stripe.Checkout.Session) {
+  const result = await settleOwnerBookingCheckout(session);
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [booking] = await db.select().from(bookings).where(eq(bookings.id, result.booking.id)).limit(1);
+  if (!booking) throw new Error("Owner reservation not found after settlement");
+  // The owner-requested amount belongs to the reservation. Never replace it with the current global setting.
+  const depositAmount = booking.depositHoldAmount === null ? 0 : Number(booking.depositHoldAmount);
+  let depositStatus: "authorized" | "captured" | "released" | "pending" | "failed" | "waived" = booking.depositHoldStatus ?? (depositAmount > 0 ? "pending" : "waived");
+  if (booking.status === "confirmed" && getOwnerBookingBalance(booking).balanceDue === 0 && !booking.depositHoldIntentId) {
+    try {
+      const deposit = await createSecurityDepositHold({ bookingId: booking.id, session, amount: depositAmount });
+      depositStatus = deposit.status;
+    } catch (error) {
+      depositStatus = "failed";
+      await db.update(bookings).set({ depositHoldStatus: "failed" })
+        .where(and(eq(bookings.id, booking.id), ne(bookings.status, "cancelled")));
+      try {
+        await notifyOwner({ title: `Deposit hold failed — Owner reservation #${booking.id}`, content: `Reservation payment is recorded. The requested $${depositAmount} deposit hold could not be authorized; no hold is recorded as successful.\n\nError: ${String(error)}` });
+      } catch { /* Money received remains settled. */ }
+    }
+  }
+  return { alreadyConfirmed: result.alreadyConfirmed, bookingId: booking.id, hostawayReservationId: booking.hostawayReservationId, depositAmount, depositStatus };
+}
+
 /** Confirm a paid manual-booking Checkout session independently of the guest return page. */
-export async function confirmManualCheckoutSession(session: Stripe.Checkout.Session) {
+export async function confirmManualCheckoutSession(session: Stripe.Checkout.Session): Promise<{
+  alreadyConfirmed: boolean;
+  bookingId: number | null;
+  hostawayReservationId: string | null;
+  depositAmount?: number;
+  depositStatus?: "authorized" | "captured" | "released" | "pending" | "failed" | "waived";
+}> {
   if (session.payment_status !== "paid") {
     throw new Error(`Manual Checkout session not paid. Status: ${session.payment_status}`);
   }
@@ -513,6 +565,14 @@ export async function confirmManualCheckoutSession(session: Stripe.Checkout.Sess
     .limit(1);
 
   if (!link) throw new Error("Manual booking link not found");
+  const [linkedBooking] = link.bookingId
+    ? await db.select().from(bookings).where(eq(bookings.id, link.bookingId)).limit(1)
+    : [];
+  if (linkedBooking?.bookingSource === "owner") return confirmOwnerBalanceSession(session);
+  if (session.metadata?.owner_booking_id) throw new Error("Owner payment does not match an existing owner reservation");
+  if (link.status !== "paid" && link.bookingId && link.hostawayReservationId) {
+    throw new Error("Existing-reservation payment link does not match an owner booking; no new reservation will be created");
+  }
   if (link.status === "paid") {
     return {
       alreadyConfirmed: true,
@@ -1005,6 +1065,10 @@ export const bookingRouter = router({
 
       if (!bookingBefore) return null;
 
+      if (bookingBefore.bookingSource === "owner") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Use the existing reservation's balance payment confirmation link." });
+      }
+
       // ── Payment gate ──────────────────────────────────────────────────────────
       // Only confirm (create Hostaway reservation + mark confirmed) when Stripe
       // reports the session as fully paid. For any other status (unpaid, expired)
@@ -1092,8 +1156,15 @@ export const bookingRouter = router({
       if (link.status === "revoked") throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has been revoked" });
       if (link.status === "paid") throw new TRPCError({ code: "FORBIDDEN", message: "This booking has already been paid" });
       if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
+      const [linkedBooking] = link.bookingId
+        ? await db.select().from(bookings).where(eq(bookings.id, link.bookingId)).limit(1)
+        : [];
+      const ownerBalance = linkedBooking?.bookingSource === "owner" ? validateOwnerBalanceLink(linkedBooking, link) : null;
+      if (!ownerBalance && link.bookingId && link.hostawayReservationId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This existing-reservation payment link needs to be reviewed by the host." });
+      }
       const securityDepositAmount = await getSecurityDepositAmount(
-        link.securityDepositOverride === null ? null : Number(link.securityDepositOverride)
+        ownerBalance ? Number(linkedBooking!.depositHoldAmount ?? 0) : (link.securityDepositOverride === null ? null : Number(link.securityDepositOverride))
       );
       // Return safe fields only (no internal IDs)
       return {
@@ -1117,10 +1188,15 @@ export const bookingRouter = router({
         bypassIdUpload: Boolean(link.bypassIdUpload),
         guestName: link.guestName,
         guestEmail: link.guestEmail,
+        guestPhone: link.guestPhone,
         expiresAt: link.expiresAt,
         status: link.status,
         securityDepositAmount,
         guestNote: link.guestNote ?? null,
+        existingReservation: Boolean(ownerBalance),
+        originalReservationTotal: ownerBalance?.originalReservationTotal,
+        amountPaid: ownerBalance?.amountPaid,
+        balanceDue: ownerBalance?.balanceDue,
         customLineItems: link.customLineItems
           ? (JSON.parse(link.customLineItems) as { label: string; amount: number }[])
           : [],
@@ -1137,6 +1213,9 @@ export const bookingRouter = router({
         guestIdUrl: z.string().url().optional(),
         origin: z.string(),
         guestPhone: z.string().optional(),
+        cameraDisclosureAccepted: z.boolean().default(false),
+        guestCountConfirmed: z.boolean().default(false),
+        termsAccepted: z.boolean().default(false),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -1151,6 +1230,26 @@ export const bookingRouter = router({
       if (!link) throw new TRPCError({ code: "NOT_FOUND" });
       if (link.status !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "This booking link is no longer active" });
       if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
+
+      const [linkedBooking] = link.bookingId
+        ? await db.select().from(bookings).where(eq(bookings.id, link.bookingId)).limit(1)
+        : [];
+      if (linkedBooking?.bookingSource === "owner") {
+        if ((!link.bypassCameraDisclosure && !input.cameraDisclosureAccepted)
+          || (!link.bypassGuestCount && !input.guestCountConfirmed)
+          || (!link.bypassTermsAcceptance && !input.termsAccepted)
+          || (!link.bypassIdUpload && !input.guestIdUrl)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Complete the required acknowledgments and ID upload before paying this reservation balance." });
+        }
+        if (input.termsAccepted && !linkedBooking.agreementAcceptedAt) {
+          await db.update(bookings).set({ agreementAcceptedAt: Date.now() })
+            .where(and(eq(bookings.id, linkedBooking.id), eq(bookings.status, "confirmed")));
+        }
+        return createOwnerBalanceCheckout({ stripe, link, ...input });
+      }
+      if (link.bookingId && link.hostawayReservationId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This existing-reservation payment link needs to be reviewed by the host." });
+      }
 
       let customItems: ManualAdjustmentItem[];
       let amounts;
@@ -1341,9 +1440,14 @@ export const bookingRouter = router({
       const depositAmount = result.depositAmount ?? (booking?.depositHoldAmount === null || booking?.depositHoldAmount === undefined
         ? (link.securityDepositOverride === null ? await getSecurityDepositAmount() : Number(link.securityDepositOverride))
         : Number(booking.depositHoldAmount));
+      const ownerBalance = booking?.bookingSource === "owner" ? getOwnerBookingBalance(booking) : null;
 
       return {
         alreadyConfirmed: result.alreadyConfirmed,
+        existingReservation: Boolean(ownerBalance),
+        originalReservationTotal: ownerBalance?.originalReservationTotal,
+        amountPaid: ownerBalance?.amountPaid,
+        balanceDue: ownerBalance?.balanceDue,
         bookingStatus,
         propertyName: link.propertyName,
         propertySlug: link.propertySlug,

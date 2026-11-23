@@ -1,22 +1,6 @@
-/**
- * AdminManualBookings — Create and manage manual booking payment links.
- *
- * The admin fills out a form with:
- *  - Property, dates, guest count
- *  - Custom nightly rate, cleaning fee, discount, extra guest fee, tax
- *  - Per-hard-stop bypass toggles (camera, guest count, T&C, ID upload)
- *  - Optional pre-filled guest name/email
- *  - Security deposit override (leave blank to use global setting)
- *  - Guest note (shown to guest on payment page)
- *  - Custom line items (arbitrary fees, e.g. pet fee, early check-in)
- *  - Link expiry (default 7 days)
- *
- * On submit, a secure token is generated and a shareable URL is displayed.
- * The admin copies the link and sends it to the guest.
- * The list below shows all past links with status and revoke option.
- */
+/** Owner reservations and the separate legacy payment-link-only flow. */
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { getStayPriceSummary } from "@/lib/manualBookingPricing";
 import { getManualBookingAmounts, getNightlyDiscount, validateManualBookingAmounts } from "@shared/manualBookingAmounts";
@@ -107,6 +91,28 @@ interface AppliedDiscount {
   usesRemaining: number;
 }
 
+interface OwnerBookingResult {
+  bookingId: number;
+  hostawayReservationId: string | number | null;
+  status: "confirmed" | "failed" | "pending";
+  totalAmount: number;
+  amountPaid: number;
+  balanceDue: number;
+  paymentStatus: string;
+  token?: string;
+  alreadyCreated: boolean;
+  error?: string;
+}
+
+const REQUEST_KEY_STORAGE = "rose-city-owner-booking-request-key";
+function newRequestKey() {
+  return globalThis.crypto.randomUUID();
+}
+function initialRequestKey() {
+  try { return window.sessionStorage.getItem(REQUEST_KEY_STORAGE) || newRequestKey(); }
+  catch { return newRequestKey(); }
+}
+
 interface FormState {
   propertySlug: string;
   checkIn: string;
@@ -134,6 +140,10 @@ interface FormState {
   securityDepositOverride: string; // string so input can be empty
   guestNote: string;
   customLineItems: CustomLineItem[];
+  amountReceived: number;
+  paymentReference: string;
+  allowUnpaid: boolean;
+  createPaymentLink: boolean;
 }
 
 const INITIAL_FORM: FormState = {
@@ -163,12 +173,24 @@ const INITIAL_FORM: FormState = {
   securityDepositOverride: "",
   guestNote: "",
   customLineItems: [],
+  amountReceived: 0,
+  paymentReference: "",
+  allowUnpaid: false,
+  createPaymentLink: false,
 };
 
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function AdminManualBookings() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [mode, setMode] = useState<"booking" | "link">("booking");
+  const [requestKey, setRequestKey] = useState(initialRequestKey);
+  const [bookingResult, setBookingResult] = useState<OwnerBookingResult | null>(null);
+  const submitting = useRef(false);
+  const requestAttempted = useRef((() => {
+    try { return window.sessionStorage.getItem(REQUEST_KEY_STORAGE) === requestKey; }
+    catch { return false; }
+  })());
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [generatedExpiry, setGeneratedExpiry] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -256,6 +278,37 @@ export default function AdminManualBookings() {
     },
   });
 
+  const createBookingMutation = trpc.ownerBookings.create.useMutation({
+    onSuccess: (data) => {
+      setBookingResult(data);
+      setGeneratedToken(data.token ?? null);
+      setGeneratedExpiry(null);
+      void utils.admin.listBookings.invalidate();
+      void utils.admin.listManualBookingLinks.invalidate();
+      void utils.admin.getReservationsForCalendar.invalidate();
+      void utils.hostaway.calendar.invalidate();
+      if (data.status === "confirmed") {
+        renewRequestKey();
+        toast.success(data.alreadyCreated ? "Existing Hostaway booking retrieved — no duplicate created." : "Booking confirmed in Hostaway. Creating here did not charge a card; check Hostaway auto-payment rules.");
+        if (data.error) toast.warning(`Booking exists — do not recreate it. ${data.error}`);
+      } else {
+        toast.warning(data.error || "Reservation not confirmed. Check Hostaway before starting a new request. Retry only the existing request to retrieve its outcome.");
+      }
+    },
+    onError: (error) => toast.error(`${error.message || "Booking request failed"}. Retry with the same request key to avoid duplicates.`),
+    onSettled: () => { submitting.current = false; },
+  });
+
+  const createBalanceLink = trpc.ownerBookings.createPaymentLink.useMutation({
+    onSuccess: (data) => {
+      setGeneratedToken(data.token);
+      setGeneratedExpiry(data.expiresAt);
+      void utils.admin.listManualBookingLinks.invalidate();
+      toast.success("Balance payment link created. No card was charged.");
+    },
+    onError: (error) => toast.error(error.message || "Failed to generate a balance payment link"),
+  });
+
   const applyDiscountMutation = trpc.discountCodes.validate.useMutation({
     onSuccess: (discount) => {
       setAppliedDiscount(discount);
@@ -295,6 +348,9 @@ export default function AdminManualBookings() {
   const pricingInput = { nightlyRate: form.nightlyRate, nights, cleaningFee: form.cleaningFee,
     extraGuestFee: form.extraGuestFee, discountAmount, taxAmount, customLineItems: signedLineItems };
   const total = getManualBookingAmounts(pricingInput).total;
+  const balanceDue = Math.round((total - form.amountReceived) * 100) / 100;
+  const isSubmitting = createMutation.isPending || createBookingMutation.isPending;
+  const bookingConfirmed = bookingResult?.status === "confirmed";
 
   // Managed codes must be checked again if the priced stay or guest changes.
   useEffect(() => {
@@ -371,7 +427,7 @@ export default function AdminManualBookings() {
     }));
     setGuestSearch(profile.fullName);
     setShowGuestResults(false);
-    toast.success(`${profile.fullName}'s details were added to this booking link`);
+    toast.success(`${profile.fullName}'s details were added to this stay`);
   }
 
   function applyDiscountCode() {
@@ -395,6 +451,7 @@ export default function AdminManualBookings() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmitting || submitting.current || bookingConfirmed) return;
     if (!form.propertySlug) return toast.error("Select a property");
     if (!form.checkIn || !form.checkOut) return toast.error("Select check-in and check-out dates");
     if (nights < 1) return toast.error("Check-out must be after check-in");
@@ -402,8 +459,22 @@ export default function AdminManualBookings() {
     if (form.discountMode === "percent" && (form.discountPercent < 0 || form.discountPercent > 100)) {
       return toast.error("Percentage discount must be between 0% and 100%");
     }
-    try { validateManualBookingAmounts(pricingInput); }
+    try { validateManualBookingAmounts(pricingInput, { allowZero: mode === "booking" }); }
     catch (error) { return toast.error((error as Error).message); }
+
+    if (mode === "booking") {
+      if (!form.guestName.trim() || !form.guestEmail.trim()) return toast.error("Guest name and email are required to create a booking");
+      if (!Number.isFinite(form.amountReceived) || form.amountReceived < 0 || Math.abs(Math.round(form.amountReceived * 100) / 100 - form.amountReceived) > 0.00000001) {
+        return toast.error("Amount received must be a nonnegative amount with no more than two decimal places");
+      }
+      if (balanceDue < 0) return toast.error("Amount received cannot exceed the reservation total");
+      if (form.amountReceived > 0 && !form.paymentReference.trim()) return toast.error("Enter a payment reference for money already received");
+      if (balanceDue > 0 && !form.allowUnpaid) return toast.error("Explicitly allow an unpaid balance before creating this booking");
+      if (form.createPaymentLink && balanceDue > 0 && balanceDue < 0.5) return toast.error("A payment link requires an outstanding balance of at least $0.50");
+      // A timed-out first request may itself block these dates. The server retrieves
+      // the existing request outcome before doing any occupancy check or new POST.
+      if (blockedStayDates.length > 0 && !requestAttempted.current) return toast.error("These dates have conflicts. Resolve them before creating an actual booking; availability cannot be overridden");
+    }
 
     const prop = staticProperties.find(p => p.id === form.propertySlug)
       || dbProperties?.find(p => p.slug === form.propertySlug);
@@ -415,7 +486,7 @@ export default function AdminManualBookings() {
       ? Number(form.securityDepositOverride)
       : undefined;
 
-    createMutation.mutate({
+    const input = {
       propertySlug: form.propertySlug,
       propertyName: propName,
       hostawayListingId,
@@ -437,15 +508,36 @@ export default function AdminManualBookings() {
       bypassGuestCount: form.bypassGuestCount,
       bypassTermsAcceptance: form.bypassTermsAcceptance,
       bypassIdUpload: form.bypassIdUpload,
-      bypassAvailabilityCheck: form.bypassAvailabilityCheck,
+      bypassAvailabilityCheck: mode === "link" && form.bypassAvailabilityCheck,
       adminNotes: form.adminNotes || undefined,
-      guestName: form.guestName || undefined,
-      guestEmail: form.guestEmail || undefined,
+      guestName: form.guestName.trim() || undefined,
+      guestEmail: form.guestEmail.trim() || undefined,
       guestPhone: form.guestPhone || undefined,
       expiryDays: form.expiryDays,
       securityDepositOverride: depositOverride,
       guestNote: form.guestNote || undefined,
       customLineItems: signedLineItems.length > 0 ? signedLineItems : undefined,
+    };
+
+    if (mode === "link") {
+      createMutation.mutate(input);
+      return;
+    }
+
+    if (!window.confirm(`Create an actual Hostaway booking?\n\nGuest: ${form.guestName.trim()} (${form.guestEmail.trim()})\nProperty: ${propName}\nDates: ${form.checkIn} → ${form.checkOut}\nReservation total: ${fmt(total)}\nAmount received: ${fmt(form.amountReceived)}\nBalance due: ${fmt(balanceDue)}\n\nThe dates will be blocked in Hostaway even if this booking is unpaid.\nCreating here does not charge a card. Hostaway auto-payment rules may still schedule collection. Use one collection channel only.\n\nConfirm only if you intend to create this reservation.`)) return;
+
+    try { window.sessionStorage.setItem(REQUEST_KEY_STORAGE, requestKey); } catch { /* Retain the key in component state when storage is unavailable. */ }
+    submitting.current = true;
+    requestAttempted.current = true;
+    createBookingMutation.mutate({
+      ...input,
+      guestName: form.guestName.trim(),
+      guestEmail: form.guestEmail.trim(),
+      requestKey,
+      amountReceived: form.amountReceived,
+      paymentReference: form.paymentReference.trim() || undefined,
+      allowUnpaid: balanceDue > 0 && form.allowUnpaid,
+      createPaymentLink: balanceDue > 0 && form.createPaymentLink,
     });
   }
 
@@ -458,12 +550,27 @@ export default function AdminManualBookings() {
     });
   }
 
+  function renewRequestKey() {
+    const key = newRequestKey();
+    setRequestKey(key);
+    requestAttempted.current = false;
+    try { window.sessionStorage.removeItem(REQUEST_KEY_STORAGE); } catch { /* Storage is optional. */ }
+  }
+
   function resetForm() {
+    if (isSubmitting || createBalanceLink.isPending) return;
+    if (requestAttempted.current && !bookingConfirmed && !window.confirm("This reservation request is not confirmed. Resetting starts a new request key and can create a duplicate if the previous request completed in Hostaway. Check Hostaway or retry the existing request first. Reset anyway?")) return;
     setForm(INITIAL_FORM);
     setAppliedDiscount(null);
     setDiscountCodeInput("");
     setGeneratedToken(null);
     setGeneratedExpiry(null);
+    setBookingResult(null);
+    setGuestSearch("");
+    setShowGuestResults(false);
+    setLastAutoFilledRateKey(null);
+    setManualRateOverrideKey(null);
+    renewRequestKey();
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -492,7 +599,7 @@ export default function AdminManualBookings() {
               Create a Manual Booking
             </h1>
             <p className="text-sm text-muted-foreground mt-1" style={{ fontFamily: "var(--font-body)" }}>
-              Customize a stay, apply discounts or labeled credits, then send the guest a payment link. The reservation is confirmed only after payment succeeds.
+              Create an actual Hostaway reservation now, including unpaid or complimentary stays. Payment links are optional and do not charge a card automatically.
             </p>
           </div>
           <Button
@@ -502,16 +609,32 @@ export default function AdminManualBookings() {
             className="gap-2"
           >
             {showForm ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {showForm ? "Hide Form" : "New Link"}
+            {showForm ? "Hide Form" : "Show Form"}
           </Button>
         </div>
 
         {/* ── Create Form ── */}
         {showForm && (
           <form onSubmit={handleSubmit} className="bg-background border border-border rounded-2xl p-6 space-y-6">
+            <fieldset disabled={isSubmitting || bookingConfirmed} className="space-y-6 min-w-0">
             <h2 className="text-base font-semibold text-foreground" style={{ fontFamily: "var(--font-body)" }}>
-              Create Booking Link
+              {mode === "booking" ? "Create Booking — Actual Hostaway Reservation" : "Payment Link Only — No Reservation Yet"}
             </h2>
+            <div className="grid sm:grid-cols-2 gap-3" role="group" aria-label="Manual booking mode">
+              <Button type="button" variant={mode === "booking" ? "default" : "outline"} aria-pressed={mode === "booking"}
+                onClick={() => { setMode("booking"); setGeneratedToken(null); setGeneratedExpiry(null); }}>
+                Create Booking (default)
+              </Button>
+              <Button type="button" variant={mode === "link" ? "default" : "outline"} aria-pressed={mode === "link"}
+                onClick={() => { setMode("link"); setGeneratedToken(null); setGeneratedExpiry(null); }}>
+                Payment Link Only
+              </Button>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              {mode === "booking"
+                ? "Creates and blocks dates in Hostaway even when unpaid. You will review and explicitly confirm before creation. Creating here does not charge a card. Hostaway auto-payment rules may still schedule collection. Use one collection channel only."
+                : "Creates a payment request only; dates are not reserved now. The reservation is confirmed only after payment succeeds."}
+            </div>
 
             {/* Property + Dates + Guests */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -565,7 +688,9 @@ export default function AdminManualBookings() {
                   <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
                     <p className="font-semibold mb-1">⚠️ Dates have conflicts in Hostaway</p>
                     <p className="text-xs text-red-700 mb-2">
-                      The following nights are already reserved or blocked. You can still generate the link, but the guest will be blocked from paying.
+                      {mode === "booking"
+                        ? "The following nights are already reserved or blocked. Resolve conflicts before creating an actual booking. Occupied or blocked dates cannot be overridden here."
+                        : "The following nights are already reserved or blocked. You can still generate the link, but the guest will be blocked from paying unless you explicitly override availability."}
                     </p>
                     <ul className="text-xs space-y-0.5">
                       {blockedStayDates.map((d: { date: string; status: string }) => (
@@ -632,7 +757,7 @@ export default function AdminManualBookings() {
                     type="number"
                     min={0}
                     step={0.01}
-                    value={form.nightlyRate || ""}
+                    value={form.nightlyRate}
                     onChange={e => {
                       set("nightlyRate", Number(e.target.value));
                       if (liveRateKey) setManualRateOverrideKey(liveRateKey);
@@ -791,12 +916,49 @@ export default function AdminManualBookings() {
                     </div>
                   )}
                   <div className="flex justify-between font-semibold text-foreground pt-1.5 border-t border-border">
-                    <span>Guest pays</span>
+                    <span>{mode === "booking" ? "Reservation total" : "Guest pays"}</span>
                     <span>{fmt(total)}</span>
                   </div>
                 </div>
               )}
             </div>
+
+            {mode === "booking" && (
+              <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-4" aria-label="Owner payment accounting">
+                <h3 className="text-sm font-semibold text-foreground">Payment received & outstanding balance</h3>
+                <p className="text-xs text-muted-foreground">Record money already received outside this checkout, not a future payment or credit. Creating a booking does not charge the guest or authorize a deposit hold.</p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+                    Amount received ($)
+                    <Input type="number" min={0} step={0.01} value={form.amountReceived}
+                      onChange={e => set("amountReceived", Number(e.target.value))} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+                    Payment reference {form.amountReceived > 0 ? "*" : "(optional when $0 received)"}
+                    <Input value={form.paymentReference} onChange={e => set("paymentReference", e.target.value)}
+                      required={form.amountReceived > 0} placeholder="e.g. Cash receipt, bank transfer reference" />
+                  </label>
+                </div>
+                <dl className="grid sm:grid-cols-3 gap-3 text-sm">
+                  <div><dt className="text-muted-foreground">Reservation total</dt><dd className="font-semibold">{fmt(total)}</dd></div>
+                  <div><dt className="text-muted-foreground">Amount received</dt><dd className="font-semibold">{fmt(form.amountReceived)}</dd></div>
+                  <div><dt className="text-muted-foreground">Balance due</dt><dd className="font-semibold">{fmt(balanceDue)}</dd></div>
+                </dl>
+                {total === 0 && <p className="text-xs text-green-700">Complimentary reservation — no payment due.</p>}
+                {balanceDue > 0 && (
+                  <label className="flex items-start gap-2 text-sm font-medium text-amber-900">
+                    <input type="checkbox" checked={form.allowUnpaid} onChange={e => set("allowUnpaid", e.target.checked)} className="mt-0.5 accent-primary" />
+                    I explicitly allow this unpaid balance and understand the dates will still be blocked in Hostaway.
+                  </label>
+                )}
+                <label className="flex items-start gap-2 text-sm text-foreground">
+                  <input type="checkbox" checked={form.createPaymentLink} disabled={balanceDue <= 0}
+                    onChange={e => set("createPaymentLink", e.target.checked)} className="mt-0.5 accent-primary" />
+                  Also generate an optional payment link for the outstanding balance (minimum $0.50).
+                </label>
+                <p className="text-xs text-muted-foreground">Website balance links are available only when Hostaway balance checks pass and no native collection is scheduled. Use one collection channel only.</p>
+              </section>
+            )}
 
             {/* Custom Line Items */}
             <div>
@@ -876,7 +1038,7 @@ export default function AdminManualBookings() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Override the security deposit hold for this booking only. Leave blank to use the global amount from Settings.
+                  Override the security deposit amount for this booking only. Leave blank to use the global amount from Settings. Creating an owner booking does not authorize a card hold; a payment-page hold requires the guest's card.
                 </p>
               </div>
             </div>
@@ -896,7 +1058,7 @@ export default function AdminManualBookings() {
                   { key: "bypassTermsAcceptance" as const, icon: FileText, label: "Terms & Conditions / House Rules", desc: "Guest has already signed or accepted the agreement" },
                   { key: "bypassIdUpload" as const, icon: CreditCard, label: "Government ID Upload", desc: "You already have a copy of the guest's ID on file" },
                   { key: "bypassAvailabilityCheck" as const, icon: Shield, label: "Availability Check (Override)", desc: "Skip the Hostaway availability block — use for owner-blocked dates you are intentionally overriding" },
-                ].map(({ key, icon: Icon, label, desc }) => (
+                ].filter(({ key }) => mode === "link" || key !== "bypassAvailabilityCheck").map(({ key, icon: Icon, label, desc }) => (
                   <label
                     key={key}
                     className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
@@ -928,7 +1090,7 @@ export default function AdminManualBookings() {
 
             {/* Guest info (optional) */}
             <div>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Guest Info (Optional)</h3>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Guest Info ({mode === "booking" ? "Name & Email Required" : "Optional"})</h3>
               <div className="relative mb-4">
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
                   <UserRound className="w-3.5 h-3.5" />
@@ -982,19 +1144,21 @@ export default function AdminManualBookings() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Guest Name</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Guest Name {mode === "booking" && "*"}</label>
                   <Input
                     value={form.guestName}
                     onChange={e => set("guestName", e.target.value)}
                     placeholder="Jane Smith"
+                    required={mode === "booking"}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Guest Email</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Guest Email {mode === "booking" && "*"}</label>
                   <Input
                     type="email"
                     value={form.guestEmail}
                     onChange={e => set("guestEmail", e.target.value)}
+                    required={mode === "booking"}
                   placeholder="jane@example.com"
                 />
               </div>
@@ -1035,26 +1199,54 @@ export default function AdminManualBookings() {
                 rows={2}
               />
             </div>
+            </fieldset>
 
             {/* Submit */}
             <div className="flex gap-3">
               <Button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={isSubmitting || bookingConfirmed}
                 className="gap-2"
               >
-                {createMutation.isPending ? (
+                {isSubmitting ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
                 ) : (
                   <Link2 className="w-4 h-4" />
                 )}
-                Generate Booking Link
+                {isSubmitting ? "Submitting…" : mode === "booking" ? "Review & Create Booking" : "Generate Payment Link Only"}
               </Button>
-              <Button type="button" variant="outline" onClick={resetForm}>
+              <Button type="button" variant="outline" onClick={resetForm} disabled={isSubmitting || createBalanceLink.isPending}>
                 Reset
               </Button>
             </div>
           </form>
+        )}
+
+        {bookingResult && (
+          <section aria-label="Owner booking result" className={`rounded-2xl border p-5 space-y-3 ${bookingConfirmed ? "border-green-200 bg-green-50 text-green-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+            <h2 className="font-semibold">{bookingConfirmed ? "Booking confirmed in Hostaway" : bookingResult.status === "failed" ? "Booking creation failed — not confirmed" : "Booking request pending — not yet confirmed"}</h2>
+            <p className="text-sm">Booking #{bookingResult.bookingId} · Hostaway reservation: <strong>{bookingResult.hostawayReservationId || "Not confirmed"}</strong></p>
+            <dl className="grid sm:grid-cols-4 gap-3 text-sm">
+              <div><dt>Reservation total</dt><dd className="font-semibold">{fmt(bookingResult.totalAmount)}</dd></div>
+              <div><dt>Amount received</dt><dd className="font-semibold">{fmt(bookingResult.amountPaid)}</dd></div>
+              <div><dt>Balance due</dt><dd className="font-semibold">{fmt(bookingResult.balanceDue)}</dd></div>
+              <div><dt>Payment state</dt><dd className="font-semibold capitalize">{bookingResult.paymentStatus}</dd></div>
+            </dl>
+            <p className="text-xs">{bookingConfirmed ? "Dates are blocked even if payment is unpaid or partial. Creating here does not charge a card. Hostaway auto-payment rules may still schedule collection. Use one collection channel only. Amount received is your recorded payment." : "Do not assume dates are reserved. Check Hostaway before starting a new request. Retry the existing request only to retrieve its outcome without posting a second reservation."}</p>
+            {bookingResult.alreadyCreated && <p className="text-xs">Existing booking retrieved — no duplicate reservation created.</p>}
+            {bookingResult.error && <p role="alert" className="text-sm">{bookingConfirmed && "Booking exists — do not recreate it. Follow up on this payment/link warning: "}{bookingResult.error}</p>}
+            <div className="flex flex-wrap gap-3 items-center">
+              {bookingConfirmed && bookingResult.balanceDue >= 0.5 && !generatedToken && (
+                <Button type="button" variant="outline" disabled={createBalanceLink.isPending}
+                  onClick={() => createBalanceLink.mutate({ bookingId: bookingResult.bookingId, expiryDays: form.expiryDays })}>
+                  {createBalanceLink.isPending ? "Generating…" : "Generate payment link for balance"}
+                </Button>
+              )}
+              {bookingConfirmed && bookingResult.balanceDue > 0 && bookingResult.balanceDue < 0.5 && <p className="text-xs">Balance is below the $0.50 payment-link minimum.</p>}
+              <a href="/admin/bookings" className="text-sm underline font-medium">View in Bookings</a>
+              {bookingConfirmed && <Button type="button" variant="outline" onClick={resetForm} disabled={createBalanceLink.isPending}>Create Another Booking</Button>}
+            </div>
+          </section>
         )}
 
         {/* ── Generated Link Banner ── */}
@@ -1065,17 +1257,17 @@ export default function AdminManualBookings() {
           const checkOutLabel = form.checkOut ? new Date(form.checkOut).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }) : "";
           const emailSubject = encodeURIComponent(`Your booking link — ${propertyLabel}`);
           const emailBody = encodeURIComponent(
-            `Hi${form.guestName ? ` ${form.guestName.split(" ")[0]}` : ""},\n\nHere is your secure payment link for ${propertyLabel}${checkInLabel ? ` (${checkInLabel} – ${checkOutLabel})` : ""}:\n\n${bookingUrl}\n\nThis link will expire on ${generatedExpiry ? fmtDateTime(generatedExpiry) : "the date shown on the page"}.\n\nPlease let me know if you have any questions.\n\nThank you!`
+            `Hi${form.guestName ? ` ${form.guestName.split(" ")[0]}` : ""},\n\n${bookingConfirmed ? `Your reservation is already confirmed. Here is your secure link to pay the outstanding balance of ${fmt(bookingResult!.balanceDue)}` : "Here is your secure payment link"} for ${propertyLabel}${checkInLabel ? ` (${checkInLabel} – ${checkOutLabel})` : ""}:\n\n${bookingUrl}\n\nThis link will expire on ${generatedExpiry ? fmtDateTime(generatedExpiry) : "the date shown on the page"}.\n\nPlease let me know if you have any questions.\n\nThank you!`
           );
           const googleMessage =
-            `Hi${form.guestName ? ` ${form.guestName.split(" ")[0]}` : ""}! Here is your booking payment link for ${propertyLabel}${checkInLabel ? ` (${checkInLabel} – ${checkOutLabel})` : ""}: ${bookingUrl}`
+            `Hi${form.guestName ? ` ${form.guestName.split(" ")[0]}` : ""}! ${bookingConfirmed ? `Your reservation is already confirmed. Please pay the ${fmt(bookingResult!.balanceDue)} outstanding balance using this link` : "Here is your booking payment link"} for ${propertyLabel}${checkInLabel ? ` (${checkInLabel} – ${checkOutLabel})` : ""}: ${bookingUrl}`
           const mailtoHref = `mailto:${form.guestEmail || ""}?subject=${emailSubject}&body=${emailBody}`;
 
           return (
             <div className="bg-green-50 border border-green-200 rounded-2xl p-5 space-y-3">
               <div className="flex items-center gap-2 text-green-800 font-semibold text-sm">
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
-                Booking link created! Share it with your guest.
+                {bookingConfirmed ? "Balance payment link ready — reservation is already confirmed. No payment has been collected by creating this link." : "Payment link created! Share it with your guest."}
               </div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 bg-white border border-green-200 rounded-lg px-3 py-2 text-xs text-green-900 font-mono break-all">
@@ -1122,7 +1314,7 @@ export default function AdminManualBookings() {
                   Expires {fmtDateTime(generatedExpiry)}
                 </p>
               )}
-              <Button size="sm" variant="outline" onClick={resetForm} className="gap-1.5">
+              <Button size="sm" variant="outline" onClick={resetForm} disabled={isSubmitting || createBalanceLink.isPending} className="gap-1.5">
                 <Plus className="w-4 h-4" /> Create Another
               </Button>
             </div>

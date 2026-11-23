@@ -99,6 +99,15 @@ export const bookings = mysqlTable("bookings", {
   taxRate: decimal("taxRate", { precision: 5, scale: 4 }).notNull().default("0.0900"), // e.g. 0.0900 = 9%
   totalAmount: decimal("totalAmount", { precision: 10, scale: 2 }).notNull(),
 
+  // Owner-created reservations separate reservation confirmation from money received.
+  bookingSource: varchar("bookingSource", { length: 32 }).notNull().default("website"),
+  paidAmount: decimal("paidAmount", { precision: 10, scale: 2 }),
+  externalPaymentReference: varchar("externalPaymentReference", { length: 256 }),
+  ownerRequestKey: varchar("ownerRequestKey", { length: 64 }).unique(),
+  ownerRequestHash: varchar("ownerRequestHash", { length: 64 }),
+  ownerCreatedBy: varchar("ownerCreatedBy", { length: 128 }),
+  ownerCreateError: text("ownerCreateError"),
+
   stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 256 }),
   stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
   stripeCustomerId: varchar("stripeCustomerId", { length: 256 }),
@@ -365,6 +374,21 @@ export const manualBookingLinks = mysqlTable("manual_booking_links", {
 
 export type ManualBookingLink = typeof manualBookingLinks.$inferSelect;
 export type InsertManualBookingLink = typeof manualBookingLinks.$inferInsert;
+
+/** Audited actual receipts for owner reservations; credits remain pricing concessions. */
+export const ownerBookingPayments = mysqlTable("owner_booking_payments", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("bookingId").notNull(),
+  eventKey: varchar("eventKey", { length: 128 }).notNull().unique(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  method: varchar("method", { length: 32 }).notNull(), // external or stripe
+  reference: varchar("reference", { length: 256 }).notNull(),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }),
+  hostawayChargeId: varchar("hostawayChargeId", { length: 64 }),
+  hostawaySyncStatus: mysqlEnum("hostawaySyncStatus", ["pending", "synced", "failed"]).notNull().default("pending"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [index("owner_booking_payments_booking_idx").on(table.bookingId)]);
 
 /**
  * Upsell add-ons — optional paid upgrades guests can select at checkout.

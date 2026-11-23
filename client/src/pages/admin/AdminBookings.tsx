@@ -44,6 +44,14 @@ function formatDateTime(ms: number) {
   });
 }
 
+function ownerPaymentAmounts(booking: { totalAmount: string; paidAmount: string | null }) {
+  const total = Number(booking.totalAmount);
+  const received = Number(booking.paidAmount ?? 0);
+  const balance = Math.max(0, Math.round((total - received) * 100) / 100);
+  const state = total === 0 ? "Complimentary" : balance === 0 ? "Paid" : received > 0 ? "Partial" : "Unpaid";
+  return { total, received, balance, state };
+}
+
 export default function AdminBookings() {
   const { data: bookings, refetch: refetchBookings } = trpc.admin.listBookings.useQuery();
   const { data: manualLinks, refetch: refetchLinks } = trpc.admin.listManualBookingLinks.useQuery();
@@ -98,6 +106,15 @@ export default function AdminBookings() {
   const [changeQuote, setChangeQuote] = useState<any>(null);
   const [changePaymentUrl, setChangePaymentUrl] = useState<string | null>(null);
   const [refundPending, setRefundPending] = useState<{ changeId: number; amount: number } | null>(null);
+  const [ownerPaymentLinks, setOwnerPaymentLinks] = useState<Record<number, { token: string; expiresAt: number; balanceDue: number }>>({});
+  const ownerBalanceLink = trpc.ownerBookings.createPaymentLink.useMutation({
+    onSuccess: (result, input) => {
+      setOwnerPaymentLinks(current => ({ ...current, [input.bookingId]: result }));
+      void refetchLinks();
+      toast.success("Balance payment link ready. The reservation stays confirmed. Use one collection channel only.");
+    },
+    onError: (error) => toast.error(error.message || "Failed to create a balance payment link"),
+  });
 
   const quoteExtension = trpc.extensions.quote.useMutation({
     onSuccess: (result) => {
@@ -197,18 +214,18 @@ export default function AdminBookings() {
 
   const totalRevenue = (bookings ?? [])
     .filter((b) => b.status === "paid" || b.status === "confirmed")
-    .reduce((sum, b) => sum + parseFloat(b.totalAmount), 0);
+    .reduce((sum, b) => sum + Number(b.bookingSource === "owner" ? b.paidAmount ?? 0 : b.totalAmount), 0);
 
   const copyLink = (token: string) => {
     const url = `${window.location.origin}/booking/pay/${token}`;
     navigator.clipboard.writeText(url).then(() => toast.success("Link copied!"));
   };
 
-  const sendEmail = (link: { guestEmail?: string | null; guestName?: string | null; propertyName: string; checkIn: number; checkOut: number; token: string }) => {
+  const sendEmail = (link: { guestEmail?: string | null; guestName?: string | null; propertyName: string; checkIn: number; checkOut: number; token: string; bookingStatus?: string | null }) => {
     const url = `${window.location.origin}/booking/pay/${link.token}`;
     const subject = encodeURIComponent(`Your booking link — ${link.propertyName}`);
     const body = encodeURIComponent(
-      `Hi${link.guestName ? ` ${link.guestName}` : ""},\n\nHere is your direct booking link for ${link.propertyName} (${formatDate(link.checkIn)} – ${formatDate(link.checkOut)}):\n\n${url}\n\nPlease complete your reservation at your earliest convenience.\n\nThank you,\nRose City Stays`
+      `Hi${link.guestName ? ` ${link.guestName}` : ""},\n\nHere is your secure payment link for ${link.propertyName} (${formatDate(link.checkIn)} – ${formatDate(link.checkOut)}):\n\n${url}\n\n${link.bookingStatus === "confirmed" ? "Your reservation is already confirmed. Please use this link to pay the outstanding balance." : "Please review your booking and complete payment at your earliest convenience."}\n\nThank you,\nRose City Stays`
     );
     window.open(`mailto:${link.guestEmail ?? ""}?subject=${subject}&body=${body}`, "_blank");
   };
@@ -230,7 +247,7 @@ export default function AdminBookings() {
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Bookings</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {bookings?.length ?? 0} direct bookings · ${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0 })} confirmed revenue
+              {bookings?.length ?? 0} bookings · ${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} received revenue on paid / confirmed bookings
             </p>
           </div>
           <button
@@ -252,7 +269,7 @@ export default function AdminBookings() {
               tab === "direct" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Direct Bookings
+            Bookings (Website & Owner)
             <span className="ml-1.5 text-xs opacity-60">({bookings?.length ?? 0})</span>
           </button>
           <button
@@ -399,10 +416,19 @@ export default function AdminBookings() {
                         <div className="flex items-center gap-1 text-sm font-medium text-foreground ml-auto">
                           <DollarSign className="w-3.5 h-3.5" />
                           {parseFloat(b.totalAmount).toFixed(2)}
+                          {b.bookingSource === "owner" && <span className="text-xs text-muted-foreground font-normal">reservation total</span>}
                         </div>
                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[b.status as BookingStatus]}`}>
                           {b.status}
                         </span>
+                        {b.bookingSource === "owner" && (() => {
+                          const payment = ownerPaymentAmounts(b);
+                          return <div className="w-full flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Owner booking · Payment state: {payment.state}</span>
+                            <span>Amount received: ${payment.received.toFixed(2)}</span>
+                            <span>Balance due: ${payment.balance.toFixed(2)}</span>
+                          </div>;
+                        })()}
                       </div>
                     </button>
 
@@ -490,12 +516,30 @@ export default function AdminBookings() {
                                   </div>
                                 )}
                                 <div className="flex justify-between px-3 py-2.5 bg-muted/30">
-                                  <span className="font-semibold text-foreground">Total charged</span>
+                                  <span className="font-semibold text-foreground">{b.bookingSource === "owner" ? "Reservation total" : "Total charged"}</span>
                                   <span className="font-semibold text-foreground">${parseFloat(b.totalAmount).toFixed(2)}</span>
                                 </div>
+                                {b.bookingSource === "owner" && (() => {
+                                  const payment = ownerPaymentAmounts(b);
+                                  return <>
+                                    <div className="flex justify-between px-3 py-2"><span className="text-muted-foreground">Amount received</span><span>${payment.received.toFixed(2)}</span></div>
+                                    <div className="flex justify-between px-3 py-2"><span className="text-muted-foreground">Balance due</span><span className="font-semibold">${payment.balance.toFixed(2)}</span></div>
+                                    <div className="flex justify-between px-3 py-2"><span className="text-muted-foreground">Payment state</span><span className="font-semibold">{payment.state}</span></div>
+                                  </>;
+                                })()}
                               </div>
                             </div>
                           </div>
+                          {b.bookingSource === "owner" && <>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">Booking source</p>
+                              <p className="text-foreground text-xs">Owner-created reservation</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">External payment reference</p>
+                              <p className="text-foreground text-xs">{b.externalPaymentReference || "No external payment recorded"}</p>
+                            </div>
+                          </>}
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Stripe Payment ID</p>
                             {b.stripePaymentIntentId ? (
@@ -509,7 +553,7 @@ export default function AdminBookings() {
                                 <ExternalLink className="w-3 h-3 shrink-0" />
                               </a>
                             ) : (
-                              <p className="text-foreground font-mono text-xs">—</p>
+                              <p className="text-foreground text-xs">{b.bookingSource === "owner" ? "No Stripe payment recorded" : "—"}</p>
                             )}
                           </div>
                           <div>
@@ -601,8 +645,35 @@ export default function AdminBookings() {
                             </div>
                           )}
                         </div>
+                        {b.bookingSource === "owner" && (() => {
+                          const payment = ownerPaymentAmounts(b);
+                          const link = ownerPaymentLinks[b.id];
+                          const url = link ? `${window.location.origin}/booking/pay/${link.token}` : null;
+                          const propertyName = properties.find(p => p.id === b.propertyId)?.name ?? b.propertyId;
+                          const message = `Hi ${b.guestName}, your reservation at ${propertyName} (${formatDate(b.checkIn)} – ${formatDate(b.checkOut)}) is already confirmed. Please pay the outstanding balance of $${payment.balance.toFixed(2)} using this secure link: ${url}`;
+                          return <section className="mb-4 rounded-lg border border-border bg-background p-3 text-sm space-y-2" aria-label="Owner reservation payment">
+                            <p className="text-xs text-muted-foreground">Reservation status and payment state are separate. A confirmed owner reservation blocks dates even when unpaid. Amount received is recorded payment, not a card charge made by creating the booking. Creating here does not charge a card. Hostaway auto-payment rules may still schedule collection. Use one collection channel only.</p>
+                            <p className="text-xs text-muted-foreground">Website balance links require verified Hostaway balances and no scheduled native collection. If the safety check fails, follow up in Hostaway instead of creating another reservation.</p>
+                            {b.status === "confirmed" && payment.balance >= 0.5 && (
+                              <button disabled={ownerBalanceLink.isPending} onClick={() => ownerBalanceLink.mutate({ bookingId: b.id })}
+                                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-50">
+                                <Link2 className="w-3.5 h-3.5" />{ownerBalanceLink.isPending ? "Generating…" : "Generate payment link for balance"}
+                              </button>
+                            )}
+                            {b.status === "confirmed" && payment.balance > 0 && payment.balance < 0.5 && <p className="text-xs text-muted-foreground">Balance is below the $0.50 payment-link minimum.</p>}
+                            {url && link && <div className="space-y-2">
+                              <p className="text-xs">Payment link for ${link.balanceDue.toFixed(2)} · expires {formatDateTime(link.expiresAt)}. No payment is recorded until the guest pays.</p>
+                              <code className="block break-all text-xs">{url}</code>
+                              <div className="flex flex-wrap gap-3 text-xs text-primary">
+                                <button className="underline" onClick={() => copyLink(link.token)}>Copy payment link</button>
+                                <a className="underline" href={`mailto:${b.guestEmail}?subject=${encodeURIComponent(`Balance payment — ${propertyName}`)}&body=${encodeURIComponent(message)}`}>Email payment link</a>
+                                <button className="underline" onClick={() => void openGoogleMessagesWithCopiedText(message).then(() => toast.success("Message copied. Choose the guest, then paste and send."))}>Share in Google Messages</button>
+                              </div>
+                            </div>}
+                          </section>;
+                        })()}
                         <div className="flex items-center gap-2">
-                          {b.status === "confirmed" && b.hostawayReservationId && (
+                          {b.bookingSource !== "owner" && b.status === "confirmed" && b.hostawayReservationId && (
                             <button
                               onClick={() => openExtension(b.id, b.checkOut)}
                               className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
@@ -610,7 +681,7 @@ export default function AdminBookings() {
                               <CalendarPlus className="w-3.5 h-3.5" /> Extend stay
                             </button>
                           )}
-                          {b.status === "confirmed" && b.hostawayReservationId && (
+                          {b.bookingSource !== "owner" && b.status === "confirmed" && b.hostawayReservationId && (
                             <button
                               onClick={() => openChange(b)}
                               className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
@@ -634,7 +705,7 @@ export default function AdminBookings() {
                             ))}
                           </div>
                         </div>
-                        {changeBookingId === b.id && (
+                        {b.bookingSource !== "owner" && changeBookingId === b.id && (
                           <div className="mt-4 rounded-lg border border-primary/25 bg-primary/[0.035] p-4 max-w-2xl">
                             <div className="flex items-start justify-between gap-3 mb-3">
                               <div>
@@ -770,7 +841,7 @@ export default function AdminBookings() {
                             )}
                           </div>
                         )}
-                        {extensionBookingId === b.id && (
+                        {b.bookingSource !== "owner" && extensionBookingId === b.id && (
                           <div className="mt-4 rounded-lg border border-primary/25 bg-primary/[0.035] p-4 max-w-xl">
                             <div className="flex items-start justify-between gap-3 mb-3">
                               <div>
@@ -846,7 +917,7 @@ export default function AdminBookings() {
               </p>
               <a href="/admin/manual-bookings"
                 className="text-xs text-primary hover:text-primary/80 underline underline-offset-2">
-                + Create new link
+                + Create booking / payment link
               </a>
             </div>
 

@@ -62,6 +62,7 @@ async function getConfirmedBooking(bookingId: number) {
   const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1);
   if (!booking?.hostawayReservationId) throw new Error("This booking has no Hostaway reservation to change");
   if (booking.status !== "confirmed") throw new Error("Only confirmed bookings can be changed");
+  if (booking.bookingSource === "owner") throw new Error("Owner-created stays must be changed in Hostaway; website changes do not yet support partial-payment accounting.");
   return { db, booking };
 }
 

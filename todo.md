@@ -1,5 +1,16 @@
 # Rose City Stays — Project TODO
 
+## Actual Owner-Created Reservations (Nov 23, 2026)
+
+- [x] Separate actual Create Booking from Payment Link Only; require explicit unpaid authorization and a final reservation confirmation prompt.
+- [x] Create real Hostaway owner reservations without a website card charge, preserve ordinary guest payment gating, and support hidden properties without publishing them.
+- [x] Add audited actual receipts, cent-accurate remaining balances, named credits and fees, and fully credited complimentary stays.
+- [x] Add retry-safe request keys, payload fingerprints, read-only timeout recovery, and fail-closed occupancy checks without forcing overbooking.
+- [x] Collect only the existing reservation's remaining balance; prevent duplicate booking/payment events and competing Hostaway or Stripe collections.
+- [x] Show owner payment state and received revenue; enforce non-bypassed guest acknowledgments and never label an unplaced deposit as authorized.
+- [x] Keep cancellations sticky and disable legacy owner move/extension controls that assume fully paid reservations.
+- [ ] Publish the tested actual owner-booking checkpoint to activate this new workflow on the live site.
+
 ## Manual Booking Credits & Cancellation Repair (Nov 2026)
 
 - [x] Add multiple named owner credits and custom charges to manual payment links, with cent-accurate Stripe discounts and canonical itemized snapshots.
