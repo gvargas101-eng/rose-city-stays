@@ -73,6 +73,19 @@ export default function ManualBookingConfirm() {
 
   const data = confirmMutation.data;
 
+  if (data?.bookingStatus === "cancelled") {
+    return <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="max-w-lg mx-auto px-4 py-24 text-center">
+        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <h1 className="text-2xl font-semibold text-foreground mb-3">Reservation Canceled</h1>
+        <p className="text-muted-foreground mb-6">This reservation is no longer active. Payment and any refund are handled separately; please contact Rose City Stays with questions.</p>
+        <Button onClick={() => navigate("/")} variant="outline">Back to Home</Button>
+      </div>
+      <Footer />
+    </div>;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

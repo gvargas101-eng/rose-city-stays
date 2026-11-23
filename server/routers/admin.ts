@@ -13,8 +13,9 @@ import { eq, asc, desc, like, or } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { syncHostawayListings } from "../hostaway-sync";
 import { generateBlogPost } from "../blog-writer";
-import { getGuestSyncStatus, syncAllHostawayGuests } from "../hostaway-guests";
-
+import { validateManualBookingAmounts } from "../../shared/manualBookingAmounts";
+import { getGuestSyncStatus, refreshLinkedHostawayBookingStatuses, syncAllHostawayGuests } from "../hostaway-guests";
+import { getManualBookingStatus, HOSTAWAY_CANCELLATION_KEY_PREFIX } from "../../shared/bookingCancellation";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia",
 });
@@ -184,6 +185,11 @@ export const adminRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       return db.select().from(bookings).orderBy(desc(bookings.createdAt));
     }),
+
+  /** Owner-triggered read-only Hostaway reconciliation, scoped to existing links. */
+  refreshBookingStatuses: adminProcedure
+    .input(z.object({ reservationIds: z.array(z.string().trim().regex(/^\d{1,20}$/)).min(1).max(25) }))
+    .mutation(async ({ input }) => refreshLinkedHostawayBookingStatuses(input.reservationIds)),
 
   // ── Settings ──────────────────────────────────────────────────────────────
 
@@ -513,12 +519,22 @@ export const adminRouter = router({
         expiryDays: z.number().int().positive().default(7),
         securityDepositOverride: z.number().nonnegative().optional(), // null = use global setting
         guestNote: z.string().optional(), // shown to guest on payment page
-        customLineItems: z.array(z.object({ label: z.string(), amount: z.number() })).optional(), // extra fee lines
+        customLineItems: z.array(z.object({ label: z.string().trim().min(1).max(128), amount: z.number() })).max(50).optional(), // charges (+) or owner credits (-)
       })
     )
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      let amounts;
+      try {
+        amounts = validateManualBookingAmounts(input);
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: (error as Error).message });
+      }
+      if (Math.abs(Math.round(input.totalAmount * 100) - Math.round(amounts.total * 100)) > 1) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "The total does not match the itemized charges, discounts, and credits. Review your pricing." });
+      }
 
       // Generate a cryptographically random token
       const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
@@ -543,7 +559,7 @@ export const adminRouter = router({
         discountLabel: input.discountLabel ?? null,
         extraGuestFee: String(input.extraGuestFee),
         taxAmount: String(input.taxAmount),
-        totalAmount: String(input.totalAmount),
+        totalAmount: amounts.total.toFixed(2),
         bypassCameraDisclosure: input.bypassCameraDisclosure ? 1 : 0,
         bypassGuestCount: input.bypassGuestCount ? 1 : 0,
         bypassTermsAcceptance: input.bypassTermsAcceptance ? 1 : 0,
@@ -567,10 +583,23 @@ export const adminRouter = router({
   listManualBookingLinks: adminProcedure.query(async () => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-    return db
+    const links = await db
       .select()
       .from(manualBookingLinks)
       .orderBy(desc(manualBookingLinks.createdAt));
+    const bookingRows = await db.select({
+      id: bookings.id,
+      hostawayReservationId: bookings.hostawayReservationId,
+      status: bookings.status,
+    }).from(bookings);
+    const cancellationRows = await db.select({ key: siteSettings.key }).from(siteSettings)
+      .where(like(siteSettings.key, `${HOSTAWAY_CANCELLATION_KEY_PREFIX}%`));
+    const cancelledIds = new Set(cancellationRows.map(row => row.key.slice(HOSTAWAY_CANCELLATION_KEY_PREFIX.length)));
+    return links.map(link => ({
+      ...link,
+      // Preserve paid/active/revoked link lifecycle; reservation state is separate.
+      bookingStatus: getManualBookingStatus(link, bookingRows, cancelledIds),
+    }));
   }),
 
   /** Revoke a manual booking link (marks it as revoked so guest can no longer pay) */

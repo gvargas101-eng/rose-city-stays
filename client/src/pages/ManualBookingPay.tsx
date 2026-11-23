@@ -325,9 +325,9 @@ export default function ManualBookingPay() {
             )}
             {/* Custom line items */}
             {link.customLineItems && link.customLineItems.length > 0 && link.customLineItems.map((item, i) => (
-              <div key={i} className="flex justify-between text-muted-foreground">
+              <div key={i} className={`flex justify-between ${item.amount < 0 ? "text-green-700" : "text-muted-foreground"}`}>
                 <span>{item.label}</span>
-                <span>{fmt(item.amount)}</span>
+                <span>{item.amount < 0 ? "−" : ""}{fmt(Math.abs(item.amount))}</span>
               </div>
             ))}
             {Number(link.discountAmount) > 0 && (

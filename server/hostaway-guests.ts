@@ -5,7 +5,7 @@
  * name, email, phone, property/channel, and stay dates. Payment details and identity
  * documents are intentionally never read or copied into the guest directory.
  */
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { getDb } from "./db";
 import { getAccessToken } from "./hostaway-auth";
 import {
@@ -13,8 +13,12 @@ import {
   guestProfiles,
   guestSyncState,
   hostawayGuestReservations,
+  manualBookingLinks,
+  siteSettings,
 } from "../drizzle/schema";
 import { PROPERTY_TO_HOSTAWAY_ID } from "./hostaway";
+import { hostawayCancellationKey, isHostawayReservationCancelled } from "../shared/bookingCancellation";
+export { isHostawayReservationCancelled } from "../shared/bookingCancellation";
 
 const HOSTAWAY_API_BASE = "https://api.hostaway.com/v1";
 const SYNC_KEY = "hostaway-guests";
@@ -79,22 +83,34 @@ function getChannel(reservation: HostawayReservation): string | null {
   return value === undefined || value === null ? null : String(value).trim() || null;
 }
 
-export function isHostawayReservationCancelled(reservation: HostawayReservation): boolean {
-  const status = String(reservation.status ?? reservation.reservationStatus ?? "").trim().toLowerCase();
-  return status === "cancelled" || reservation.isCancelled === true || reservation.isCancelled === 1 || reservation.isCancelled === "1";
-}
-
-async function syncWebsiteBookingCancellation(reservation: HostawayReservation) {
+export async function syncWebsiteBookingCancellation(reservation: HostawayReservation) {
   if (!isHostawayReservationCancelled(reservation)) return 0;
 
   const reservationId = String(reservation.id ?? reservation.reservationId ?? "").trim();
-  if (!reservationId) return 0;
+  if (!/^\d{1,20}$/.test(reservationId)) return 0;
 
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
+  const canonical = await db.select({ id: bookings.id }).from(bookings)
+    .where(eq(bookings.hostawayReservationId, reservationId));
+  const linked = await db.select({ bookingId: manualBookingLinks.bookingId }).from(manualBookingLinks)
+    .where(eq(manualBookingLinks.hostawayReservationId, reservationId));
+  // Guest imports contain OTA reservations too. Keep status markers restricted
+  // to website-linked records rather than copying historical channel bookings.
+  if (!canonical.length && !linked.length) return 0;
+  // A sticky, status-only marker supports old paid manual links that have no
+  // canonical booking. Never change link.status, payment references, or holds.
+  await db.insert(siteSettings).values({ key: hostawayCancellationKey(reservationId), value: "cancelled" })
+    .onDuplicateKeyUpdate({ set: { value: "cancelled" } });
+  const bookingIds = linked.map(row => row.bookingId).filter((id): id is number => id != null);
   const updated = await db.update(bookings)
     .set({ status: "cancelled" })
-    .where(eq(bookings.hostawayReservationId, reservationId));
+    .where(and(ne(bookings.status, "cancelled"), or(
+      eq(bookings.hostawayReservationId, reservationId),
+      // A manual link may have the Hostaway reference before its booking does.
+      // Do not cancel a booking subsequently moved to a different reservation.
+      bookingIds.length ? and(inArray(bookings.id, bookingIds), isNull(bookings.hostawayReservationId)) : undefined,
+    )));
   return Number((updated as any)[0]?.affectedRows ?? 0);
 }
 
@@ -103,15 +119,22 @@ async function pause(ms: number) {
 }
 
 async function fetchHostawayReservation(reservationId: string | number): Promise<HostawayReservation> {
+  const normalizedId = String(reservationId).trim();
+  if (!/^\d{1,20}$/.test(normalizedId)) throw new Error("Invalid Hostaway reservation ID");
   const token = await getAccessToken();
-  const response = await fetch(`${HOSTAWAY_API_BASE}/reservations/${reservationId}`, {
+  const response = await fetch(`${HOSTAWAY_API_BASE}/reservations/${normalizedId}`, {
     headers: { Authorization: `Bearer ${token}`, "Cache-control": "no-cache" },
+    signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) {
     throw new Error(`Hostaway reservation fetch failed (${response.status})`);
   }
   const data = await response.json();
-  return data.result ?? data;
+  const reservation = data.result ?? data;
+  if (String(reservation.id ?? reservation.reservationId ?? "").trim() !== normalizedId) {
+    throw new Error("Hostaway returned a mismatched reservation ID");
+  }
+  return reservation;
 }
 
 async function fetchHostawayReservationPage(offset: number): Promise<{ rows: HostawayReservation[]; hasMore: boolean }> {
@@ -171,6 +194,9 @@ async function updateSyncState(
 export async function upsertGuestFromHostawayReservation(
   reservation: HostawayReservation
 ): Promise<{ createdGuest: boolean; createdReservation: boolean }> {
+  // Critical website state must persist even if optional guest tables are absent
+  // or their profile writes fail. This path has no Stripe or Hostaway mutations.
+  await syncWebsiteBookingCancellation(reservation);
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
 
@@ -255,13 +281,15 @@ export async function upsertGuestFromHostawayReservation(
   }
 
   const createdReservation = !existingSource;
+  const reservationStatus = isHostawayReservationCancelled(reservation) ? "cancelled"
+    : reservation.status ?? reservation.reservationStatus ?? null;
   await db.insert(hostawayGuestReservations).values({
     hostawayReservationId: reservationId,
     guestProfileId: profileId,
     hostawayListingId,
     propertySlug,
     channel,
-    reservationStatus: reservation.status ? String(reservation.status) : null,
+    reservationStatus: reservationStatus ? String(reservationStatus) : null,
     arrivalAt,
     departureAt,
     guestCount: Number(reservation.numberOfGuests ?? reservation.adults ?? 0) || null,
@@ -273,7 +301,7 @@ export async function upsertGuestFromHostawayReservation(
       hostawayListingId,
       propertySlug,
       channel,
-      reservationStatus: reservation.status ? String(reservation.status) : null,
+      reservationStatus: reservationStatus ? String(reservationStatus) : null,
       arrivalAt,
       departureAt,
       guestCount: Number(reservation.numberOfGuests ?? reservation.adults ?? 0) || null,
@@ -291,19 +319,59 @@ export async function upsertGuestFromHostawayReservation(
     }
   }
 
-  const cancelledBookings = await syncWebsiteBookingCancellation(reservation);
-  if (cancelledBookings > 0) {
-    console.info(`[Hostaway sync] Marked ${cancelledBookings} website booking(s) cancelled for Hostaway reservation ${reservationId}`);
-  }
-
   return { createdGuest, createdReservation };
 }
 
 export async function syncHostawayReservationById(reservationId: string | number) {
   const reservation = await fetchHostawayReservation(reservationId);
-  const result = await upsertGuestFromHostawayReservation(reservation);
-  await updateSyncState("success", { lastWebhookSyncAt: new Date(), lastError: null, lastImportedReservations: 1 });
-  return result;
+  try {
+    const result = await upsertGuestFromHostawayReservation(reservation);
+    await updateSyncState("success", { lastWebhookSyncAt: new Date(), lastError: null, lastImportedReservations: 1 });
+    return result;
+  } catch (error) {
+    if (!isHostawayReservationCancelled(reservation)) throw error;
+    // Recheck the critical write before acknowledging a cancellation if optional
+    // contact/state tables failed. Failure of this write still returns webhook 500.
+    await syncWebsiteBookingCancellation(reservation);
+    console.warn("[Hostaway sync] Cancellation persisted; guest directory sync failed:", error);
+    return { createdGuest: false, createdReservation: false, guestDirectorySynced: false };
+  }
+}
+
+/** Read only already-linked website reservations, never the historical guest list.
+ * A request is capped at 25 unique IDs and failures are reported per reservation. */
+export async function refreshLinkedHostawayBookingStatuses(reservationIds: string[]) {
+  const ids = Array.from(new Set(reservationIds.map(id => id.trim())));
+  if (ids.length > 25 || ids.some(id => !/^\d{1,20}$/.test(id))) throw new Error("Invalid status refresh batch");
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  if (!ids.length) return { checked: 0, cancelled: 0, updatedBookings: 0, failedReservationIds: [] as string[] };
+  const bookingRows = await db.select({ hostawayReservationId: bookings.hostawayReservationId }).from(bookings)
+    .where(inArray(bookings.hostawayReservationId, ids));
+  const linkRows = await db.select({ hostawayReservationId: manualBookingLinks.hostawayReservationId }).from(manualBookingLinks)
+    .where(inArray(manualBookingLinks.hostawayReservationId, ids));
+  const allowedIds = new Set([...bookingRows, ...linkRows].map(row => row.hostawayReservationId));
+  if (ids.some(id => !allowedIds.has(id))) throw new Error("Only linked website reservations may be refreshed");
+  const summary = { checked: 0, cancelled: 0, updatedBookings: 0, failedReservationIds: [] as string[] };
+  // Three workers bound API concurrency and wall time; no contact tables touched.
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(3, ids.length) }, async () => {
+    while (next < ids.length) {
+      const id = ids[next++];
+      try {
+        const reservation = await fetchHostawayReservation(id);
+        const updatedBookings = await syncWebsiteBookingCancellation(reservation);
+        summary.updatedBookings += updatedBookings;
+        summary.checked += 1;
+        if (isHostawayReservationCancelled(reservation)) summary.cancelled += 1;
+      } catch (error) {
+        summary.failedReservationIds.push(id);
+        console.warn(`[Hostaway status refresh] reservation ${id} failed:`, error);
+      }
+      if (next < ids.length) await pause(REQUEST_DELAY_MS);
+    }
+  }));
+  return summary;
 }
 
 /** Full historical import or reconciliation. Uses paginated calls and rate limiting. */

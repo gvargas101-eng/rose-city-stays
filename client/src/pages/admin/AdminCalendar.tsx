@@ -9,6 +9,7 @@ import { getUtcTimelineDays } from "@/lib/calendarDates";
 import { ChevronLeft, ChevronRight, RefreshCw, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { isHostawayReservationCancelled } from "@shared/bookingCancellation";
 
 const PROPERTY_NAMES: Record<string, string> = {
   "the-briar": "The Briar",
@@ -103,7 +104,7 @@ export default function AdminCalendar() {
   const reservationMap = useMemo(() => {
     const map: Record<string, any[]> = {};
     for (const entry of data ?? []) {
-      map[entry.propertySlug] = entry.reservations.filter((reservation: any) => reservation.status !== "cancelled");
+      map[entry.propertySlug] = entry.reservations.filter((reservation: any) => !isHostawayReservationCancelled(reservation));
     }
     return map;
   }, [data]);

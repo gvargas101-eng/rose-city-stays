@@ -4,15 +4,17 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MySqlDialect } from "drizzle-orm/mysql-core";
 
 // ── Mock Stripe ──────────────────────────────────────────────────────────────
 const mockCheckoutSessionCreate = vi.fn();
 const mockCheckoutSessionRetrieve = vi.fn();
 const mockPaymentIntentRetrieve = vi.fn();
 const mockPaymentIntentCreate = vi.fn();
-
+const mockCouponCreate = vi.fn().mockResolvedValue({ id: "coupon_owner_adjustment" });
 vi.mock("stripe", () => ({
   default: vi.fn().mockImplementation(() => ({
+    coupons: { create: mockCouponCreate },
     checkout: {
       sessions: {
         create: mockCheckoutSessionCreate,
@@ -449,6 +451,39 @@ describe("bookingRouter.confirmBooking", () => {
     // Should NOT call Hostaway again
     expect(mockCreateHostawayReservation).not.toHaveBeenCalled();
   });
+
+  it("never recreates a canceled reservation from a legacy paid confirmation", async () => {
+    mockPaymentIntentRetrieve.mockResolvedValue({ id: "pi_test_123", status: "succeeded" });
+    mockBookingRow = { ...mockBookingRow, status: "cancelled", hostawayReservationId: "HA-98765" };
+    await expect(callProcedure("confirmBooking", { paymentIntentId: "pi_test_123" })).rejects.toThrow("canceled");
+    expect(mockCreateHostawayReservation).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("preserves a cancellation that arrives during Hostaway confirmation atomically", async () => {
+    mockPaymentIntentRetrieve.mockResolvedValue({ id: "pi_test_123", status: "succeeded" });
+    mockCreateHostawayReservation.mockImplementationOnce(async () => {
+      mockBookingRow = { ...mockBookingRow, status: "cancelled", hostawayReservationId: "HA-98765" };
+      return { id: "HA-98765" };
+    });
+    await expect(callProcedure("confirmBooking", { paymentIntentId: "pi_test_123" })).rejects.toThrow("canceled");
+    const condition = mockUpdateSet.mock.results[0].value.where.mock.calls[0][0];
+    const query = new MySqlDialect().sqlToQuery(condition);
+    expect(query.sql).toContain("`bookings`.`status` <>");
+    expect(query.params).toContain("cancelled");
+    expect(mockNotifyOwner).not.toHaveBeenCalled();
+    expect(mockPaymentIntentCreate).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges replayed paid Stripe events without reviving cancellation or creating deposit holds", async () => {
+    mockBookingRow = { ...mockBookingRow, status: "cancelled", hostawayReservationId: "HA-98765" };
+    const { confirmStripeCheckoutSession } = await import("./routers/booking");
+    const result = await confirmStripeCheckoutSession({ id: "cs_replayed", client_reference_id: "42", payment_status: "paid", payment_intent: "pi_test_123" } as any);
+    expect(result).toEqual({ success: true, cancelled: true });
+    expect(mockCreateHostawayReservation).not.toHaveBeenCalled();
+    expect(mockPaymentIntentCreate).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
 });
 
 describe("bookingRouter.createManualBookingCheckout", () => {
@@ -518,5 +553,29 @@ describe("bookingRouter.createManualBookingCheckout", () => {
     expect(sessionInput.customer_creation).toBe("always");
     expect(sessionInput.payment_intent_data.setup_future_usage).toBe("off_session");
     expect(sessionInput.metadata.manual_booking_token).toBe("manual-token");
+  });
+
+  it("collects the exact net price with multiple credits, a nightly discount, and a custom charge", async () => {
+    mockBookingRow = { ...mockBookingRow, discountAmount: "45.00", discountLabel: "10% nightly discount", totalAmount: "525.50",
+      customLineItems: JSON.stringify([{ label: "Pet fee", amount: 50 }, { label: "Courtesy credit", amount: -70 }, { label: "Cleaning credit", amount: -25 }]) };
+    mockCheckoutSessionCreate.mockResolvedValue({ id: "cs_credit", url: "https://checkout.stripe.com/pay/cs_credit" });
+    await callProcedure("createManualBookingCheckout", { token: "manual-token", guestName: "Guest", guestEmail: "guest@example.com", origin: "https://www.rosecitystays.com" });
+    expect(mockCouponCreate).toHaveBeenCalledWith(expect.objectContaining({ amount_off: 14000, name: "Owner credits & discounts" }));
+    const input = mockCheckoutSessionCreate.mock.calls[0][0];
+    expect(input.line_items.every((line: any) => line.price_data.unit_amount >= 0)).toBe(true);
+    expect(input.line_items.reduce((sum: number, line: any) => sum + line.price_data.unit_amount, 0) - 14000).toBe(52550);
+    expect(input.discounts).toEqual([{ coupon: "coupon_owner_adjustment" }]);
+    expect(input.allow_promotion_codes).toBeUndefined();
+    expect(mockCreateHostawayReservation).not.toHaveBeenCalled();
+  });
+
+  it("blocks excessive credits or a mismatched saved total before Stripe or Hostaway", async () => {
+    mockBookingRow = { ...mockBookingRow, customLineItems: JSON.stringify([{ label: "Credit", amount: -615.5 }]), totalAmount: "0" };
+    await expect(callProcedure("createManualBookingCheckout", { token: "manual-token", guestName: "Guest", guestEmail: "guest@example.com", origin: "https://www.rosecitystays.com" })).rejects.toThrow("at least $0.50");
+    expect(mockCheckoutSessionCreate).not.toHaveBeenCalled();
+    mockBookingRow = { ...mockBookingRow, customLineItems: null, totalAmount: "100.00" };
+    await expect(callProcedure("createManualBookingCheckout", { token: "manual-token", guestName: "Guest", guestEmail: "guest@example.com", origin: "https://www.rosecitystays.com" })).rejects.toThrow("itemized pricing");
+    expect(mockCheckoutSessionCreate).not.toHaveBeenCalled();
+    expect(mockCreateHostawayReservation).not.toHaveBeenCalled();
   });
 });

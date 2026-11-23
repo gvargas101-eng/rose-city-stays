@@ -29,6 +29,7 @@ export function reservationIdFromPayload(payload: Record<string, any>): string |
     payload.reservation?.id,
     payload.data?.reservationId,
     payload.data?.reservation?.id,
+    payload.data?.id,
     payload.objectId,
   ];
   const value = candidates.find(candidate => candidate !== undefined && candidate !== null && String(candidate).trim());
@@ -38,11 +39,11 @@ export function reservationIdFromPayload(payload: Record<string, any>): string |
   // Hostaway's documented Object ID is a reservation ID. Do not guess from a
   // composite value: treating an opaque unified-event identifier as a
   // reservation ID caused API 404s and repeated delivery failures.
-  return /^\d+$/.test(normalized) ? normalized : null;
+  return /^\d{1,20}$/.test(normalized) ? normalized : null;
 }
 
 function webhookEventName(payload: Record<string, any>): string {
-  return String(payload.event ?? payload.eventType ?? payload.event_name ?? payload.type ?? "").toLowerCase();
+  return String(payload.event ?? payload.eventType ?? payload.event_name ?? payload.type ?? "").trim().toLowerCase();
 }
 
 /**
@@ -65,7 +66,7 @@ export async function hostawayReservationWebhookHandler(request: Request, respon
 
   const payload = (request.body ?? {}) as Record<string, any>;
   const event = webhookEventName(payload);
-  if (event && event !== "reservation.created" && event !== "reservation.updated") {
+  if (event && !["reservation.created", "reservation.updated", "reservation.cancelled", "reservation.canceled"].includes(event)) {
     return response.status(200).json({ ok: true, skipped: "unsupported-event" });
   }
 

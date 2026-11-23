@@ -4,6 +4,7 @@
  */
 
 import { getAccessToken } from "./hostaway-auth";
+import { isHostawayReservationCancelled } from "../shared/bookingCancellation";
 
 const HOSTAWAY_API_BASE = "https://api.hostaway.com/v1";
 
@@ -181,7 +182,7 @@ export async function getListingReservations(
     channelName: r.channelName || r.source || "Direct",
     arrivalDate: r.arrivalDate,
     departureDate: r.departureDate,
-    status: r.status || "confirmed",
+    status: isHostawayReservationCancelled(r) ? "cancelled" : (r.status || r.reservationStatus || "confirmed"),
     numberOfGuests: r.numberOfGuests || 1,
     totalPrice: parseFloat(r.totalPrice) || 0,
   }));

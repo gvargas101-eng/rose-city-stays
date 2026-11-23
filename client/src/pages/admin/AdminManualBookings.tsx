@@ -19,6 +19,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { getStayPriceSummary } from "@/lib/manualBookingPricing";
+import { getManualBookingAmounts, getNightlyDiscount, validateManualBookingAmounts } from "@shared/manualBookingAmounts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +96,7 @@ function statusBadge(status: string, expiresAt: number) {
 interface CustomLineItem {
   label: string;
   amount: number;
+  kind: "charge" | "credit";
 }
 
 interface AppliedDiscount {
@@ -113,9 +115,12 @@ interface FormState {
   nightlyRate: number;
   cleaningFee: number;
   discountAmount: number;
+  discountMode: "fixed" | "percent";
+  discountPercent: number;
   discountLabel: string;
   extraGuestFee: number;
   taxRate: number;
+  taxOverride: string;
   bypassCameraDisclosure: boolean;
   bypassGuestCount: boolean;
   bypassTermsAcceptance: boolean;
@@ -139,9 +144,12 @@ const INITIAL_FORM: FormState = {
   nightlyRate: 0,
   cleaningFee: 125,
   discountAmount: 0,
+  discountMode: "fixed",
+  discountPercent: 0,
   discountLabel: "",
   extraGuestFee: 0,
   taxRate: 9,
+  taxOverride: "",
   bypassCameraDisclosure: false,
   bypassGuestCount: false,
   bypassTermsAcceptance: false,
@@ -253,6 +261,7 @@ export default function AdminManualBookings() {
       setAppliedDiscount(discount);
       setDiscountCodeInput(discount.code);
       set("discountAmount", discount.discountAmount);
+      set("discountMode", "fixed");
       toast.success(`${discount.code} applied — saving ${fmt(discount.discountAmount)}`);
     },
     onError: (error) => toast.error(error.message || "That discount code cannot be applied"),
@@ -275,17 +284,25 @@ export default function AdminManualBookings() {
     return Math.max(0, Math.round(diff / (1000 * 60 * 60 * 24)));
   }, [form.checkIn, form.checkOut]);
 
-  const subtotal = form.nightlyRate * nights;
-  const customLineItemsTotal = form.customLineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-  const taxAmount = Math.round((subtotal - form.discountAmount) * (form.taxRate / 100) * 100) / 100;
-  const total = Math.max(0,
-    subtotal
-    + form.cleaningFee
-    + form.extraGuestFee
-    + customLineItemsTotal
-    - form.discountAmount
-    + taxAmount
-  );
+  const subtotal = Math.round(form.nightlyRate * nights * 100) / 100;
+  const discountAmount = getNightlyDiscount(subtotal, form.discountMode,
+    form.discountMode === "percent" ? form.discountPercent : form.discountAmount);
+  const signedLineItems = form.customLineItems.map(item => ({
+    label: item.label.trim(), amount: item.kind === "credit" ? -Math.abs(item.amount) : Math.abs(item.amount),
+  }));
+  const taxAmount = form.taxOverride !== "" ? Number(form.taxOverride)
+    : Math.round(Math.max(0, subtotal - discountAmount) * (form.taxRate / 100) * 100) / 100;
+  const pricingInput = { nightlyRate: form.nightlyRate, nights, cleaningFee: form.cleaningFee,
+    extraGuestFee: form.extraGuestFee, discountAmount, taxAmount, customLineItems: signedLineItems };
+  const total = getManualBookingAmounts(pricingInput).total;
+
+  // Managed codes must be checked again if the priced stay or guest changes.
+  useEffect(() => {
+    if (!appliedDiscount) return;
+    setAppliedDiscount(null);
+    setDiscountCodeInput("");
+    setForm(prev => ({ ...prev, discountAmount: 0 }));
+  }, [subtotal, form.guestEmail, form.propertySlug]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -323,10 +340,10 @@ export default function AdminManualBookings() {
     });
   }
 
-  function addCustomLineItem() {
+  function addCustomLineItem(kind: "charge" | "credit" = "charge") {
     setForm(prev => ({
       ...prev,
-      customLineItems: [...prev.customLineItems, { label: "", amount: 0 }],
+      customLineItems: [...prev.customLineItems, { label: "", amount: 0, kind }],
     }));
   }
 
@@ -381,14 +398,12 @@ export default function AdminManualBookings() {
     if (!form.propertySlug) return toast.error("Select a property");
     if (!form.checkIn || !form.checkOut) return toast.error("Select check-in and check-out dates");
     if (nights < 1) return toast.error("Check-out must be after check-in");
-    if (form.nightlyRate <= 0) return toast.error("Enter a nightly rate");
-    if (total <= 0) return toast.error("Total must be greater than $0");
-
-    // Validate custom line items
-    for (const item of form.customLineItems) {
-      if (!item.label.trim()) return toast.error("All custom line items must have a label");
-      if (item.amount <= 0) return toast.error("All custom line item amounts must be greater than $0");
+    if (form.nightlyRate < 0) return toast.error("Nightly rate cannot be negative");
+    if (form.discountMode === "percent" && (form.discountPercent < 0 || form.discountPercent > 100)) {
+      return toast.error("Percentage discount must be between 0% and 100%");
     }
+    try { validateManualBookingAmounts(pricingInput); }
+    catch (error) { return toast.error((error as Error).message); }
 
     const prop = staticProperties.find(p => p.id === form.propertySlug)
       || dbProperties?.find(p => p.slug === form.propertySlug);
@@ -410,10 +425,10 @@ export default function AdminManualBookings() {
       guestCount: form.guestCount,
       nightlyRate: form.nightlyRate,
       cleaningFee: form.cleaningFee,
-      discountAmount: form.discountAmount,
+      discountAmount,
       discountCodeId: appliedDiscount?.id,
-      discountLabel: form.discountAmount > 0
-        ? (appliedDiscount?.label || form.discountLabel.trim() || "Discount")
+      discountLabel: discountAmount > 0
+        ? (appliedDiscount?.label || form.discountLabel.trim() || (form.discountMode === "percent" ? `${form.discountPercent}% nightly discount` : "Nightly discount"))
         : undefined,
       extraGuestFee: form.extraGuestFee,
       taxAmount,
@@ -430,7 +445,7 @@ export default function AdminManualBookings() {
       expiryDays: form.expiryDays,
       securityDepositOverride: depositOverride,
       guestNote: form.guestNote || undefined,
-      customLineItems: form.customLineItems.length > 0 ? form.customLineItems : undefined,
+      customLineItems: signedLineItems.length > 0 ? signedLineItems : undefined,
     });
   }
 
@@ -445,6 +460,8 @@ export default function AdminManualBookings() {
 
   function resetForm() {
     setForm(INITIAL_FORM);
+    setAppliedDiscount(null);
+    setDiscountCodeInput("");
     setGeneratedToken(null);
     setGeneratedExpiry(null);
   }
@@ -472,10 +489,10 @@ export default function AdminManualBookings() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-              Manual Booking Links
+              Create a Manual Booking
             </h1>
             <p className="text-sm text-muted-foreground mt-1" style={{ fontFamily: "var(--font-body)" }}>
-              Create a custom payment link to send directly to a guest. Set your own price, apply discounts, and choose which steps to require.
+              Customize a stay, apply discounts or labeled credits, then send the guest a payment link. The reservation is confirmed only after payment succeeds.
             </p>
           </div>
           <Button
@@ -660,17 +677,21 @@ export default function AdminManualBookings() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Discount ($)</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={form.discountAmount}
-                    onChange={e => set("discountAmount", Number(e.target.value))}
-                    placeholder="0.00"
-                  />
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Nightly Discount</label>
+                  <div className="flex gap-2">
+                    <select aria-label="Discount type" value={form.discountMode} disabled={!!appliedDiscount}
+                      onChange={e => set("discountMode", e.target.value as "fixed" | "percent")}
+                      className="rounded-md border border-border bg-background text-foreground px-2 text-sm">
+                      <option value="fixed">Dollars ($)</option><option value="percent">Percent (%)</option>
+                    </select>
+                    <Input type="number" min={0} max={form.discountMode === "percent" ? 100 : undefined} step={0.01}
+                      aria-label="Nightly discount amount" disabled={!!appliedDiscount}
+                      value={form.discountMode === "percent" ? form.discountPercent : form.discountAmount}
+                      onChange={e => set(form.discountMode === "percent" ? "discountPercent" : "discountAmount", Number(e.target.value))} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Applies to nights only. Use a custom credit to reduce any other charge.</p>
                 </div>
-                {form.discountAmount > 0 && (
+                {discountAmount > 0 && (
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                       Discount Label <span className="text-muted-foreground/70">(shown to guest)</span>
@@ -691,7 +712,14 @@ export default function AdminManualBookings() {
                     step={0.01}
                     value={form.taxRate}
                     onChange={e => set("taxRate", Number(e.target.value))}
+                    disabled={form.taxOverride !== ""}
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Custom Tax Amount ($) — optional</label>
+                  <Input type="number" min={0} step={0.01} value={form.taxOverride}
+                    onChange={e => set("taxOverride", e.target.value)} placeholder="Leave blank to calculate from rate" />
+                  <p className="text-[11px] text-muted-foreground mt-1">Owner override; credits do not automatically waive taxes.</p>
                 </div>
               </div>
 
@@ -726,7 +754,7 @@ export default function AdminManualBookings() {
               </div>
 
               {/* Live price breakdown */}
-              {nights > 0 && form.nightlyRate > 0 && (
+              {nights > 0 && (
                 <div className="mt-4 p-4 bg-muted/40 rounded-xl space-y-1.5 text-sm">
                   <div className="flex justify-between text-muted-foreground">
                     <span>{fmt(form.nightlyRate)} × {nights} night{nights !== 1 ? "s" : ""}</span>
@@ -744,26 +772,26 @@ export default function AdminManualBookings() {
                       <span>{fmt(form.extraGuestFee)}</span>
                     </div>
                   )}
-                  {form.customLineItems.map((item, i) => item.amount > 0 && item.label && (
-                    <div key={i} className="flex justify-between text-muted-foreground">
+                  {signedLineItems.map((item, i) => item.amount !== 0 && item.label && (
+                    <div key={i} className={`flex justify-between ${item.amount < 0 ? "text-green-700" : "text-muted-foreground"}`}>
                       <span>{item.label}</span>
-                      <span>{fmt(item.amount)}</span>
+                      <span>{item.amount < 0 ? "−" : ""}{fmt(Math.abs(item.amount))}</span>
                     </div>
                   ))}
-                  {form.discountAmount > 0 && (
+                  {discountAmount > 0 && (
                     <div className="flex justify-between text-green-700">
-                      <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> {form.discountLabel.trim() || "Discount"}</span>
-                      <span>−{fmt(form.discountAmount)}</span>
+                      <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> {appliedDiscount?.label || form.discountLabel.trim() || (form.discountMode === "percent" ? `${form.discountPercent}% nightly discount` : "Nightly discount")}</span>
+                      <span>−{fmt(discountAmount)}</span>
                     </div>
                   )}
                   {taxAmount > 0 && (
                     <div className="flex justify-between text-muted-foreground">
-                      <span>Tax ({form.taxRate}%)</span>
+                      <span>{form.taxOverride !== "" ? "Tax (custom amount)" : `Tax (${form.taxRate}%)`}</span>
                       <span>{fmt(taxAmount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-semibold text-foreground pt-1.5 border-t border-border">
-                    <span>Total</span>
+                    <span>Guest pays</span>
                     <span>{fmt(total)}</span>
                   </div>
                 </div>
@@ -774,38 +802,39 @@ export default function AdminManualBookings() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Custom Line Items
+                  Custom Charges & Credits
                 </h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addCustomLineItem}
-                  className="gap-1.5 text-xs h-7"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Item
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => addCustomLineItem("charge")} className="gap-1.5 text-xs h-7">
+                    <Plus className="w-3.5 h-3.5" />Add Charge
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => addCustomLineItem("credit")} className="gap-1.5 text-xs h-7 text-green-700">
+                    <Plus className="w-3.5 h-3.5" />Add Credit
+                  </Button>
+                </div>
               </div>
               {form.customLineItems.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No custom items. Click "Add Item" to add a pet fee, early check-in, or any other charge.
+                  Add any named charge or credit, such as a pet fee, waived cleaning fee, or courtesy credit. Credits reduce the amount collected; they are not refunds or proof of payment elsewhere.
                 </p>
               ) : (
                 <div className="space-y-2">
                   {form.customLineItems.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
+                    <div key={i} className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                      <select aria-label="Adjustment type" value={item.kind} onChange={e => updateCustomLineItem(i, "kind", e.target.value)} className="rounded-md border border-border bg-background text-foreground px-2 py-2 text-sm">
+                        <option value="charge">Charge (+)</option><option value="credit">Credit (−)</option>
+                      </select>
                       <Input
                         value={item.label}
                         onChange={e => updateCustomLineItem(i, "label", e.target.value)}
-                        placeholder="e.g. Pet fee, Early check-in…"
+                        placeholder={item.kind === "credit" ? "e.g. Courtesy credit, Cleaning credit" : "e.g. Pet fee, Early check-in"}
                         className="flex-1"
                       />
                       <div className="relative w-32">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                         <Input
                           type="number"
-                          min={0}
+                          min={0.01}
                           step={0.01}
                           value={item.amount || ""}
                           onChange={e => updateCustomLineItem(i, "amount", Number(e.target.value))}
@@ -1132,6 +1161,7 @@ export default function AdminManualBookings() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium text-foreground">{link.propertyName}</span>
                           {statusBadge(link.status, link.expiresAt)}
+                          {link.bookingStatus && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${link.bookingStatus === "cancelled" ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"}`}>Booking: {link.bookingStatus === "cancelled" ? "Canceled" : link.bookingStatus}</span>}
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {fmtDate(link.checkIn)} → {fmtDate(link.checkOut)} · {link.guestCount} guest{link.guestCount !== 1 ? "s" : ""} · {fmt(link.totalAmount)}
@@ -1194,6 +1224,13 @@ export default function AdminManualBookings() {
                             <div className="font-bold text-foreground">{fmt(link.totalAmount)}</div>
                           </div>
                         </div>
+
+                        {link.customLineItems && <div className="space-y-1 text-sm">
+                          {(() => { try { return (JSON.parse(link.customLineItems) as {label: string; amount: number}[]).map((item, i) => (
+                            <div key={i} className={`flex justify-between ${item.amount < 0 ? "text-green-700" : "text-muted-foreground"}`}>
+                              <span>{item.label}</span><span>{item.amount < 0 ? "−" : ""}{fmt(Math.abs(item.amount))}</span>
+                            </div>)); } catch { return null; } })()}
+                        </div>}
 
                         {/* Bypass flags */}
                         <div>

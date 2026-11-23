@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingChanges, bookingExtensions, bookings } from "../drizzle/schema";
+import { bookingChanges, bookingExtensions, bookings, guestProfiles, hostawayGuestReservations, guestSyncState } from "../drizzle/schema";
 
 describe("bookings checkout persistence schema", () => {
   it("defines the fields required by direct checkout, security holds, SMS consent, and reusable Stripe customers", () => {
@@ -8,6 +8,16 @@ describe("bookings checkout persistence schema", () => {
     expect(bookings.depositHoldAmount.name).toBe("depositHoldAmount");
     expect(bookings.discountCodeId.name).toBe("discountCodeId");
     expect(bookings.addonsSnapshot.name).toBe("addonsSnapshot");
+  });
+});
+
+describe("Hostaway synchronization persistence schema", () => {
+  it("defines the guest identity, reservation status and sync health fields used by webhook reconciliation", () => {
+    expect(guestProfiles.normalizedEmail.name).toBe("normalizedEmail");
+    expect(hostawayGuestReservations.hostawayReservationId.name).toBe("hostawayReservationId");
+    expect(hostawayGuestReservations.reservationStatus.name).toBe("reservationStatus");
+    expect(guestSyncState.syncKey.name).toBe("syncKey");
+    expect(guestSyncState.lastReconciledAt.name).toBe("lastReconciledAt");
   });
 });
 

@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Calendar, CalendarPlus, ArrowLeftRight, User, DollarSign, IdCard, ShieldCheck, ExternalLink, Link2, Mail, MessageSquare, Phone } from "lucide-react";
 import { Copy, Check } from "lucide-react";
-import { Search } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 import { properties } from "@/lib/properties";
 import { matchesSmsConsentFilter, type SmsConsentFilter } from "@/lib/bookingFilters";
 import { openGoogleMessagesWithCopiedText } from "@/lib/googleMessages";
@@ -22,6 +22,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
 
 const LINK_STATUS_COLORS: Record<string, string> = {
   active:   "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  paid:     "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
   used:     "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
   expired:  "bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400",
   revoked:  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
@@ -46,9 +47,21 @@ function formatDateTime(ms: number) {
 export default function AdminBookings() {
   const { data: bookings, refetch: refetchBookings } = trpc.admin.listBookings.useQuery();
   const { data: manualLinks, refetch: refetchLinks } = trpc.admin.listManualBookingLinks.useQuery();
+  const utils = trpc.useUtils();
+  const refreshStatuses = trpc.admin.refreshBookingStatuses.useMutation({
+    onSuccess: (result) => {
+      void refetchBookings();
+      void refetchLinks();
+      void utils.admin.getReservationsForCalendar.invalidate();
+      const message = `Checked ${result.checked} Hostaway reservation(s); ${result.cancelled} cancelled. Payments and deposits unchanged.`;
+      if (result.failedReservationIds.length) toast.warning(`${message} ${result.failedReservationIds.length} could not be refreshed; retry individually.`);
+      else toast.success(message);
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   const updateStatus = trpc.admin.updateBookingStatus.useMutation({
-    onSuccess: () => { refetchBookings(); toast.success("Status updated"); },
+    onSuccess: () => { refetchBookings(); refetchLinks(); toast.success("Status updated"); },
     onError: (e) => toast.error(e.message),
   });
   const releaseDeposit = trpc.admin.releaseDepositHold.useMutation({
@@ -176,6 +189,11 @@ export default function AdminBookings() {
       return true;
     }
   );
+  // One click is always bounded. Individual rows can refresh older reservations.
+  const refreshIds = Array.from(new Set((tab === "direct" ? filtered : manualLinks ?? [])
+    .map(row => row.hostawayReservationId)
+    .filter((id): id is string => Boolean(id && /^\d{1,20}$/.test(id)))))
+    .slice(0, 25);
 
   const totalRevenue = (bookings ?? [])
     .filter((b) => b.status === "paid" || b.status === "confirmed")
@@ -215,6 +233,15 @@ export default function AdminBookings() {
               {bookings?.length ?? 0} direct bookings · ${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0 })} confirmed revenue
             </p>
           </div>
+          <button
+            onClick={() => refreshStatuses.mutate({ reservationIds: refreshIds })}
+            disabled={refreshStatuses.isPending || !refreshIds.length}
+            title="Reads up to 25 latest linked reservations in this view. Does not cancel reservations, refund payments, or release deposits."
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-border text-foreground hover:bg-muted/50 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshStatuses.isPending ? "animate-spin" : ""}`} />
+            {refreshStatuses.isPending ? "Refreshing…" : `Refresh Hostaway statuses (${refreshIds.length})`}
+          </button>
         </div>
 
         {/* Tab switcher */}
@@ -381,6 +408,9 @@ export default function AdminBookings() {
 
                     {expanded === b.id && (
                       <div className="border-t border-border px-5 py-4 bg-muted/10">
+                        {b.status === "cancelled" && (
+                          <p className="text-xs text-red-700 dark:text-red-400 mb-4">Reservation cancelled. Payment history and deposit holds are unchanged; no automatic refund or hold release.</p>
+                        )}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm mb-4">
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Phone</p>
@@ -438,7 +468,7 @@ export default function AdminBookings() {
                                         {addonLines.map((a, i) => (
                                           <div key={i} className="flex justify-between px-3 py-2">
                                             <span className="text-muted-foreground">{a.name}</span>
-                                            <span className="text-foreground">${Number(a.price).toFixed(2)}</span>
+                                            <span className={Number(a.price) < 0 ? "text-green-700" : "text-foreground"}>{Number(a.price) < 0 ? `−$${Math.abs(Number(a.price)).toFixed(2)}` : `$${Number(a.price).toFixed(2)}`}</span>
                                           </div>
                                         ))}
                                       </>
@@ -485,6 +515,9 @@ export default function AdminBookings() {
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Hostaway Reservation</p>
                             <p className="text-foreground font-mono text-xs">{b.hostawayReservationId || "—"}</p>
+                            {b.hostawayReservationId && /^\d{1,20}$/.test(b.hostawayReservationId) && (
+                              <button disabled={refreshStatuses.isPending} onClick={() => refreshStatuses.mutate({ reservationIds: [b.hostawayReservationId!] })} className="mt-1 text-xs text-primary underline disabled:opacity-50">Refresh status</button>
+                            )}
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Booked On</p>
@@ -854,13 +887,24 @@ export default function AdminBookings() {
                           {link.totalAmount ? parseFloat(link.totalAmount).toFixed(2) : "—"}
                         </div>
                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${LINK_STATUS_COLORS[link.status] ?? "bg-muted text-muted-foreground"}`}>
-                          {link.status}
+                          {link.status === "paid" ? "Payment: paid" : `Link: ${link.status}`}
                         </span>
+                        {link.bookingStatus && (
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[link.bookingStatus as BookingStatus] ?? "bg-muted text-muted-foreground"}`}>
+                            Reservation: {link.bookingStatus}
+                          </span>
+                        )}
+                        {!link.bookingStatus && link.hostawayReservationId && (
+                          <span className="text-xs text-muted-foreground">Reservation status not synced</span>
+                        )}
                       </div>
                     </button>
 
                     {expandedLink === link.id && (
                       <div className="border-t border-border px-5 py-4 bg-muted/10">
+                        {link.bookingStatus === "cancelled" && (
+                          <p className="text-xs text-red-700 dark:text-red-400 mb-4">Reservation cancelled. Payment/link status is separate; no automatic refund or deposit release.</p>
+                        )}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm mb-4">
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Guests</p>
@@ -885,6 +929,9 @@ export default function AdminBookings() {
                           <div>
                             <p className="text-xs text-muted-foreground mb-0.5">Hostaway Reservation</p>
                             <p className="text-foreground font-mono text-xs">{link.hostawayReservationId || "—"}</p>
+                            {link.hostawayReservationId && /^\d{1,20}$/.test(link.hostawayReservationId) && (
+                              <button disabled={refreshStatuses.isPending} onClick={() => refreshStatuses.mutate({ reservationIds: [link.hostawayReservationId!] })} className="mt-1 text-xs text-primary underline disabled:opacity-50">Refresh status</button>
+                            )}
                           </div>
                           {link.bookingId && (
                             <div>

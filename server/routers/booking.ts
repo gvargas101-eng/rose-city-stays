@@ -6,7 +6,7 @@
 
 import Stripe from "stripe";
 import { z } from "zod";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { publicProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
@@ -23,7 +23,8 @@ import {
 import { PROPERTY_TO_HOSTAWAY_ID, getPropertyCalendar } from "../hostaway";
 import { createHostawayReservation, recordHostawayStripePayment } from "../hostaway-booking";
 import { notifyOwner } from "../_core/notification";
-
+import { validateManualBookingAmounts, type ManualAdjustmentItem } from "../../shared/manualBookingAmounts";
+import { getManualBookingStatus, hostawayCancellationKey } from "../../shared/bookingCancellation";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia",
 });
@@ -270,6 +271,10 @@ async function confirmStoredBooking(params: {
     throw new Error("Booking record not found");
   }
 
+  if (booking.status === "cancelled") {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "This reservation has been canceled. Contact the host before making a new booking." });
+  }
+
   if (booking.status === "confirmed") {
     return {
       success: true,
@@ -328,7 +333,12 @@ async function confirmStoredBooking(params: {
       stripePaymentIntentId: params.stripePaymentIntentId || booking.stripePaymentIntentId,
       stripeCheckoutSessionId: params.stripeCheckoutSessionId || booking.stripeCheckoutSessionId,
     })
-    .where(eq(bookings.id, params.bookingId));
+    .where(and(eq(bookings.id, params.bookingId), ne(bookings.status, "cancelled")));
+
+  const [currentBooking] = await db.select().from(bookings).where(eq(bookings.id, params.bookingId)).limit(1);
+  if (currentBooking?.status === "cancelled") {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "This reservation has been canceled. Contact the host before making a new booking." });
+  }
 
   // Record discount code use (enforces per-guest and total use limits)
   if (booking.discountCodeId && booking.guestEmail && booking.discountCodeAmount) {
@@ -397,6 +407,12 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
   }
 
   const paymentIntentId = normalizePaymentIntentId(session.payment_intent);
+
+  // A late/replayed Stripe event is not permission to recreate a canceled stay
+  // or place a new deposit hold. Acknowledge it without financial side effects.
+  const db = await getDb();
+  const [existing] = db ? await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1) : [];
+  if (existing?.status === "cancelled") return { success: true, cancelled: true };
 
   // First confirm the booking (Hostaway + status update)
   const confirmResult = await confirmStoredBooking({
@@ -549,6 +565,10 @@ export async function confirmManualCheckoutSession(session: Stripe.Checkout.Sess
       discountCodeId: link.discountCodeId ?? null,
       discountCodeLabel: link.discountLabel ?? null,
       discountCodeAmount: Number(link.discountAmount) > 0 ? String(link.discountAmount) : null,
+      addonsSnapshot: JSON.stringify([
+        ...(Number(link.extraGuestFee) > 0 ? [{ name: "Extra guest fee", price: Number(link.extraGuestFee) }] : []),
+        ...(link.customLineItems ? (JSON.parse(link.customLineItems) as ManualAdjustmentItem[]).map(item => ({ name: item.label, price: item.amount })) : []),
+      ]),
     })
     .$returningId();
   const bookingId = inserted.id;
@@ -990,7 +1010,7 @@ export const bookingRouter = router({
       // reports the session as fully paid. For any other status (unpaid, expired)
       // we mark the booking as failed and return paymentStatus so the frontend
       // can show the correct error screen instead of a success message.
-      if (session.payment_status === "paid" && bookingBefore.status !== "confirmed") {
+      if (session.payment_status === "paid" && bookingBefore.status !== "confirmed" && bookingBefore.status !== "cancelled") {
         try {
           await confirmStripeCheckoutSession(session);
         } catch (err) {
@@ -1132,6 +1152,23 @@ export const bookingRouter = router({
       if (link.status !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "This booking link is no longer active" });
       if (Date.now() > link.expiresAt) throw new TRPCError({ code: "FORBIDDEN", message: "This booking link has expired" });
 
+      let customItems: ManualAdjustmentItem[];
+      let amounts;
+      try {
+        customItems = link.customLineItems ? JSON.parse(link.customLineItems) : [];
+        if (!Array.isArray(customItems)) throw new Error("Custom pricing is invalid. Please contact the host.");
+        amounts = validateManualBookingAmounts({
+          nightlyRate: Number(link.nightlyRate), nights: link.nights,
+          cleaningFee: Number(link.cleaningFee), extraGuestFee: Number(link.extraGuestFee),
+          taxAmount: Number(link.taxAmount), discountAmount: Number(link.discountAmount), customLineItems: customItems,
+        });
+        if (Math.abs(Math.round(Number(link.totalAmount) * 100) - Math.round(amounts.total * 100)) > 1) {
+          throw new Error("This booking's itemized pricing needs to be reviewed by the host before payment.");
+        }
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: (error as Error).message });
+      }
+
       // ── Availability guard for manual booking checkout ──
       // Skipped if admin explicitly set bypassAvailabilityCheck = 1 (e.g. for owner-blocked dates).
       // Otherwise always run — use DB hostawayListingId if present, otherwise fall back to
@@ -1209,28 +1246,17 @@ export const bookingRouter = router({
           quantity: 1,
         });
       }
-      // Add custom line items (admin-defined per-booking fees)
-      if (link.customLineItems) {
-        try {
-          const customItems = JSON.parse(link.customLineItems) as { label: string; amount: number }[];
-          for (const item of customItems) {
-            if (item.amount > 0) {
-              lineItems.push({
-                price_data: {
-                  currency: "usd",
-                  product_data: { name: item.label },
-                  unit_amount: dollarsToCents(item.amount),
-                },
-                quantity: 1,
-              });
-            }
-          }
-        } catch { /* ignore parse errors */ }
-      }
-      // Apply discount as a negative line item if present
-      if (Number(link.discountAmount) > 0) {
-        // Stripe does not allow negative unit_amount — use a coupon instead
-        // (coupon is created inline and attached via session.discounts)
+      // Stripe cannot accept negative line items. Named credits remain itemized
+      // on the website and are combined with the discount in one fixed coupon.
+      for (const item of customItems) {
+        if (item.amount > 0) {
+          lineItems.push({
+            price_data: {
+              currency: "usd", product_data: { name: item.label }, unit_amount: dollarsToCents(item.amount),
+            },
+            quantity: 1,
+          });
+        }
       }
 
       const session = await stripe.checkout.sessions.create({
@@ -1255,12 +1281,12 @@ export const bookingRouter = router({
           property_name: link.propertyName,
           guest_phone: input.guestPhone ?? "",
         },
-        ...(Number(link.discountAmount) > 0 ? {
+        ...(amounts.stripeDiscountAmount > 0 ? {
           discounts: [{
             coupon: await (async () => {
-              const label = (link as any).discountLabel || "Discount";
+              const label = amounts.credits > 0 ? "Owner credits & discounts" : (link.discountLabel || "Discount");
               const coupon = await stripe.coupons.create({
-                amount_off: dollarsToCents(Number(link.discountAmount)),
+                amount_off: dollarsToCents(amounts.stripeDiscountAmount),
                 currency: "usd",
                 name: label,
                 duration: "once",
@@ -1268,7 +1294,7 @@ export const bookingRouter = router({
               return coupon.id;
             })(),
           }],
-        } : { allow_promotion_codes: true as const }),
+        } : {}),
       });
 
       // Store the checkout session ID on the link
@@ -1297,16 +1323,28 @@ export const bookingRouter = router({
       if (session.payment_status !== "paid") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Payment not completed" });
       }
+      if (session.metadata?.manual_booking_token !== input.token) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This payment does not belong to this booking link." });
+      }
       const result = await confirmManualCheckoutSession(session);
       const [booking] = result.bookingId
         ? await db.select().from(bookings).where(eq(bookings.id, result.bookingId)).limit(1)
         : [];
+      const [cancellationMarker] = result.hostawayReservationId
+        ? await db.select().from(siteSettings).where(eq(siteSettings.key, hostawayCancellationKey(result.hostawayReservationId))).limit(1)
+        : [];
+      const bookingStatus = getManualBookingStatus(
+        { bookingId: result.bookingId, hostawayReservationId: result.hostawayReservationId },
+        booking ? [booking] : [],
+        new Set(cancellationMarker?.value === "cancelled" && result.hostawayReservationId ? [result.hostawayReservationId] : []),
+      ) ?? "confirmed";
       const depositAmount = result.depositAmount ?? (booking?.depositHoldAmount === null || booking?.depositHoldAmount === undefined
         ? (link.securityDepositOverride === null ? await getSecurityDepositAmount() : Number(link.securityDepositOverride))
         : Number(booking.depositHoldAmount));
 
       return {
         alreadyConfirmed: result.alreadyConfirmed,
+        bookingStatus,
         propertyName: link.propertyName,
         propertySlug: link.propertySlug,
         guestName: session.metadata?.guest_name ?? link.guestName ?? "Guest",

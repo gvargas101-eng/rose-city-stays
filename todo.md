@@ -1,5 +1,15 @@
 # Rose City Stays — Project TODO
 
+## Manual Booking Credits & Cancellation Repair (Nov 2026)
+
+- [x] Add multiple named owner credits and custom charges to manual payment links, with cent-accurate Stripe discounts and canonical itemized snapshots.
+- [x] Add dollar/percentage nightly discounts and optional custom tax amount; preserve payment-gated Hostaway confirmation and minimum payable safeguards.
+- [x] Restore three missing guest-sync tables from the existing migration and verify their columns.
+- [x] Separate cancellation status from manual-link payment status, support provider cancellation variants, and keep canceled reservations visible.
+- [x] Add bounded owner-triggered Hostaway status refresh and prevent delayed paid Stripe confirmations from reviving canceled stays.
+- [x] Reconcile 31 existing linked reservations; correct two stale canonical booking statuses without refunds, holds, or Hostaway reservation mutations.
+- [ ] Publish the new tested checkpoint to activate the new UI and server behavior on the live website (private Alamo Crossing remains hidden).
+
 ## Manual Booking Discount Controls (Aug 2026)
 
 - [x] Add visible discount amount and custom label fields to the Admin → Manual Bookings creation form.

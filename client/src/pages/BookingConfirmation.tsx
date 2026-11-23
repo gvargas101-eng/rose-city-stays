@@ -112,6 +112,13 @@ export default function BookingConfirmation() {
               <Button>Back to Home</Button>
             </Link>
           </div>
+        ) : booking.status === "cancelled" ? (
+          <div className="text-center space-y-5 py-12">
+            <XCircle className="w-12 h-12 text-red-600 mx-auto" />
+            <h1 className="text-3xl font-light text-foreground" style={{ fontFamily: "var(--font-display)" }}>Reservation Canceled</h1>
+            <p className="text-muted-foreground">This reservation is no longer active. Payment and any refund are handled separately. Please contact Rose City Stays with questions.</p>
+            <Link href="/"><Button variant="outline">Back to Home</Button></Link>
+          </div>
         ) : booking.status === "failed" || ("paymentStatus" in booking && booking.paymentStatus !== "paid") ? (
           /* ── Payment failed / not completed ── */
           <div className="space-y-8">
