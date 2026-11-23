@@ -7,12 +7,22 @@ const mocks = vi.hoisted(() => ({
   links: [] as any[],
   bookings: [] as any[],
   stateOverrides: new Map<number, unknown>(),
+  stateUpdates: new Map<number, unknown>(),
   stateIndex: 0,
   tree: null as any,
   createBooking: vi.fn(),
   createLink: vi.fn(),
   createBalanceLink: vi.fn(),
   ownerOptions: null as any,
+  searchResult: { data: [], isFetching: false, error: null } as any,
+  searchQuery: vi.fn(),
+  retryGuestSearch: vi.fn(),
+  syncStatusResult: { data: null, isLoading: false, error: null } as any,
+  syncResult: { data: undefined, isPending: false, error: null } as any,
+  syncGuests: vi.fn(),
+  syncOptions: null as any,
+  invalidateGuestSearch: vi.fn(),
+  invalidateGuestSyncStatus: vi.fn(),
   confirm: vi.fn(() => true),
   storage: new Map<string, string>(),
   mutation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -23,7 +33,12 @@ vi.mock("react", async importOriginal => {
     ...actual,
     useState: (initial: unknown) => {
       const index = mocks.stateIndex++;
-      return actual.useState(mocks.stateOverrides.has(index) ? mocks.stateOverrides.get(index) : initial);
+      const [value, setValue] = actual.useState(mocks.stateOverrides.has(index) ? mocks.stateOverrides.get(index) : initial);
+      return [value, (next: any) => {
+        const previous = mocks.stateUpdates.has(index) ? mocks.stateUpdates.get(index) : value;
+        mocks.stateUpdates.set(index, typeof next === "function" ? next(previous) : next);
+        setValue(next);
+      }];
     },
   };
 });
@@ -33,6 +48,8 @@ vi.mock("@/lib/trpc", () => ({ trpc: {
       listManualBookingLinks: { invalidate: vi.fn() },
       listBookings: { invalidate: vi.fn() },
       getReservationsForCalendar: { invalidate: vi.fn() },
+      searchGuestProfiles: { invalidate: mocks.invalidateGuestSearch },
+      getGuestSyncStatus: { invalidate: mocks.invalidateGuestSyncStatus },
     },
     hostaway: { calendar: { invalidate: vi.fn() } },
   }),
@@ -40,7 +57,15 @@ vi.mock("@/lib/trpc", () => ({ trpc: {
     listProperties: { useQuery: () => ({ data: [{ slug: "sample-house", name: "Sample house", hostawayListingId: 12345, active: 1 }] }) },
     listBookings: { useQuery: () => ({ data: mocks.bookings, refetch: vi.fn() }) },
     listManualBookingLinks: { useQuery: () => ({ data: mocks.links, isLoading: false, refetch: vi.fn() }) },
-    searchGuestProfiles: { useQuery: () => ({ data: [], isFetching: false }) },
+    searchGuestProfiles: { useQuery: (...args: unknown[]) => {
+      mocks.searchQuery(...args);
+      return { ...mocks.searchResult, refetch: mocks.retryGuestSearch };
+    } },
+    getGuestSyncStatus: { useQuery: () => mocks.syncStatusResult },
+    syncHostawayGuests: { useMutation: (options: unknown) => {
+      mocks.syncOptions = options;
+      return { ...mocks.syncResult, mutate: mocks.syncGuests };
+    } },
     createManualBookingLink: { useMutation: () => ({ mutate: mocks.createLink, isPending: false }) },
     revokeManualBookingLink: { useMutation: mocks.mutation },
     refreshBookingStatuses: { useMutation: mocks.mutation },
@@ -82,7 +107,12 @@ afterEach(() => {
   mocks.links.length = 0;
   mocks.bookings.length = 0;
   mocks.stateOverrides.clear();
+  mocks.stateUpdates.clear();
   mocks.stateIndex = 0;
+  mocks.searchResult = { data: [], isFetching: false, error: null };
+  mocks.syncStatusResult = { data: null, isLoading: false, error: null };
+  mocks.syncResult = { data: undefined, isPending: false, error: null };
+  mocks.syncOptions = null;
   mocks.storage.clear();
   mocks.confirm.mockReturnValue(true);
   vi.clearAllMocks();
@@ -295,6 +325,179 @@ describe("manual booking owner UI", () => {
     validForm({ bypassAvailabilityCheck: true });
     render(); submit();
     expect(mocks.createBooking).toHaveBeenCalledWith(expect.objectContaining({ bypassAvailabilityCheck: false }));
+  });
+});
+
+describe("manual booking previous guest lookup", () => {
+  const profile = { id: 41, fullName: "Jane Returning", email: "jane.returning@example.com", phone: "+15551234567", totalReservations: 3 };
+  function search(query = "Ja") {
+    mocks.stateOverrides.set(9, query);
+    mocks.stateOverrides.set(10, true);
+  }
+  function searchInput() {
+    return elements(mocks.tree).find(node => node.props.id === "previous-guest-search");
+  }
+  function buttonWithText(text: string) {
+    return elements(mocks.tree).find(node => node.props.children === text);
+  }
+
+  it("clearly separates previous-guest search from entering a new guest and offers contacts-only import", () => {
+    const html = render();
+    expect(html).toContain("Find previous guest");
+    expect(html).toContain("Type at least 2 characters");
+    expect(html).toContain("or enter a new guest below");
+    expect(html).toContain("Import/refresh previous guests");
+    expect(html).toContain("No reservations are created and no payments are made");
+    expect(html).toContain("Last full import: Not imported yet");
+    expect(html).not.toContain("No matching guest found");
+    expect(mocks.searchQuery).toHaveBeenCalledWith({ query: "" }, expect.objectContaining({ enabled: false }));
+    expect(mocks.syncGuests).not.toHaveBeenCalled();
+  });
+  it("shows instructions rather than an empty result for one-letter queries", () => {
+    search(" J ");
+    const html = render();
+    expect(html).toContain("Type at least 2 characters to find a previous guest");
+    expect(html).not.toContain("No matching guest found");
+    expect(mocks.searchQuery).toHaveBeenCalledWith({ query: "J" }, expect.objectContaining({ enabled: false }));
+  });
+  it("shows a safe query error and Retry rather than a false no-match result", () => {
+    search();
+    mocks.searchResult = { data: [], isFetching: false, error: new Error("private database SQL credentials") };
+    const html = render();
+    expect(html).toContain("Could not search previous guests");
+    expect(html).toContain("Retry guest search");
+    expect(html).not.toContain("No matching guest found");
+    expect(html).not.toContain("private database SQL credentials");
+    buttonWithText("Retry guest search").props.onClick();
+    expect(mocks.retryGuestSearch).toHaveBeenCalledOnce();
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+  });
+  it("shows loading while fetching and does not call missing data a no-match result", () => {
+    search();
+    mocks.searchResult = { data: [], isFetching: true, error: null };
+    expect(render()).toContain("Searching guest directory…");
+    expect(render()).not.toContain("No matching guest found");
+    mocks.searchResult = { data: undefined, isFetching: false, error: null };
+    expect(render()).toContain("Waiting for the guest directory…");
+    expect(render()).not.toContain("No matching guest found");
+  });
+  it("shows an actual empty result only after the enabled search returns an empty array", () => {
+    search();
+    const html = render();
+    expect(html).toContain("No matching guest found in the imported directory");
+    expect(html).toContain("For an older guest, use Import/refresh previous guests");
+    expect(html).toContain("Only contact details Hostaway provides can be found");
+    expect(mocks.searchQuery).toHaveBeenCalledWith({ query: "Ja" }, expect.objectContaining({ enabled: true }));
+  });
+  it("selects a previous guest and autofills name, email, and phone without altering stay or financial fields", () => {
+    validForm({ amountReceived: 50, paymentReference: "cash", nightlyRate: 175 });
+    search();
+    mocks.searchResult.data = [profile];
+    const html = render();
+    expect(html).toContain('role="combobox"');
+    expect(html).toContain('role="listbox"');
+    expect(html).toContain('role="option"');
+    expect(html).toContain("Jane Returning");
+    expect(html).toContain("jane.returning@example.com");
+    const option = elements(mocks.tree).find(node => node.props.role === "option");
+    const preventDefault = vi.fn();
+    option.props.onMouseDown({ preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    option.props.onClick();
+    expect(mocks.stateUpdates.get(0)).toEqual({ ...mocks.stateOverrides.get(0) as object,
+      guestName: profile.fullName, guestEmail: profile.email, guestPhone: profile.phone });
+    expect(mocks.stateUpdates.get(9)).toBe(profile.fullName);
+    expect(mocks.stateUpdates.get(10)).toBe(false);
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+  });
+  it("clears stale contact fields rather than assigning them to a different selected guest", () => {
+    validForm({ guestPhone: "+15550000000" });
+    search();
+    mocks.searchResult.data = [{ ...profile, email: null, phone: null }];
+    render();
+    elements(mocks.tree).find(node => node.props.role === "option").props.onClick();
+    expect(mocks.stateUpdates.get(0)).toMatchObject({ guestName: profile.fullName, guestEmail: "", guestPhone: "" });
+  });
+  it("supports focus, keyboard navigation, Enter selection, and Escape without submitting", () => {
+    search();
+    mocks.searchResult.data = [profile];
+    render();
+    const input = searchInput();
+    input.props.onFocus();
+    expect(mocks.stateUpdates.get(10)).toBe(true);
+    input.props.onKeyDown({ key: "ArrowDown", preventDefault: vi.fn() });
+    expect(mocks.stateUpdates.get(15)).toBe(0);
+    mocks.stateOverrides.set(15, 0);
+    expect(render()).toContain('aria-activedescendant="previous-guest-41"');
+    const preventDefault = vi.fn();
+    searchInput().props.onKeyDown({ key: "Enter", preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(mocks.stateUpdates.get(0)).toMatchObject({ guestName: profile.fullName, guestEmail: profile.email, guestPhone: profile.phone });
+    searchInput().props.onKeyDown({ key: "Escape", preventDefault: vi.fn() });
+    expect(mocks.stateUpdates.get(10)).toBe(false);
+    expect(mocks.stateUpdates.get(15)).toBe(-1);
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+  });
+  it("does not submit the booking when Enter is pressed in the closed search field", () => {
+    validForm();
+    render();
+    const preventDefault = vi.fn();
+    searchInput().props.onKeyDown({ key: "Enter", preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+  });
+  it("keeps the dropdown open when focus moves to Retry, and closes it only when focus leaves lookup", () => {
+    search();
+    render();
+    const lookup = elements(mocks.tree).find(node => node.props.onBlur);
+    lookup.props.onBlur({ currentTarget: { contains: () => true }, relatedTarget: {} });
+    expect(mocks.stateUpdates.has(10)).toBe(false);
+    lookup.props.onBlur({ currentTarget: { contains: () => false }, relatedTarget: null });
+    expect(mocks.stateUpdates.get(10)).toBe(false);
+  });
+  it("imports historical contacts only on explicit owner action and invalidates both private queries", () => {
+    render();
+    const button = elements(mocks.tree).find(node => Array.isArray(node.props.children) && node.props.children.includes("Import/refresh previous guests"));
+    expect(button.props.type).toBe("button");
+    button.props.onClick();
+    expect(mocks.syncGuests).toHaveBeenCalledWith({ mode: "historical" });
+    mocks.syncOptions.onSuccess();
+    expect(mocks.invalidateGuestSearch).toHaveBeenCalledOnce();
+    expect(mocks.invalidateGuestSyncStatus).toHaveBeenCalledOnce();
+    mocks.syncOptions.onError();
+    expect(mocks.invalidateGuestSearch).toHaveBeenCalledTimes(2);
+    expect(mocks.invalidateGuestSyncStatus).toHaveBeenCalledTimes(2);
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+  });
+  it("shows sync pending, safe failure, and success counts without claiming reservations were created", () => {
+    mocks.syncResult.isPending = true;
+    expect(render()).toContain("Importing previous guest contacts");
+    const button = elements(mocks.tree).find(node => Array.isArray(node.props.children) && node.props.children.includes("Importing previous guests…"));
+    expect(button.props.disabled).toBe(true);
+    mocks.syncResult = { isPending: false, error: new Error("private provider secret"), data: undefined };
+    const failure = render();
+    expect(failure).toContain("Previous guest import failed");
+    expect(failure).not.toContain("private provider secret");
+    mocks.syncResult = { isPending: false, error: null, data: { createdGuests: 12, updatedGuests: 7, processed: 19, createdReservations: 19 } };
+    const success = render();
+    expect(success).toContain("Import complete: 12 new guests, 7 contact refreshes (19 historical records checked)");
+    expect(success).not.toContain("19 reservations created");
+  });
+  it("distinguishes recent sync records from full-import timestamps and does not mislabel them as guest counts", () => {
+    mocks.syncStatusResult.data = { lastHistoricalImportAt: null, lastStatus: "success", lastImportedReservations: 100 };
+    const html = render();
+    expect(html).toContain("Last full import: Not imported yet");
+    expect(html).toContain("Latest sync: success");
+    expect(html).toContain("100 historical records checked in the latest sync");
+    expect(html).not.toContain("100 guests in the directory");
+    mocks.syncStatusResult = { data: undefined, isLoading: false, error: new Error("db unavailable") };
+    expect(render()).toContain("Directory status unavailable — this does not mean the directory is empty");
+    expect(render()).not.toContain("Last full import: Not imported yet");
   });
 });
 

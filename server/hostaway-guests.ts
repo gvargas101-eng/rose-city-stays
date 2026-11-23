@@ -24,6 +24,7 @@ const HOSTAWAY_API_BASE = "https://api.hostaway.com/v1";
 const SYNC_KEY = "hostaway-guests";
 const PAGE_SIZE = 100;
 const REQUEST_DELAY_MS = 750;
+let fullGuestImport: Promise<GuestSyncResult> | null = null;
 
 type HostawayReservation = Record<string, any>;
 
@@ -65,6 +66,14 @@ function splitName(fullName: string, firstName?: unknown, lastName?: unknown) {
     firstName: parts[0] || null,
     lastName: parts.length > 1 ? parts.slice(1).join(" ") : null,
   };
+}
+
+export function hostawayGuestName(reservation: HostawayReservation): string | null {
+  const name = typeof reservation.guestName === "string" ? reservation.guestName.trim() : "";
+  if (name) return name;
+  return [reservation.guestFirstName, reservation.guestLastName]
+    .filter((part): part is string => typeof part === "string")
+    .map(part => part.trim()).filter(Boolean).join(" ") || null;
 }
 
 function propertySlugFromListingId(listingId?: unknown): string | null {
@@ -147,12 +156,14 @@ async function fetchHostawayReservationPage(offset: number): Promise<{ rows: Hos
   });
   const response = await fetch(`${HOSTAWAY_API_BASE}/reservations?${params}`, {
     headers: { Authorization: `Bearer ${token}`, "Cache-control": "no-cache" },
+    signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) {
     throw new Error(`Hostaway reservation list fetch failed (${response.status})`);
   }
   const data = await response.json();
-  const rows = Array.isArray(data.result) ? data.result : [];
+  if (!Array.isArray(data.result)) throw new Error("Hostaway returned an invalid guest-import page. Please retry.");
+  const rows = data.result as HostawayReservation[];
   return {
     rows,
     // Keep paging based on the actual page size rather than response metadata.
@@ -203,8 +214,11 @@ export async function upsertGuestFromHostawayReservation(
   const reservationId = String(reservation.id ?? reservation.reservationId ?? "").trim();
   if (!reservationId) throw new Error("Hostaway reservation is missing an ID");
 
-  const fullName = String(reservation.guestName ?? "Guest").trim() || "Guest";
-  const { firstName, lastName } = splitName(fullName, reservation.guestFirstName, reservation.guestLastName);
+  const suppliedName = hostawayGuestName(reservation);
+  const fullName = suppliedName ?? "Guest";
+  const { firstName, lastName } = suppliedName
+    ? splitName(fullName, reservation.guestFirstName, reservation.guestLastName)
+    : { firstName: null, lastName: null };
   const email = normalizeEmail(reservation.guestEmail ?? reservation.email);
   const rawPhone = getPhone(reservation);
   const phone = rawPhone || null;
@@ -263,7 +277,7 @@ export async function upsertGuestFromHostawayReservation(
   } else {
     profileId = profile.id;
     await db.update(guestProfiles).set({
-      fullName: fullName || profile.fullName,
+      fullName: suppliedName ?? profile.fullName,
       firstName: firstName ?? profile.firstName,
       lastName: lastName ?? profile.lastName,
       email: email ?? profile.email,
@@ -375,7 +389,14 @@ export async function refreshLinkedHostawayBookingStatuses(reservationIds: strin
 }
 
 /** Full historical import or reconciliation. Uses paginated calls and rate limiting. */
-export async function syncAllHostawayGuests(mode: "historical" | "reconcile" = "reconcile"): Promise<GuestSyncResult> {
+export function syncAllHostawayGuests(mode: "historical" | "reconcile" = "reconcile"): Promise<GuestSyncResult> {
+  // Repeated owner clicks reuse the active import rather than racing profile inserts.
+  if (fullGuestImport) return fullGuestImport;
+  fullGuestImport = performFullGuestImport(mode).finally(() => { fullGuestImport = null; });
+  return fullGuestImport;
+}
+
+async function performFullGuestImport(mode: "historical" | "reconcile"): Promise<GuestSyncResult> {
   await updateSyncState("running", { lastError: null, lastImportedReservations: 0 });
   const summary: GuestSyncResult = {
     processed: 0,
@@ -388,16 +409,26 @@ export async function syncAllHostawayGuests(mode: "historical" | "reconcile" = "
   try {
     let offset = 0;
     let hasMore = true;
+    const seen = new Set<string>();
     do {
       const page = await fetchHostawayReservationPage(offset);
+      let added = 0;
       for (const reservation of page.rows) {
+        const id = String(reservation.id ?? reservation.reservationId ?? "").trim();
+        if (!id) throw new Error("Hostaway returned a reservation without an ID");
+        if (seen.has(id)) continue;
         const saved = await upsertGuestFromHostawayReservation(reservation);
+        seen.add(id);
+        added += 1;
         summary.processed += 1;
         if (saved.createdGuest) summary.createdGuests += 1;
         else summary.updatedGuests += 1;
         if (saved.createdReservation) summary.createdReservations += 1;
         else summary.updatedReservations += 1;
       }
+      if (page.hasMore && !added) throw new Error("Hostaway guest-import pagination did not advance. Please retry.");
+      console.info(`[Hostaway guest import] ${summary.processed} reservation contacts processed`);
+      await updateSyncState("running", { lastImportedReservations: summary.processed });
       offset += PAGE_SIZE;
       hasMore = page.hasMore;
       if (hasMore) await pause(REQUEST_DELAY_MS);
@@ -422,6 +453,8 @@ export async function syncAllHostawayGuests(mode: "historical" | "reconcile" = "
  * comfortably within the scheduler's two-minute callback limit.
  */
 export async function syncRecentHostawayGuests(): Promise<GuestSyncResult> {
+  // Historical import already includes these contacts; don't race it in this process.
+  if (fullGuestImport) return { processed: 0, createdGuests: 0, updatedGuests: 0, createdReservations: 0, updatedReservations: 0 };
   await updateSyncState("running", { lastError: null, lastImportedReservations: 0 });
   const summary: GuestSyncResult = {
     processed: 0,

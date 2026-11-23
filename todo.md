@@ -1,5 +1,16 @@
 # Rose City Stays — Project TODO
 
+## Previous Guest Search & Autofill Repair (Nov 23, 2026)
+
+- [x] Diagnose the actual private directory: only 100 source reservations imported, no historical-import timestamp, and case-sensitive binary name/email collation.
+- [x] Add explicit case-insensitive name/email matching, independent first/last-name tokens, formatted-phone matching, literal wildcard escaping, and protected contact-only results.
+- [x] Complete contact/history-only historical import: 2,117 Hostaway records checked, 1,800 profiles total, including 1,430 named profiles; no Hostaway reservation or Stripe payment mutations.
+- [x] Preserve known names when Hostaway omits them; add name fallback, request timeouts, malformed-page failures, repeated-page detection, and in-process duplicate import protection.
+- [x] Add clear two-character search instructions, loading/error/retry/empty states, keyboard selection, safe contact autofill, and an owner-only import/refresh button with accurate status/count labels.
+- [x] Verify real lowercase/uppercase partial-name and formatted-phone database searches; preserve Alamo Crossing active=0 and the existing 35 website bookings.
+- [x] Pass 34 test files / 271 tests, TypeScript, production build, and diff checks; live samples verify 10 names, 5 emails, and 8 formatted phone numbers without exposing contact data. Admin UI is covered by mocked rendering/interaction tests; no authenticated live-browser session was available.
+- [ ] Publish the tested guest-search checkpoint to activate the new matching and form controls on the live site. Historical contact data is already imported.
+
 ## Actual Owner-Created Reservations (Nov 23, 2026)
 
 - [x] Separate actual Create Booking from Payment Link Only; require explicit unpaid authorization and a final reservation confirmation prompt.

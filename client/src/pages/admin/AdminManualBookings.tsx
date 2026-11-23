@@ -202,6 +202,7 @@ export default function AdminManualBookings() {
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
   const [lastAutoFilledRateKey, setLastAutoFilledRateKey] = useState<string | null>(null);
   const [manualRateOverrideKey, setManualRateOverrideKey] = useState<string | null>(null);
+  const [activeGuestIndex, setActiveGuestIndex] = useState(-1);
 
   const utils = trpc.useUtils();
 
@@ -212,10 +213,24 @@ export default function AdminManualBookings() {
   const { data: links, isLoading: linksLoading } = trpc.admin.listManualBookingLinks.useQuery();
 
   // Search the private Hostaway guest directory only after at least two characters.
-  const { data: guestMatches, isFetching: guestSearchLoading } = trpc.admin.searchGuestProfiles.useQuery(
+  const { data: guestMatches, isFetching: guestSearchLoading, error: guestSearchError, refetch: retryGuestSearch } = trpc.admin.searchGuestProfiles.useQuery(
     { query: guestSearch.trim() },
     { enabled: guestSearch.trim().length >= 2 && showGuestResults, staleTime: 30_000 }
   );
+  const { data: guestSyncStatus, isLoading: guestSyncStatusLoading, error: guestSyncStatusError } = trpc.admin.getGuestSyncStatus.useQuery(undefined, { refetchInterval: 30_000 });
+  const syncGuestsMutation = trpc.admin.syncHostawayGuests.useMutation({
+    onSuccess: () => {
+      void utils.admin.searchGuestProfiles.invalidate();
+      void utils.admin.getGuestSyncStatus.invalidate();
+    },
+    onError: () => {
+      // A failed import may have saved some contacts before failing.
+      void utils.admin.searchGuestProfiles.invalidate();
+      void utils.admin.getGuestSyncStatus.invalidate();
+    },
+  });
+  const selectableGuestMatches = guestSearch.trim().length >= 2 && !guestSearchLoading && !guestSearchError
+    ? guestMatches ?? [] : [];
 
   // ── Real-time availability check ──────────────────────────────────────────
   // Fires as soon as property + checkIn + checkOut are all filled in.
@@ -422,12 +437,15 @@ export default function AdminManualBookings() {
     setForm(prev => ({
       ...prev,
       guestName: profile.fullName,
-      guestEmail: profile.email ?? prev.guestEmail,
-      guestPhone: profile.phone ?? prev.guestPhone,
+      guestEmail: profile.email ?? "",
+      guestPhone: profile.phone ?? "",
     }));
     setGuestSearch(profile.fullName);
     setShowGuestResults(false);
-    toast.success(`${profile.fullName}'s details were added to this stay`);
+    setActiveGuestIndex(-1);
+    toast.success(profile.email && profile.phone
+      ? `${profile.fullName}'s details were added to this stay`
+      : `${profile.fullName} selected. Please enter any missing email or phone.`);
   }
 
   function applyDiscountCode() {
@@ -568,6 +586,7 @@ export default function AdminManualBookings() {
     setBookingResult(null);
     setGuestSearch("");
     setShowGuestResults(false);
+    setActiveGuestIndex(-1);
     setLastAutoFilledRateKey(null);
     setManualRateOverrideKey(null);
     renewRequestKey();
@@ -1091,61 +1110,134 @@ export default function AdminManualBookings() {
             {/* Guest info (optional) */}
             <div>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Guest Info ({mode === "booking" ? "Name & Email Required" : "Optional"})</h3>
-              <div className="relative mb-4">
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                  <UserRound className="w-3.5 h-3.5" />
-                  Returning Guest Lookup
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    value={guestSearch}
-                    onChange={e => {
-                      setGuestSearch(e.target.value);
-                      setShowGuestResults(true);
-                    }}
-                    onFocus={() => setShowGuestResults(true)}
-                    placeholder="Search by name, email, or phone…"
-                    className="pl-9"
-                    autoComplete="off"
-                  />
+              <div className="mb-4 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label htmlFor="previous-guest-search" id="previous-guest-label" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <UserRound className="w-3.5 h-3.5" />
+                    Find previous guest
+                  </label>
+                  <Button type="button" variant="outline" size="sm" className="gap-2"
+                    disabled={syncGuestsMutation.isPending || guestSyncStatus?.lastStatus === "running"}
+                    onClick={() => syncGuestsMutation.mutate({ mode: "historical" })}>
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncGuestsMutation.isPending ? "animate-spin" : ""}`} />
+                    {syncGuestsMutation.isPending ? "Importing previous guests…" : "Import/refresh previous guests"}
+                  </Button>
                 </div>
-                {showGuestResults && guestSearch.trim().length >= 2 && (
-                  <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-border bg-popover shadow-lg">
-                    {guestSearchLoading ? (
-                      <div className="px-3 py-2.5 text-xs text-muted-foreground">Searching guest directory…</div>
-                    ) : guestMatches && guestMatches.length > 0 ? (
-                      <div className="max-h-56 overflow-y-auto py-1">
-                        {guestMatches.map(profile => (
-                          <button
-                            key={profile.id}
-                            type="button"
-                            onClick={() => selectGuest(profile)}
-                            className="w-full px-3 py-2.5 text-left hover:bg-muted transition-colors"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-sm font-medium text-foreground truncate">{profile.fullName}</span>
-                              <span className="shrink-0 text-[11px] text-primary font-medium">
-                                {profile.totalReservations} stay{profile.totalReservations === 1 ? "" : "s"}
-                              </span>
-                            </div>
-                            <div className="mt-0.5 text-xs text-muted-foreground truncate">
-                              {[profile.email, profile.phone].filter(Boolean).join(" · ") || "No contact details available"}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="px-3 py-2.5 text-xs text-muted-foreground">No matching guest found.</div>
-                    )}
+                <div className="relative" onBlur={e => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                    setShowGuestResults(false);
+                    setActiveGuestIndex(-1);
+                  }
+                }}>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="previous-guest-search"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={showGuestResults}
+                      aria-controls="previous-guest-options"
+                      aria-describedby="previous-guest-hint"
+                      aria-activedescendant={showGuestResults && selectableGuestMatches[activeGuestIndex] ? `previous-guest-${selectableGuestMatches[activeGuestIndex].id}` : undefined}
+                      value={guestSearch}
+                      maxLength={120}
+                      onChange={e => {
+                        setGuestSearch(e.target.value);
+                        setShowGuestResults(true);
+                        setActiveGuestIndex(-1);
+                      }}
+                      onFocus={() => setShowGuestResults(true)}
+                      onKeyDown={e => {
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          setShowGuestResults(false);
+                          setActiveGuestIndex(-1);
+                        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setShowGuestResults(true);
+                          if (selectableGuestMatches.length) {
+                            setActiveGuestIndex(index => e.key === "ArrowDown"
+                              ? (index + 1) % selectableGuestMatches.length
+                              : (index <= 0 ? selectableGuestMatches.length - 1 : index - 1));
+                          }
+                        } else if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (showGuestResults && selectableGuestMatches[activeGuestIndex]) selectGuest(selectableGuestMatches[activeGuestIndex]);
+                        }
+                      }}
+                      placeholder="Type at least 2 characters of a name, email, or phone…"
+                      className="pl-9"
+                      autoComplete="off"
+                    />
                   </div>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">Select a guest to auto-fill their contact details. You can edit any field below.</p>
+                  {showGuestResults && (
+                    <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
+                      <div id="previous-guest-options" role="listbox" aria-labelledby="previous-guest-label" className="max-h-56 overflow-y-auto">
+                        {guestSearch.trim().length < 2 ? (
+                          <div role="status" className="px-3 py-2.5 text-xs text-muted-foreground">Type at least 2 characters to find a previous guest.</div>
+                        ) : guestSearchLoading ? (
+                          <div role="status" className="px-3 py-2.5 text-xs text-muted-foreground">Searching guest directory…</div>
+                        ) : guestSearchError ? (
+                          <div role="alert" className="px-3 py-2.5 text-xs text-destructive">Could not search previous guests. This is not a no-match result. Retry; if it still fails, check your owner sign-in or Hostaway connection.</div>
+                        ) : guestMatches && guestMatches.length > 0 ? (
+                          guestMatches.map((profile, index) => (
+                            <button
+                              key={profile.id}
+                              id={`previous-guest-${profile.id}`}
+                              type="button"
+                              role="option"
+                              aria-selected={activeGuestIndex === index}
+                              tabIndex={-1}
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => selectGuest(profile)}
+                              className={`w-full px-3 py-2.5 text-left hover:bg-muted transition-colors ${activeGuestIndex === index ? "bg-muted" : ""}`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-medium text-foreground truncate">{profile.fullName}</span>
+                                <span className="shrink-0 text-[11px] text-primary font-medium">
+                                  {profile.totalReservations} stay{profile.totalReservations === 1 ? "" : "s"}
+                                </span>
+                              </div>
+                              <div className="mt-0.5 text-xs text-muted-foreground truncate">
+                                {[profile.email, profile.phone].filter(Boolean).join(" · ") || "No contact details available"}
+                              </div>
+                            </button>
+                          ))
+                        ) : guestMatches ? (
+                          <div role="status" className="px-3 py-2.5 text-xs text-muted-foreground">No matching guest found in the imported directory. Try another name, email, or phone. For an older guest, use Import/refresh previous guests. Only contact details Hostaway provides can be found.</div>
+                        ) : (
+                          <div role="status" className="px-3 py-2.5 text-xs text-muted-foreground">Waiting for the guest directory…</div>
+                        )}
+                      </div>
+                      {guestSearch.trim().length >= 2 && guestSearchError && (
+                        <Button type="button" variant="outline" size="sm" className="m-2" disabled={guestSearchLoading}
+                          onClick={() => { void retryGuestSearch(); }}>Retry guest search</Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p id="previous-guest-hint" className="text-xs text-muted-foreground">Type at least 2 characters above to search previous guests. Select a result to auto-fill name, email, and phone; or enter a new guest below.</p>
+                <p className="text-xs text-muted-foreground">Imports guest contacts only from Hostaway history. No reservations are created and no payments are made.</p>
+                <div className="text-xs text-muted-foreground" aria-live="polite">
+                  {guestSyncStatusLoading ? "Loading directory status…" : guestSyncStatusError ? "Directory status unavailable — this does not mean the directory is empty." : (
+                    <>
+                      Last full import: {guestSyncStatus?.lastHistoricalImportAt ? fmtDateTime(new Date(guestSyncStatus.lastHistoricalImportAt).getTime()) : "Not imported yet"}.
+                      {guestSyncStatus?.lastStatus && <span> Latest sync: {guestSyncStatus.lastStatus}.</span>}
+                      {guestSyncStatus?.lastImportedReservations != null && <span> {guestSyncStatus.lastImportedReservations} historical records checked in the latest sync.</span>}
+                      {guestSyncStatus?.lastStatus === "failed" && <span> The latest sync failed; retry the import to refresh contacts.</span>}
+                    </>
+                  )}
+                  {(syncGuestsMutation.isPending || guestSyncStatus?.lastStatus === "running") && <p role="status" className="mt-1">Importing previous guest contacts. This may take a few minutes; your booking fields will stay unchanged.</p>}
+                  {!syncGuestsMutation.isPending && syncGuestsMutation.error && <p role="alert" className="mt-1 text-destructive">Previous guest import failed. Some contacts may already have been imported. Retry the import, or check your owner sign-in and Hostaway connection.</p>}
+                  {!syncGuestsMutation.isPending && !syncGuestsMutation.error && syncGuestsMutation.data && <p role="status" className="mt-1 text-green-700">Import complete: {syncGuestsMutation.data.createdGuests} new guests, {syncGuestsMutation.data.updatedGuests} contact refreshes ({syncGuestsMutation.data.processed} historical records checked).</p>}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Guest Name {mode === "booking" && "*"}</label>
+                  <label htmlFor="manual-guest-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Guest Name {mode === "booking" && "*"}</label>
                   <Input
+                    id="manual-guest-name"
+                    aria-describedby="previous-guest-hint"
                     value={form.guestName}
                     onChange={e => set("guestName", e.target.value)}
                     placeholder="Jane Smith"
