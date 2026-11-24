@@ -1,5 +1,14 @@
 # Rose City Stays — Project TODO
 
+## Owner Balance-Link Lookup Repair (Nov 24, 2026)
+
+- [x] Diagnose confirmed owner bookings whose optional links fail because Hostaway remainingBalance requires includePayments=1; verify the corrected reader returns real $2,002 balances using read-only API checks.
+- [x] Preserve authoritative balance, synchronized receipts, cancellation, scheduled native collection and duplicate Stripe/booking safeguards; clarify native collection conflicts separately from missing balances.
+- [x] Clear only resolved optional-link warnings after successful new/reused balance-link generation; preserve unrelated receipt warnings and failed retry state.
+- [x] Validate 37 files / 385 tests, TypeScript, production build and diff checks; owner form interactions covered with mocks, authenticated preview unavailable.
+- [x] Make no real reservation, charge, refund or deposit-hold mutations during diagnosis/testing. Existing Hostaway native charges were initially awaiting; later one failed and the other remained awaiting, without changes by this task.
+- [ ] Complete the owner's selected switch to website payment links for #840001 and #840002 only after stopping competing native collection safely; preserve both reservations and separate $500 deposit holds.
+
 ## Create Reservations From Master Calendar (Nov 23, 2026)
 
 - [x] Add two-click property-row check-in/check-out selection, selected-stay markers, clear selection, and a visible Continue to Create Booking action.

@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   ownerServiceCreate: vi.fn(),
   createBalanceLink: vi.fn(),
   ownerOptions: null as any,
+  balanceLinkOptions: null as any,
   searchResult: { data: [], isFetching: false, error: null } as any,
   searchQuery: vi.fn(),
   retryGuestSearch: vi.fn(),
@@ -100,7 +101,10 @@ vi.mock("@/lib/trpc", () => ({ trpc: {
   },
   ownerBookings: {
     create: { useMutation: (options: unknown) => { mocks.ownerOptions = options; return { mutate: mocks.createBooking, isPending: false }; } },
-    createPaymentLink: { useMutation: () => ({ mutate: mocks.createBalanceLink, isPending: false }) },
+    createPaymentLink: { useMutation: (options: unknown) => {
+      mocks.balanceLinkOptions = options;
+      return { mutate: mocks.createBalanceLink, isPending: false };
+    } },
   },
   hostaway: { calendar: { useQuery: (...args: unknown[]) => { mocks.calendarQuery(...args); return mocks.calendarResult; } } },
   discountCodes: { validate: { useMutation: mocks.mutation } },
@@ -146,6 +150,7 @@ afterEach(() => {
   mocks.syncStatusResult = { data: null, isLoading: false, error: null };
   mocks.syncResult = { data: undefined, isPending: false, error: null };
   mocks.syncOptions = null;
+  mocks.balanceLinkOptions = null;
   mocks.storage.clear();
   mocks.confirm.mockReturnValue(true);
   vi.clearAllMocks();
@@ -333,6 +338,62 @@ describe("manual booking owner UI", () => {
     const button = elements(mocks.tree).find(node => node.props.children === "Generate payment link for balance");
     button.props.onClick();
     expect(mocks.createBalanceLink).toHaveBeenCalledWith({ bookingId: 5, expiryDays: 7 });
+  });
+  it.each([
+    ["Reservation created. Payment link not created: Hostaway auto-payment rules need review", true],
+    ["Reservation created. Receipt sync failed: Hostaway temporarily unavailable", false],
+  ])("successful balance-link retry clears only the resolved link warning: %s", (error, clearsWarning) => {
+    const result = { bookingId: 5, hostawayReservationId: "987654", status: "confirmed", totalAmount: 200,
+      amountPaid: 50, balanceDue: 150, paymentStatus: "partial", alreadyCreated: false, error };
+    mocks.stateOverrides.set(3, result);
+    expect(render()).toContain(error);
+    const button = elements(mocks.tree).find(node => node.props.children === "Generate payment link for balance");
+    button.props.onClick();
+    expect(mocks.createBalanceLink).toHaveBeenCalledOnce();
+    expect(mocks.createBalanceLink).toHaveBeenCalledWith({ bookingId: 5, expiryDays: 7 });
+
+    const expiresAt = Date.now() + 86400000;
+    mocks.balanceLinkOptions.onSuccess({ token: "retried-balance-token", expiresAt });
+    const updated = mocks.stateUpdates.get(3);
+    expect(updated).toEqual(clearsWarning ? { ...result, error: undefined } : result);
+    if (!clearsWarning) expect(updated).toBe(result);
+    expect(mocks.stateUpdates.get(4)).toBe("retried-balance-token");
+    expect(mocks.stateUpdates.get(5)).toBe(expiresAt);
+    const html = rerenderAfterUpdates();
+    expect(html).toContain("Booking confirmed in Hostaway");
+    expect(html).toContain("987654");
+    expect(html).toContain("/booking/pay/retried-balance-token");
+    if (clearsWarning) expect(html).not.toContain(error);
+    else expect(html).toContain(error);
+    submit();
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+  });
+  it("keeps the existing booking and warning when a balance-link retry fails", () => {
+    const error = "Reservation created. Payment link not created: Hostaway auto-payment rules need review";
+    const result = { bookingId: 5, hostawayReservationId: "987654", status: "confirmed", totalAmount: 200,
+      amountPaid: 0, balanceDue: 200, paymentStatus: "unpaid", alreadyCreated: false, error };
+    mocks.stateOverrides.set(3, result);
+    render();
+    const button = elements(mocks.tree).find(node => node.props.children === "Generate payment link for balance");
+    button.props.onClick();
+    mocks.balanceLinkOptions.onError(new Error("Hostaway native auto-payment remains scheduled"));
+    expect(toast.error).toHaveBeenCalledWith("Hostaway native auto-payment remains scheduled");
+    expect(mocks.stateUpdates.has(3)).toBe(false);
+    expect(mocks.stateUpdates.has(4)).toBe(false);
+    expect(mocks.stateUpdates.has(5)).toBe(false);
+    const html = rerenderAfterUpdates();
+    expect(mocks.stateValues.get(3)).toBe(result);
+    expect(html).toContain(error);
+    expect(html).toContain("Booking confirmed in Hostaway");
+    expect(html).toContain("Generate payment link for balance");
+    submit();
+    expect(mocks.createBalanceLink).toHaveBeenCalledOnce();
+    expect(mocks.createBalanceLink).toHaveBeenCalledWith({ bookingId: 5, expiryDays: 7 });
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+    expect(mocks.confirm).not.toHaveBeenCalled();
   });
   it.each(["paid", "partial", "complimentary"])("renders accurate %s result state", paymentStatus => {
     mocks.stateOverrides.set(3, { bookingId: 5, hostawayReservationId: "987654", status: "confirmed", totalAmount: paymentStatus === "complimentary" ? 0 : 200,
@@ -850,6 +911,9 @@ describe("booking administration owner payment rendering", () => {
       ?? elements(mocks.tree).find(node => node.type === "button" && Array.isArray(node.props.children) && node.props.children.includes("Generate payment link for balance"));
     button.props.onClick();
     expect(mocks.createBalanceLink).toHaveBeenCalledWith({ bookingId: 1 });
+    expect(mocks.createBalanceLink).toHaveBeenCalledOnce();
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
   });
   it("preserves website charge labels and existing stay actions", () => {
     mocks.bookings.push(booking({ bookingSource: "website", paidAmount: null }));

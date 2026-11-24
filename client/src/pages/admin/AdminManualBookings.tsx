@@ -375,6 +375,9 @@ export default function AdminManualBookings() {
     onSuccess: (data) => {
       setGeneratedToken(data.token);
       setGeneratedExpiry(data.expiresAt);
+      setBookingResult(prev => prev?.error?.startsWith("Reservation created. Payment link not created:")
+        ? { ...prev, error: undefined }
+        : prev);
       void utils.admin.listManualBookingLinks.invalidate();
       toast.success("Balance payment link created. No card was charged.");
     },

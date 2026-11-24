@@ -311,21 +311,28 @@ async function getOwnerReservationCharges(reservationId: string | number): Promi
 export async function getHostawayOwnerPaymentState(reservationId: string) {
   const token = await getAccessToken();
   const [response, charges] = await Promise.all([
-    fetch(`${HOSTAWAY_API_BASE}/reservations/${encodeURIComponent(reservationId)}`, {
+    // remainingBalance is omitted by Hostaway unless includePayments=1 is requested.
+    fetch(`${HOSTAWAY_API_BASE}/reservations/${encodeURIComponent(reservationId)}?includePayments=1`, {
       headers: { Authorization: `Bearer ${token}`, "Cache-control": "no-cache" }, signal: AbortSignal.timeout(15000),
     }), getOwnerReservationCharges(reservationId),
   ]);
   if (!response.ok) throw new Error("Unable to verify the current Hostaway reservation balance.");
   const data = await response.json();
   const reservation = data.result ?? data;
-  if (reservation.remainingBalance == null || !Number.isFinite(Number(reservation.remainingBalance))) {
+  if (reservation.id != null && String(reservation.id) !== reservationId) {
+    throw new Error("Hostaway returned a different reservation. No website collection was started.");
+  }
+  const rawBalance = reservation.remainingBalance;
+  const numericBalance = typeof rawBalance === "number" || (typeof rawBalance === "string" && rawBalance.trim() !== "");
+  const balance = Number(rawBalance);
+  if (!numericBalance || !Number.isFinite(balance) || balance < 0 || !Number.isSafeInteger(Math.round(balance * 100))) {
     throw new Error("Hostaway has not provided a verifiable balance. Use Hostaway to review payment before sharing a website link.");
   }
   const cancelled = ["cancelled", "canceled"].includes(String(reservation.status).toLowerCase()) || reservation.isCancelled === 1 || reservation.isCanceled === 1;
   const hasScheduledCollection = charges.some(charge => charge.type === "charge"
     && ["credit_card_online", "payment_link"].includes(charge.paymentMethod)
     && ["awaiting", "waitingForConfirmation", "pending", "processing", "pause"].includes(charge.status));
-  return { remainingBalance: Math.round(Number(reservation.remainingBalance) * 100) / 100, hasScheduledCollection, cancelled };
+  return { remainingBalance: Math.round(balance * 100) / 100, hasScheduledCollection, cancelled };
 }
 
 /** Records funds already received; this endpoint does not initiate a payment. */

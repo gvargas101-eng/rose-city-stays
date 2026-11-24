@@ -444,3 +444,86 @@ describe("cross-token owner balance collection safety", () => {
     expect(links).toHaveLength(2);
   });
 });
+
+describe("owner reservation balance-link repair", () => {
+  const existingBooking = (warning: string | null = null) => ({
+    ...input(),
+    id: 7,
+    propertyId: "private",
+    bookingSource: "owner",
+    status: "confirmed",
+    hostawayReservationId: "123",
+    totalAmount: "500.00",
+    paidAmount: "0.00",
+    depositHoldAmount: "500.00",
+    ownerCreateError: warning,
+    message: "{}",
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.calendar.mockResolvedValue(["2027-01-10", "2027-01-11"].map(date => ({ date, isAvailable: true, status: "available" })));
+    mocks.create.mockResolvedValue({ id: "123", status: "new" });
+    mocks.state.mockResolvedValue({ remainingBalance: 500, hasScheduledCollection: false, cancelled: false });
+  });
+  it("creates one actual unpaid stay and its matching balance link without initiating a card charge", async () => {
+    const { rows, links, receipts } = mockDb();
+    const result = await createOwnerBooking({ ...input(), createPaymentLink: true }, "owner");
+    expect(result).toMatchObject({ status: "confirmed", hostawayReservationId: "123", balanceDue: 500, amountPaid: 0, paymentStatus: "unpaid" });
+    expect(result.token).toEqual(expect.any(String));
+    expect(result.error).toBeUndefined();
+    expect(rows).toHaveLength(1);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toMatchObject({ bookingId: 7, hostawayReservationId: "123", totalAmount: "500.00" });
+    expect(receipts).toHaveLength(0);
+    expect(mocks.create).toHaveBeenCalledOnce();
+    expect(mocks.stripeSession).not.toHaveBeenCalled();
+  });
+  it("reports scheduled native collection rather than a missing balance while keeping the booking confirmed", async () => {
+    const { rows, links } = mockDb();
+    mocks.state.mockResolvedValue({ remainingBalance: 500, hasScheduledCollection: true, cancelled: false });
+    const result = await createOwnerBooking({ ...input(), createPaymentLink: true }, "owner");
+    expect(result.status).toBe("confirmed");
+    expect(result.error).toContain("Hostaway already has a stay-payment collection scheduled");
+    expect(result.error).toContain("prevent double charging");
+    expect(result.error).toContain("do not recreate");
+    expect(rows).toHaveLength(1);
+    expect(links).toHaveLength(0);
+    expect(mocks.create).toHaveBeenCalledOnce();
+  });
+  it("retries only the existing balance link and clears its obsolete optional-link error", async () => {
+    const { rows, links } = mockDb(existingBooking("Reservation created. Payment link not created: Hostaway has not provided a verifiable balance."));
+    const result = await createOwnerPaymentLink(7);
+    expect(result.balanceDue).toBe(500);
+    expect(rows[0]).toMatchObject({ status: "confirmed", hostawayReservationId: "123", paidAmount: "0.00", ownerCreateError: null });
+    expect(rows).toHaveLength(1);
+    expect(links).toHaveLength(1);
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.stripeSession).not.toHaveBeenCalled();
+  });
+  it("clears the obsolete warning when reusing an existing valid token without issuing another", async () => {
+    const { rows, links } = mockDb(existingBooking("Reservation created. Payment link not created: Previous lookup failure"));
+    links.push({ id: 9, bookingId: 7, token: "existing-token", status: "active", totalAmount: "500.00", expiresAt: Date.now() + 86400000 });
+    expect((await createOwnerPaymentLink(7)).token).toBe("existing-token");
+    expect(rows[0].ownerCreateError).toBeNull();
+    expect(links).toHaveLength(1);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  it("does not erase an unrelated receipt synchronization warning", async () => {
+    const warning = "Reservation created and received funds recorded. Hostaway receipt synchronization needs review.";
+    const { rows } = mockDb(existingBooking(warning));
+    await createOwnerPaymentLink(7);
+    expect(rows[0].ownerCreateError).toBe(warning);
+  });
+  it.each([
+    [{ remainingBalance: 500, hasScheduledCollection: false, cancelled: true }, "canceled in Hostaway"],
+    [{ remainingBalance: 400, hasScheduledCollection: false, cancelled: false }, "Hostaway balance ($400.00) differs from the website balance ($500.00)"],
+    [{ remainingBalance: 500, hasScheduledCollection: true, cancelled: false }, "stay-payment collection scheduled"],
+  ])("retains the original warning and creates no token on unsafe state %j", async (state, message) => {
+    const { rows, links } = mockDb(existingBooking("Reservation created. Payment link not created: Original warning"));
+    mocks.state.mockResolvedValue(state);
+    await expect(createOwnerPaymentLink(7)).rejects.toThrow(message as string);
+    expect(rows[0].ownerCreateError).toContain("Original warning");
+    expect(links).toHaveLength(0);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+});

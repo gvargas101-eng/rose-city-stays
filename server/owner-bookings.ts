@@ -218,17 +218,31 @@ export async function createOwnerPaymentLink(
     const state = await getHostawayOwnerPaymentState(
       booking.hostawayReservationId
     );
-    if (
-      state.cancelled ||
-      state.hasScheduledCollection ||
-      cent(state.remainingBalance) !== cent(balanceDue)
-    ) {
+    if (state.cancelled) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "This reservation is canceled in Hostaway. No payment link was created; review the existing booking before making changes.",
+      });
+    }
+    if (state.hasScheduledCollection) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "Hostaway already has a stay-payment collection scheduled. A competing website payment link is blocked to prevent double charging. Review that collection in Hostaway before retrying a website link on this existing booking. Keep deposit holds separate and do not recreate the reservation.",
+      });
+    }
+    if (cent(state.remainingBalance) !== cent(balanceDue)) {
       throw new TRPCError({
         code: "PRECONDITION_FAILED",
         message:
-          "Hostaway balance or scheduled collection has changed. Review payments in Hostaway before using a website balance link. Use only one collection channel.",
+          `Hostaway balance ($${state.remainingBalance.toFixed(2)}) differs from the website balance ($${balanceDue.toFixed(2)}). Review payments on this existing booking before collecting again. Use only one collection channel.`,
       });
     }
+    const clearPaymentLinkWarning = async () => {
+      // Do not erase unrelated creation or receipt-synchronization warnings.
+      if (booking.ownerCreateError?.startsWith("Reservation created. Payment link not created:")) {
+        await tx.update(bookings).set({ ownerCreateError: null }).where(eq(bookings.id, bookingId));
+      }
+    };
     const existing = await tx
       .select()
       .from(manualBookingLinks)
@@ -288,8 +302,10 @@ export async function createOwnerPaymentLink(
         cent(Number(link.totalAmount)) === cent(balanceDue) &&
         (!link.stripeCheckoutSessionId ||
           sessionStates.get(link.token)?.status === "open")
-      )
+      ) {
+        await clearPaymentLinkWarning();
         return { token: link.token, expiresAt: link.expiresAt, balanceDue };
+      }
       // Do not silently replace a token that may have an outstanding payment session.
       if (
         link.stripeCheckoutSessionId &&
@@ -346,6 +362,7 @@ export async function createOwnerPaymentLink(
       expiresAt,
       status: "active",
     });
+    await clearPaymentLinkWarning();
     return { token, expiresAt, balanceDue };
   });
 }
