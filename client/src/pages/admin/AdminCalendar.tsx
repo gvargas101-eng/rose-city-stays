@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { getUtcTimelineDays } from "@/lib/calendarDates";
 import { getCalendarMonthSegments, getCalendarMonthTone } from "@/lib/calendarMonths";
+import { buildCalendarBookingUrl, calendarRangeHasConflict, calendarStayNights, isCalendarNightReserved, nextCalendarSelection, validateCalendarStay, type CalendarBookingSelection } from "@/lib/calendarBooking";
 import { ChevronLeft, ChevronRight, RefreshCw, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +81,8 @@ export default function AdminCalendar() {
   const [isExtending, setIsExtending] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
   const [activeMonthKey, setActiveMonthKey] = useState(() => toYMD(timelineStart).slice(0, 7));
+  const [selection, setSelection] = useState<CalendarBookingSelection | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLockRef = useRef(false);
 
@@ -95,7 +98,7 @@ export default function AdminCalendar() {
   // Include one buffer day so reservations arriving at the right boundary are returned.
   const endDate = toYMD(addDays(timelineStart, numDays + 1));
 
-  const { data, isLoading, refetch, isFetching } = trpc.admin.getReservationsForCalendar.useQuery(
+  const { data, isLoading, refetch, isFetching, error: reservationsError } = trpc.admin.getReservationsForCalendar.useQuery(
     { startDate, endDate },
     { staleTime: 2 * 60 * 1000 }
   );
@@ -108,7 +111,23 @@ export default function AdminCalendar() {
     return map;
   }, [data]);
 
-  const todayStr = toYMD(today);
+  const loadedProperties = useMemo(() => new Set((data ?? []).map(entry => entry.propertySlug)), [data]);
+  const completeSelection = selection?.checkOut
+    ? { propertySlug: selection.propertySlug, checkIn: selection.checkIn, checkOut: selection.checkOut }
+    : null;
+  const { data: liveAvailability, isFetching: availabilityFetching, error: availabilityError, refetch: refreshAvailability } = trpc.hostaway.calendar.useQuery(
+    { propertyId: selection?.propertySlug ?? "", startDate: selection?.checkIn ?? startDate, endDate: selection?.checkOut ?? startDate },
+    { enabled: !!completeSelection, staleTime: 0, retry: false }
+  );
+  const availabilityValidation = completeSelection && liveAvailability
+    ? validateCalendarStay(completeSelection, liveAvailability.days) : null;
+  const knownConflict = completeSelection
+    ? calendarRangeHasConflict(completeSelection.checkIn, completeSelection.checkOut, reservationMap[completeSelection.propertySlug] ?? []) : false;
+  const canContinue = !!completeSelection && loadedProperties.has(completeSelection.propertySlug)
+    && !isFetching && !reservationsError && !availabilityFetching && !availabilityError
+    && availabilityValidation?.valid === true && !knownConflict;
+
+  const todayStr = today.toLocaleDateString("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" });
   const timelineEndMonth = new Date(Date.UTC(year, month + visibleMonths - 1, 1));
 
   useEffect(() => {
@@ -171,6 +190,26 @@ export default function AdminCalendar() {
         return { ...reservation, startCol, endCol, span: endCol - startCol + 1 };
       })
       .filter(Boolean);
+  }
+
+  function selectDate(propertySlug: string, date: string) {
+    if (isLoading || isFetching || reservationsError || !loadedProperties.has(propertySlug)) {
+      setSelectionError("Reservation data is unavailable for this property. Refresh before selecting dates.");
+      return;
+    }
+    if (date < todayStr) {
+      setSelectionError("Choose today or a future date for the new reservation.");
+      return;
+    }
+    const result = nextCalendarSelection(selection, propertySlug, date, reservationMap[propertySlug] ?? []);
+    setSelection(result.selection);
+    setSelectionError(result.error);
+    setTooltip(null);
+  }
+
+  function continueToBooking() {
+    if (!canContinue || !completeSelection) return;
+    window.location.assign(buildCalendarBookingUrl(completeSelection));
   }
 
   return (
@@ -238,6 +277,33 @@ export default function AdminCalendar() {
         </div>
       </nav>
 
+      <section aria-label="Create booking from calendar" className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+        <p className="text-sm font-semibold text-foreground">Create a reservation from the calendar</p>
+        <p className="text-xs text-muted-foreground">Click or tap a check-in date in the property's row, then its check-out date in the same row. The check-out night is not included. Choosing another property starts a new selection.</p>
+        <div aria-live="polite" className="text-sm text-foreground">
+          {selection ? <>
+            <strong>{PROPERTY_NAMES[selection.propertySlug] ?? selection.propertySlug}</strong>: {selection.checkIn} → {selection.checkOut ?? "Choose check-out"}
+            {selection.checkOut && <span> · {calendarStayNights(selection.checkIn, selection.checkOut)} night{calendarStayNights(selection.checkIn, selection.checkOut) === 1 ? "" : "s"}</span>}
+          </> : "Select a check-in date to begin."}
+        </div>
+        {selectionError && <p role="alert" className="text-xs text-destructive">{selectionError}</p>}
+        {completeSelection && <div aria-live="polite" className="text-xs">
+          {availabilityFetching ? <p className="text-muted-foreground">Checking live Hostaway availability…</p>
+            : availabilityError ? <p role="alert" className="text-destructive">Live availability could not be verified. Retry before continuing.</p>
+            : knownConflict || availabilityValidation?.valid === false ? <p role="alert" className="text-destructive">{knownConflict ? "These dates now overlap an existing reservation. Choose different dates." : availabilityValidation?.reason}</p>
+            : canContinue ? <p className="text-green-700 dark:text-green-300">Dates verified. Review pricing and guest details in Create Booking.</p>
+            : <p className="text-muted-foreground">Waiting for verified calendar data…</p>}
+        </div>}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" disabled={!canContinue} onClick={continueToBooking}>Continue to Create Booking</Button>
+          {selection && <Button type="button" size="sm" variant="outline" onClick={() => { setSelection(null); setSelectionError(null); }}>Clear selection</Button>}
+          {completeSelection && availabilityError && <Button type="button" size="sm" variant="outline" disabled={availabilityFetching} onClick={() => { void refreshAvailability(); }}>Retry availability</Button>}
+        </div>
+        <p className="text-xs text-muted-foreground">Selecting dates does not create or hold a reservation. Availability is checked again before the final booking is created.</p>
+      </section>
+
+      {reservationsError && <p role="alert" className="text-sm text-destructive">Calendar reservations could not be loaded. Refresh or sign in to the admin page before selecting dates.</p>}
+
       {isLoading ? (
         <div className="flex items-center justify-center h-64 text-muted-foreground">
           <RefreshCw className="w-5 h-5 animate-spin mr-2" />
@@ -296,6 +362,7 @@ export default function AdminCalendar() {
 
             {PROPERTY_ORDER.map((slug, rowIndex) => {
               const bars = getReservationBars(slug);
+              const propertyLoaded = loadedProperties.has(slug) && !reservationsError;
               return (
                 <div
                   key={slug}
@@ -306,21 +373,44 @@ export default function AdminCalendar() {
                     style={{ width: ROW_LABEL_W, minWidth: ROW_LABEL_W }}
                     className={`sticky left-0 px-3 flex items-center border-r border-border shrink-0 z-30 ${rowIndex % 2 === 0 ? "bg-background" : "bg-card"}`}
                   >
-                    <span className="text-xs font-medium text-foreground truncate">{PROPERTY_NAMES[slug] ?? slug}</span>
+                    <div className="min-w-0">
+                      <span className="block text-xs font-medium text-foreground truncate">{PROPERTY_NAMES[slug] ?? slug}</span>
+                      {!propertyLoaded && <span className="block text-[9px] text-destructive">Calendar unavailable</span>}
+                    </div>
                   </div>
 
                   <div className="flex absolute left-[160px] top-0 bottom-0">
                     {days.map((day) => {
                       const tone = getCalendarMonthTone(day.date.slice(0, 7));
+                      const reserved = isCalendarNightReserved(day.date, reservationMap[slug] ?? []);
+                      const checkoutCandidate = selection?.propertySlug === slug && !selection.checkOut && day.date > selection.checkIn
+                        && !calendarRangeHasConflict(selection.checkIn, day.date, reservationMap[slug] ?? []);
+                      const selectedNight = selection?.propertySlug === slug && day.date >= selection.checkIn
+                        && day.date < (selection.checkOut ?? toYMD(addDays(new Date(`${selection.checkIn}T00:00:00Z`), 1)));
+                      const checkout = selection?.propertySlug === slug && day.date === selection.checkOut;
+                      const disabled = !propertyLoaded || isFetching || day.date < todayStr || (reserved && !checkoutCandidate);
                       return (
-                      <div
+                      <button
                         key={day.date}
+                        type="button"
+                        data-select-property={slug}
+                        data-select-date={day.date}
                         data-month-boundary={day.dayNum === 1 ? day.date : undefined}
+                        aria-label={`${PROPERTY_NAMES[slug] ?? slug}: ${day.date}${checkoutCandidate ? ", choose check-out" : ", choose check-in"}${reserved && !checkoutCandidate ? " (reserved)" : ""}`}
+                        aria-pressed={!!selectedNight || !!checkout}
+                        disabled={disabled}
+                        onClick={() => selectDate(slug, day.date)}
                         style={{ width: CELL_W, minWidth: CELL_W }}
-                        className={`border-r border-border/40 last:border-r-0 h-full shrink-0 ${tone.grid}
+                        className={`relative border-r border-border/40 last:border-r-0 h-full shrink-0 ${tone.grid} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary enabled:hover:ring-2 enabled:hover:ring-inset enabled:hover:ring-primary/50 disabled:cursor-not-allowed
+                          ${selectedNight ? "ring-2 ring-inset ring-primary bg-primary/20" : ""}
+                          ${checkout ? "ring-2 ring-inset ring-primary" : ""}
+                          ${reserved && (checkoutCandidate || checkout) ? "z-30" : ""}
                           ${day.dayNum === 1 ? `border-l-2 ${tone.boundary}` : ""}
                           ${day.date === todayStr ? "ring-1 ring-inset ring-primary/40" : ""}`}
-                      />
+                      >
+                        {(selectedNight && day.date === selection?.checkIn) || checkout ? <span className="text-[10px] font-bold text-primary">{checkout ? "OUT" : "IN"}</span> : null}
+                        {reserved && checkoutCandidate && <span className="absolute bottom-0 inset-x-0 bg-card text-[8px] font-bold text-primary">OUT</span>}
+                      </button>
                     );})}
                   </div>
 

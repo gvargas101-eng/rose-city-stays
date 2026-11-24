@@ -1,5 +1,14 @@
 # Rose City Stays — Project TODO
 
+## Create Reservations From Master Calendar (Nov 23, 2026)
+
+- [x] Add two-click property-row check-in/check-out selection, selected-stay markers, clear selection, and a visible Continue to Create Booking action.
+- [x] Exclude checkout nights from occupancy; reject ranges crossing reservations, respect local Tyler dates, and preserve month colors/channel bars.
+- [x] Require complete live Hostaway availability, owner-block/minimum-stay validation, and loaded reservation data before continuing; never create/hold a booking on a calendar click.
+- [x] Verify safe one-time known-property/date prefill in the actual owner-booking form, including private properties and zero cleaning fees; ignore URL pricing/guest/payment/bypass values and block prefill when a prior owner request is unresolved.
+- [x] Preserve live Hostaway rate loading, editable owner fees/credits/discounts/payment options, explicit final confirmation, request-key recovery and admin-only actual creation. No live bookings, payments, holds or Hostaway mutations used for testing.
+- [x] Pass 37 test files / 348 tests, TypeScript, production build and diff checks. Calendar selection/turnovers/live failures and form prefill/submission covered by mocked integration tests; non-UTC prefill tests pass. Browser checked desktop controls/error safety and mobile layout; authenticated final booking was not submitted. Tested update ready for publishing checkpoint.
+
 ## Master Calendar Month Differentiation (Nov 23, 2026)
 
 - [x] Give adjacent months stable soft background colors and full month/year heading bands sized to the actual days in each month.

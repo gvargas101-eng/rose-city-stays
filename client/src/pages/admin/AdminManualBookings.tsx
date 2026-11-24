@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { getStayPriceSummary } from "@/lib/manualBookingPricing";
+import { parseCalendarBookingDraft } from "@/lib/calendarBooking";
 import { getManualBookingAmounts, getNightlyDiscount, validateManualBookingAmounts } from "@shared/manualBookingAmounts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,21 @@ function initialRequestKey() {
   catch { return newRequestKey(); }
 }
 
+function initialCalendarSelection() {
+  // Read the query once on mount. Only the shared parser's property/date draft
+  // is retained; URL pricing, guest details, modes and payment flags are ignored.
+  try {
+    const search = window.location.search || "";
+    const params = new URLSearchParams(search);
+    const requested = params.get("source") === "calendar";
+    return { requested, draft: parseCalendarBookingDraft(search) };
+  } catch {
+    return { requested: true, draft: null };
+  }
+}
+
+type CalendarPrefillStatus = "none" | "waiting" | "applied" | "invalid" | "unknown" | "blocked";
+
 interface FormState {
   propertySlug: string;
   checkIn: string;
@@ -203,11 +219,52 @@ export default function AdminManualBookings() {
   const [lastAutoFilledRateKey, setLastAutoFilledRateKey] = useState<string | null>(null);
   const [manualRateOverrideKey, setManualRateOverrideKey] = useState<string | null>(null);
   const [activeGuestIndex, setActiveGuestIndex] = useState(-1);
+  // Append hooks to preserve the existing form and guest-lookup state order.
+  const [calendarSelection] = useState(initialCalendarSelection);
+  const [calendarPrefillStatus, setCalendarPrefillStatus] = useState<CalendarPrefillStatus>(() =>
+    !calendarSelection.requested ? "none" : requestAttempted.current ? "blocked"
+      : calendarSelection.draft ? "waiting" : "invalid"
+  );
+  const calendarPrefillHandled = useRef(!calendarSelection.draft || requestAttempted.current);
 
   const utils = trpc.useUtils();
 
   // Fetch DB properties for the dropdown
-  const { data: dbProperties } = trpc.admin.listProperties.useQuery();
+  const { data: dbProperties, error: propertiesError } = trpc.admin.listProperties.useQuery();
+
+  useEffect(() => {
+    if (calendarPrefillHandled.current || !calendarSelection.draft) return;
+    // Never associate a new stay with a possibly completed prior request.
+    // This guard is terminal, even if the owner later explicitly resets.
+    if (requestAttempted.current) {
+      calendarPrefillHandled.current = true;
+      setCalendarPrefillStatus("blocked");
+      return;
+    }
+    if (!dbProperties) return;
+
+    calendarPrefillHandled.current = true;
+    const draft = calendarSelection.draft;
+    const property = dbProperties.find(p => p.slug === draft.propertySlug);
+    // Admin-only/unpublished DB properties are valid; static fallbacks are not
+    // sufficient to trust a property supplied by a URL.
+    if (!property) {
+      setCalendarPrefillStatus("unknown");
+      return;
+    }
+    const cleaningFee = property.cleaningFee == null ? INITIAL_FORM.cleaningFee : Number(property.cleaningFee);
+    setForm(prev => ({
+      ...prev,
+      propertySlug: property.slug,
+      checkIn: draft.checkIn,
+      checkOut: draft.checkOut,
+      cleaningFee: Number.isFinite(cleaningFee) && cleaningFee >= 0 ? cleaningFee : INITIAL_FORM.cleaningFee,
+    }));
+    setLastAutoFilledRateKey(null);
+    setManualRateOverrideKey(null);
+    setCalendarPrefillStatus("applied");
+    // Existing availability/rate queries load Hostaway prices on the next render.
+  }, [calendarSelection, dbProperties]);
 
   // List all manual booking links
   const { data: links, isLoading: linksLoading } = trpc.admin.listManualBookingLinks.useQuery();
@@ -387,7 +444,7 @@ export default function AdminManualBookings() {
     setManualRateOverrideKey(null);
     // Auto-fill cleaning fee from DB or static
     const dbProp = dbProperties?.find(p => p.slug === slug);
-    if (dbProp?.cleaningFee) {
+    if (dbProp?.cleaningFee != null) {
       set("cleaningFee", Number(dbProp.cleaningFee));
     }
   }
@@ -578,6 +635,8 @@ export default function AdminManualBookings() {
   function resetForm() {
     if (isSubmitting || createBalanceLink.isPending) return;
     if (requestAttempted.current && !bookingConfirmed && !window.confirm("This reservation request is not confirmed. Resetting starts a new request key and can create a duplicate if the previous request completed in Hostaway. Check Hostaway or retry the existing request first. Reset anyway?")) return;
+    calendarPrefillHandled.current = true;
+    setCalendarPrefillStatus("none");
     setForm(INITIAL_FORM);
     setAppliedDiscount(null);
     setDiscountCodeInput("");
@@ -631,6 +690,31 @@ export default function AdminManualBookings() {
             {showForm ? "Hide Form" : "Show Form"}
           </Button>
         </div>
+
+        {calendarPrefillStatus === "applied" && !bookingResult && !generatedToken && !requestAttempted.current && (
+          <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            Selected from Master Calendar — review availability, pricing and guest details before creating. No reservation has been created.
+          </div>
+        )}
+        {calendarPrefillStatus === "waiting" && (
+          <div role={propertiesError ? "alert" : "status"} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            {propertiesError
+              ? "Could not verify the calendar property. No selection was applied. Check your owner sign-in and retry loading this page, or select the property and dates manually."
+              : "Verifying the Master Calendar selection against your properties. No reservation has been created."}
+          </div>
+        )}
+        {(calendarPrefillStatus === "invalid" || calendarPrefillStatus === "unknown") && (
+          <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            {calendarPrefillStatus === "unknown"
+              ? "The calendar property could not be found. No selection was applied. Return to Master Calendar or select a property and dates manually."
+              : "The calendar selection is invalid or incomplete. No selection was applied. Return to Master Calendar or select a property and valid dates manually."}
+          </div>
+        )}
+        {calendarPrefillStatus === "blocked" && (
+          <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Calendar selection was not applied because an existing reservation request is unresolved. Retry the existing request using its original details and request key, or check Hostaway before explicitly choosing Reset. This calendar selection has not created a reservation.
+          </div>
+        )}
 
         {/* ── Create Form ── */}
         {showForm && (

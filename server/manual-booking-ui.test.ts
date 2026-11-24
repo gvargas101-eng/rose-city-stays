@@ -8,10 +8,19 @@ const mocks = vi.hoisted(() => ({
   bookings: [] as any[],
   stateOverrides: new Map<number, unknown>(),
   stateUpdates: new Map<number, unknown>(),
+  stateValues: new Map<number, unknown>(),
   stateIndex: 0,
+  refIndex: 0,
+  refs: new Map<number, { current: unknown }>(),
+  captureEffects: false,
+  effects: [] as (() => unknown)[],
+  propertiesResult: { data: [{ slug: "sample-house", name: "Sample house", hostawayListingId: 12345, active: 1, cleaningFee: "85.00" }], error: null } as any,
+  calendarResult: { data: undefined, isFetching: false } as any,
+  calendarQuery: vi.fn(),
   tree: null as any,
   createBooking: vi.fn(),
   createLink: vi.fn(),
+  ownerServiceCreate: vi.fn(),
   createBalanceLink: vi.fn(),
   ownerOptions: null as any,
   searchResult: { data: [], isFetching: false, error: null } as any,
@@ -34,13 +43,29 @@ vi.mock("react", async importOriginal => {
     useState: (initial: unknown) => {
       const index = mocks.stateIndex++;
       const [value, setValue] = actual.useState(mocks.stateOverrides.has(index) ? mocks.stateOverrides.get(index) : initial);
+      mocks.stateValues.set(index, value);
       return [value, (next: any) => {
         const previous = mocks.stateUpdates.has(index) ? mocks.stateUpdates.get(index) : value;
         mocks.stateUpdates.set(index, typeof next === "function" ? next(previous) : next);
         setValue(next);
       }];
     },
+    useRef: (initial: unknown) => {
+      const index = mocks.refIndex++;
+      const ref = actual.useRef(initial);
+      if (!mocks.captureEffects) return ref;
+      if (!mocks.refs.has(index)) mocks.refs.set(index, ref);
+      return mocks.refs.get(index);
+    },
+    useEffect: (effect: () => unknown, deps: unknown[]) => {
+      actual.useEffect(effect as React.EffectCallback, deps);
+      if (mocks.captureEffects) mocks.effects.push(effect);
+    },
   };
+});
+vi.mock("./owner-bookings", async importOriginal => {
+  const actual = await importOriginal<typeof import("./owner-bookings")>();
+  return { ...actual, createOwnerBooking: mocks.ownerServiceCreate };
 });
 vi.mock("@/lib/trpc", () => ({ trpc: {
   useUtils: () => ({
@@ -54,7 +79,7 @@ vi.mock("@/lib/trpc", () => ({ trpc: {
     hostaway: { calendar: { invalidate: vi.fn() } },
   }),
   admin: {
-    listProperties: { useQuery: () => ({ data: [{ slug: "sample-house", name: "Sample house", hostawayListingId: 12345, active: 1 }] }) },
+    listProperties: { useQuery: () => mocks.propertiesResult },
     listBookings: { useQuery: () => ({ data: mocks.bookings, refetch: vi.fn() }) },
     listManualBookingLinks: { useQuery: () => ({ data: mocks.links, isLoading: false, refetch: vi.fn() }) },
     searchGuestProfiles: { useQuery: (...args: unknown[]) => {
@@ -77,7 +102,7 @@ vi.mock("@/lib/trpc", () => ({ trpc: {
     create: { useMutation: (options: unknown) => { mocks.ownerOptions = options; return { mutate: mocks.createBooking, isPending: false }; } },
     createPaymentLink: { useMutation: () => ({ mutate: mocks.createBalanceLink, isPending: false }) },
   },
-  hostaway: { calendar: { useQuery: () => ({ data: undefined, isFetching: false }) } },
+  hostaway: { calendar: { useQuery: (...args: unknown[]) => { mocks.calendarQuery(...args); return mocks.calendarResult; } } },
   discountCodes: { validate: { useMutation: mocks.mutation } },
   extensions: { quote: { useMutation: mocks.mutation }, createAndCollect: { useMutation: mocks.mutation } },
   changes: { quote: { useMutation: mocks.mutation }, create: { useMutation: mocks.mutation }, refund: { useMutation: mocks.mutation } },
@@ -89,12 +114,13 @@ vi.mock("../client/src/pages/admin/AdminLayout", () => ({
 import { toast } from "sonner";
 import AdminManualBookings from "../client/src/pages/admin/AdminManualBookings";
 import AdminBookings from "../client/src/pages/admin/AdminBookings";
+import { ownerBookingsRouter } from "./routers/ownerBookings";
 
 beforeEach(() => {
   vi.stubGlobal("React", React);
   vi.stubGlobal("crypto", { randomUUID });
   vi.stubGlobal("window", {
-    location: { origin: "https://preview.example.com" },
+    location: { origin: "https://preview.example.com", search: "" },
     confirm: mocks.confirm,
     sessionStorage: {
       getItem: (key: string) => mocks.storage.get(key) ?? null,
@@ -108,7 +134,14 @@ afterEach(() => {
   mocks.bookings.length = 0;
   mocks.stateOverrides.clear();
   mocks.stateUpdates.clear();
+  mocks.stateValues.clear();
   mocks.stateIndex = 0;
+  mocks.refIndex = 0;
+  mocks.refs.clear();
+  mocks.captureEffects = false;
+  mocks.effects.length = 0;
+  mocks.propertiesResult = { data: [{ slug: "sample-house", name: "Sample house", hostawayListingId: 12345, active: 1, cleaningFee: "85.00" }], error: null };
+  mocks.calendarResult = { data: undefined, isFetching: false };
   mocks.searchResult = { data: [], isFetching: false, error: null };
   mocks.syncStatusResult = { data: null, isLoading: false, error: null };
   mocks.syncResult = { data: undefined, isPending: false, error: null };
@@ -120,8 +153,23 @@ afterEach(() => {
 });
 const render = (component = AdminManualBookings) => {
   mocks.stateIndex = 0;
+  mocks.refIndex = 0;
+  mocks.effects.length = 0;
   return renderToStaticMarkup(React.createElement(component));
 };
+function flushEffects() {
+  for (const effect of mocks.effects.splice(0)) effect();
+}
+function rerenderAfterUpdates() {
+  // Model the same mounted component across DB query updates without a browser,
+  // live database or payments; preserve state and refs, then run queued effects.
+  for (const [index, value] of mocks.stateValues) mocks.stateOverrides.set(index, value);
+  for (const [index, value] of mocks.stateUpdates) mocks.stateOverrides.set(index, value);
+  mocks.stateUpdates.clear();
+  const html = render();
+  flushEffects();
+  return html;
+}
 function elements(node: any): any[] {
   if (Array.isArray(node)) return node.flatMap(elements);
   if (!React.isValidElement(node)) return [];
@@ -325,6 +373,268 @@ describe("manual booking owner UI", () => {
     validForm({ bypassAvailabilityCheck: true });
     render(); submit();
     expect(mocks.createBooking).toHaveBeenCalledWith(expect.objectContaining({ bypassAvailabilityCheck: false }));
+  });
+});
+
+describe("Master Calendar manual booking drafts", () => {
+  const requestStorageKey = "rose-city-owner-booking-request-key";
+  const calendarQuery = "?source=calendar&propertySlug=sample-house&checkIn=2027-03-13&checkOut=2027-03-15";
+
+  function startDraft(search = calendarQuery) {
+    window.location.search = search;
+    mocks.captureEffects = true;
+    const html = render();
+    flushEffects();
+    return html;
+  }
+  function expectNoCreation() {
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+    expect(mocks.createBalanceLink).not.toHaveBeenCalled();
+    expect(mocks.ownerServiceCreate).not.toHaveBeenCalled();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+    expect(mocks.storage.size).toBe(0);
+  }
+
+  it("prefills only DB-verified property and exact date strings after properties arrive", () => {
+    mocks.propertiesResult = { data: undefined, error: null };
+    expect(startDraft()).toContain("Verifying the Master Calendar selection");
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expect(mocks.calendarQuery).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ enabled: false }));
+
+    mocks.propertiesResult = { data: [{ slug: "sample-house", name: "Sample house", cleaningFee: "95.50", active: 1 }], error: null };
+    rerenderAfterUpdates();
+    expect(mocks.stateUpdates.get(0)).toMatchObject({
+      propertySlug: "sample-house", checkIn: "2027-03-13", checkOut: "2027-03-15", cleaningFee: 95.5,
+      nightlyRate: 0, guestName: "", guestEmail: "", allowUnpaid: false, createPaymentLink: false,
+    });
+    const html = rerenderAfterUpdates();
+    expect(html).toContain("Selected from Master Calendar — review availability, pricing and guest details before creating. No reservation has been created.");
+    const dateInputs = elements(mocks.tree).filter(node => node.props.type === "date");
+    expect(dateInputs[0].props.value).toBe("2027-03-13");
+    expect(dateInputs[1].props.value).toBe("2027-03-15");
+    expect(dateInputs[1].props.min).toBe("2027-03-13");
+    expect(html).toContain("Create Booking — Actual Hostaway Reservation");
+    expect(mocks.calendarQuery).toHaveBeenLastCalledWith({
+      propertyId: "sample-house", startDate: "2027-03-13", endDate: "2027-03-15",
+    }, expect.objectContaining({ enabled: true }));
+    expectNoCreation();
+  });
+
+  it.each([0, "0.00"])("accepts a private admin property and current DB cleaning fee %s", cleaningFee => {
+    mocks.propertiesResult = { data: [{ slug: "hidden-house", name: "Hidden house", active: 0, cleaningFee }], error: null };
+    startDraft(calendarQuery.replace("sample-house", "hidden-house"));
+    expect(mocks.stateUpdates.get(0)).toMatchObject({ propertySlug: "hidden-house", cleaningFee: 0 });
+    const html = rerenderAfterUpdates();
+    expect(html).toContain("Hidden house (Private / unpublished)");
+    expect(html).toContain('<option value="hidden-house" selected="">');
+    expectNoCreation();
+  });
+
+  it("ignores every URL price, guest, payment, bypass and mode field", () => {
+    startDraft(`${calendarQuery}&nightlyRate=1&cleaningFee=999&extraGuestFee=42&taxRate=0&taxOverride=0&discountAmount=500&guestCount=99&guestName=Injected&guestEmail=evil%40example.com&guestPhone=123&bypassCameraDisclosure=true&bypassGuestCount=true&bypassTermsAcceptance=true&bypassIdUpload=true&bypassAvailabilityCheck=true&amountReceived=500&paymentReference=paid&allowUnpaid=true&createPaymentLink=true&mode=link&requestKey=attacker&adminNotes=unsafe&securityDepositOverride=0&customLineItems=unsafe`);
+    expect(mocks.stateUpdates.get(0)).toEqual({
+      ...mocks.stateValues.get(0) as object,
+      propertySlug: "sample-house", checkIn: "2027-03-13", checkOut: "2027-03-15", cleaningFee: 85,
+    });
+    expect(mocks.stateValues.get(1)).toBe("booking");
+    expect(mocks.stateUpdates.has(1)).toBe(false);
+    expect(mocks.stateUpdates.has(2)).toBe(false);
+    expect(mocks.stateUpdates.has(3)).toBe(false);
+    expectNoCreation();
+  });
+
+  it.each([
+    "?source=calendar&propertySlug=sample-house&checkIn=2027-02-30&checkOut=2027-03-02",
+    "?source=calendar&propertySlug=sample-house&checkIn=2027-2-03&checkOut=2027-02-04",
+    "?source=calendar&propertySlug=sample-house&checkIn=2027-03-15&checkOut=2027-03-13",
+    "?source=calendar&propertySlug=sample-house&checkIn=2027-03-13&checkOut=2027-03-13",
+    "?source=calendar&propertySlug=sample-house&checkIn=2027-01-01&checkOut=2028-01-03",
+    "?source=calendar&propertySlug=bad%2Fslug&checkIn=2027-03-13&checkOut=2027-03-15",
+    "?source=calendar&propertySlug=sample-house&checkIn=2027-03-13",
+  ])("rejects invalid/incomplete calendar draft without prefill: %s", search => {
+    expect(startDraft(search)).toContain("The calendar selection is invalid or incomplete");
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expect(mocks.calendarQuery).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ enabled: false }));
+    submit();
+    expect(toast.error).toHaveBeenCalledWith("Select a property");
+    expectNoCreation();
+  });
+
+  it.each([calendarQuery.replace("calendar", "other"), calendarQuery.replace("source=calendar&", "")])("does not trust non-calendar sources or apply their fields", search => {
+    const html = startDraft(search);
+    expect(html).not.toContain("Selected from Master Calendar");
+    expect(html).not.toContain("The calendar selection is invalid");
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expectNoCreation();
+  });
+
+  it("rejects unknown property slugs, including static properties absent from the DB", () => {
+    startDraft(calendarQuery.replace("sample-house", "the-briar"));
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expect(rerenderAfterUpdates()).toContain("The calendar property could not be found");
+    submit();
+    expect(toast.error).toHaveBeenCalledWith("Select a property");
+    expectNoCreation();
+  });
+
+  it("shows safe property-query failure without exposing DB details or applying the draft", () => {
+    mocks.propertiesResult = { data: undefined, error: new Error("private SQL credentials") };
+    const html = startDraft();
+    expect(html).toContain("Could not verify the calendar property");
+    expect(html).not.toContain("private SQL credentials");
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expectNoCreation();
+  });
+
+  it("reads the URL once and never overwrites subsequent edits after property refetch", () => {
+    startDraft();
+    rerenderAfterUpdates();
+    const dates = elements(mocks.tree).filter(node => node.props.type === "date");
+    dates[0].props.onChange({ target: { value: "2027-04-10" } });
+    dates[1].props.onChange({ target: { value: "2027-04-12" } });
+    window.location.search = calendarQuery.replace("2027-03-13", "2027-06-01").replace("2027-03-15", "2027-06-03");
+    mocks.propertiesResult = { data: [{ slug: "sample-house", name: "Sample house", active: 1, cleaningFee: "200.00" }], error: null };
+    rerenderAfterUpdates();
+    expect(mocks.stateValues.get(0)).toMatchObject({ checkIn: "2027-04-10", checkOut: "2027-04-12", cleaningFee: 85 });
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expectNoCreation();
+  });
+
+  it("the one-time guard also prevents replaying the same prefill effect", () => {
+    window.location.search = calendarQuery;
+    mocks.captureEffects = true;
+    render();
+    const prefillEffect = mocks.effects[0];
+    prefillEffect();
+    expect(mocks.stateUpdates.get(0)).toMatchObject({ propertySlug: "sample-house", cleaningFee: 85 });
+    mocks.stateUpdates.clear();
+    prefillEffect();
+    expect(mocks.stateUpdates.size).toBe(0);
+    expectNoCreation();
+  });
+
+  it("resets rate override markers and lets the existing Hostaway query load a live rate", () => {
+    mocks.stateOverrides.set(13, "sample-house|2027-03-13|2027-03-15");
+    mocks.stateOverrides.set(14, "sample-house|2027-03-13|2027-03-15");
+    startDraft();
+    expect(mocks.stateUpdates.get(13)).toBe(null);
+    expect(mocks.stateUpdates.get(14)).toBe(null);
+    mocks.calendarResult = { isFetching: false, data: { days: [
+      { date: "2027-03-13", price: 180, isAvailable: true, status: "available" },
+      { date: "2027-03-14", price: 220, isAvailable: true, status: "available" },
+    ] } };
+    rerenderAfterUpdates();
+    expect(mocks.stateUpdates.get(0)).toMatchObject({ nightlyRate: 200 });
+    expect(mocks.stateUpdates.get(13)).toBe("sample-house|2027-03-13|2027-03-15");
+    expectNoCreation();
+  });
+
+  it("prefill alone cannot bypass guest review, authorization or explicit confirmation", () => {
+    startDraft();
+    rerenderAfterUpdates();
+    submit();
+    expect(toast.error).toHaveBeenCalledWith("Guest name and email are required to create a booking");
+    expectNoCreation();
+  });
+
+  it("creates the actual booking only after the owner completes guest/payment review and confirms", () => {
+    startDraft(`${calendarQuery}&mode=link&allowUnpaid=true&guestName=Injected&guestEmail=evil%40example.com`);
+    rerenderAfterUpdates();
+    expectNoCreation();
+
+    const guestName = elements(mocks.tree).find(node => node.props.id === "manual-guest-name");
+    const guestEmail = elements(mocks.tree).find(node => node.props.type === "email");
+    guestName.props.onChange({ target: { value: "Reviewed Guest" } });
+    guestEmail.props.onChange({ target: { value: "reviewed@example.com" } });
+    const unpaidLabel = elements(mocks.tree).find(node => node.type === "label" && Array.isArray(node.props.children)
+      && node.props.children.some((child: unknown) => typeof child === "string" && child.startsWith("I explicitly allow")));
+    elements(unpaidLabel).find(node => node.props.type === "checkbox").props.onChange({ target: { checked: true } });
+    rerenderAfterUpdates();
+    expectNoCreation();
+    submit();
+    expect(mocks.confirm).toHaveBeenCalledOnce();
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.stringContaining("2027-03-13 → 2027-03-15"));
+    expect(mocks.createBooking).toHaveBeenCalledOnce();
+    expect(mocks.createBooking).toHaveBeenCalledWith(expect.objectContaining({
+      propertySlug: "sample-house", checkIn: Date.parse("2027-03-13T00:00:00Z"),
+      checkOut: Date.parse("2027-03-15T00:00:00Z"), nights: 2, cleaningFee: 85,
+      guestName: "Reviewed Guest", guestEmail: "reviewed@example.com", allowUnpaid: true,
+      bypassAvailabilityCheck: false, createPaymentLink: false,
+    }));
+    expect(mocks.createLink).not.toHaveBeenCalled();
+  });
+
+  it("never replaces an unresolved stored request or renews its key", () => {
+    validForm();
+    const previous = mocks.stateOverrides.get(0);
+    const key = randomUUID();
+    mocks.storage.set(requestStorageKey, key);
+    expect(startDraft()).toContain("existing reservation request is unresolved");
+    expect(render()).toContain("Retry the existing request using its original details and request key");
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expect(mocks.stateValues.get(0)).toEqual(previous);
+    expect(mocks.stateUpdates.has(2)).toBe(false);
+    expect(mocks.storage.get(requestStorageKey)).toBe(key);
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+
+    // Explicit retry remains the existing flow and sends original, not calendar, dates.
+    submit();
+    expect(mocks.createBooking).toHaveBeenCalledWith(expect.objectContaining({
+      requestKey: key, checkIn: Date.parse("2027-01-10T00:00:00Z"), checkOut: Date.parse("2027-01-12T00:00:00Z"),
+    }));
+  });
+
+  it("does not later apply a blocked calendar draft, even after an explicit reset", () => {
+    mocks.storage.set(requestStorageKey, randomUUID());
+    startDraft();
+    const reset = elements(mocks.tree).find(node => node.props.children === "Reset");
+    mocks.confirm.mockReturnValue(false);
+    reset.props.onClick();
+    expect(mocks.storage.size).toBe(1);
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    mocks.confirm.mockReturnValue(true);
+    reset.props.onClick();
+    rerenderAfterUpdates();
+    expect(mocks.stateValues.get(0)).toMatchObject({ propertySlug: "", checkIn: "", checkOut: "" });
+    expect(mocks.stateValues.get(17)).toBe("none");
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expect(mocks.storage.size).toBe(0);
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+    expect(mocks.createLink).not.toHaveBeenCalled();
+  });
+
+  it("cancels a delayed draft if a reservation request is attempted before properties arrive", () => {
+    validForm();
+    mocks.propertiesResult = { data: undefined, error: null };
+    startDraft();
+    submit();
+    const existingKey = mocks.storage.get(requestStorageKey);
+    mocks.propertiesResult = { data: [{ slug: "sample-house", name: "Sample house", cleaningFee: "95.00" }], error: null };
+    rerenderAfterUpdates();
+    expect(mocks.stateUpdates.has(0)).toBe(false);
+    expect(mocks.stateUpdates.get(17)).toBe("blocked");
+    expect(mocks.storage.get(requestStorageKey)).toBe(existingKey);
+    expect(mocks.createBooking).toHaveBeenCalledOnce();
+    expect(mocks.confirm).toHaveBeenCalledOnce();
+  });
+
+  it.each([undefined, "user"])("a calendar draft cannot grant server create access to role %s", async role => {
+    startDraft();
+    const draft = mocks.stateUpdates.get(0) as any;
+    const caller = ownerBookingsRouter.createCaller({
+      user: role ? { id: 1, openId: "not-an-owner", role } : null,
+      req: { headers: {} }, res: {},
+    } as any);
+    await expect(caller.create({
+      requestKey: randomUUID(), propertySlug: draft.propertySlug,
+      checkIn: Date.parse(`${draft.checkIn}T00:00:00Z`), checkOut: Date.parse(`${draft.checkOut}T00:00:00Z`),
+      nights: 2, guestCount: 2, guestName: "Guest", guestEmail: "guest@example.com",
+      nightlyRate: 100, cleaningFee: draft.cleaningFee, totalAmount: 285, allowUnpaid: true,
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expectNoCreation();
   });
 });
 

@@ -34,7 +34,7 @@ vi.mock("react", async importOriginal => {
     },
   };
 });
-vi.mock("@/lib/trpc", () => ({ trpc: { admin: {
+vi.mock("@/lib/trpc", () => ({ trpc: { hostaway: { calendar: { useQuery: () => ({ data: undefined, isFetching: false, error: null, refetch: vi.fn() }) } }, admin: {
   getReservationsForCalendar: { useQuery: (...args: unknown[]) => {
     mocks.query(...args);
     return { data: mocks.data, isLoading: mocks.isLoading, isFetching: mocks.isFetching, refetch: mocks.refetch };
