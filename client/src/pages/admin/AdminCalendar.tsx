@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { getUtcTimelineDays } from "@/lib/calendarDates";
+import { getCalendarMonthSegments, getCalendarMonthTone } from "@/lib/calendarMonths";
 import { ChevronLeft, ChevronRight, RefreshCw, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,10 +60,6 @@ function monthLabel(date: Date): string {
   return date.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 }
 
-function abbreviatedMonth(dateString: string): string {
-  return new Date(`${dateString}T00:00:00Z`).toLocaleString("en-US", { month: "short", timeZone: "UTC" });
-}
-
 interface TooltipInfo {
   guestName: string;
   channelName: string;
@@ -82,6 +79,7 @@ export default function AdminCalendar() {
   const [visibleMonths, setVisibleMonths] = useState(INITIAL_VISIBLE_MONTHS);
   const [isExtending, setIsExtending] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
+  const [activeMonthKey, setActiveMonthKey] = useState(() => toYMD(timelineStart).slice(0, 7));
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLockRef = useRef(false);
 
@@ -91,6 +89,7 @@ export default function AdminCalendar() {
     () => getUtcTimelineDays(year, month, visibleMonths),
     [year, month, visibleMonths]
   );
+  const monthSegments = useMemo(() => getCalendarMonthSegments(days), [days]);
   const numDays = days.length;
   const startDate = days[0]?.date ?? toYMD(timelineStart);
   // Include one buffer day so reservations arriving at the right boundary are returned.
@@ -119,6 +118,8 @@ export default function AdminCalendar() {
   function resetTimeline(nextStart: Date) {
     setTimelineStart(nextStart);
     setVisibleMonths(INITIAL_VISIBLE_MONTHS);
+    setActiveMonthKey(toYMD(nextStart).slice(0, 7));
+    setTooltip(null);
   }
 
   function prevMonth() {
@@ -133,9 +134,21 @@ export default function AdminCalendar() {
     resetTimeline(startOfMonth(today.getUTCFullYear(), today.getUTCMonth()));
   }
 
+  function jumpToMonth(key: string) {
+    const segment = monthSegments.find(item => item.key === key);
+    if (!segment) return;
+    timelineScrollRef.current?.scrollTo({ left: segment.startCol * CELL_W, behavior: "auto" });
+    setActiveMonthKey(key);
+    setTooltip(null);
+  }
+
   function handleTimelineScroll() {
     const scroller = timelineScrollRef.current;
-    if (!scroller || loadMoreLockRef.current) return;
+    if (!scroller) return;
+    const visibleDay = days[Math.min(numDays - 1, Math.floor(scroller.scrollLeft / CELL_W))];
+    if (visibleDay) setActiveMonthKey(visibleDay.date.slice(0, 7));
+    setTooltip(null);
+    if (loadMoreLockRef.current) return;
     const isNearTimelineEnd = scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - CELL_W * 10;
     if (!isNearTimelineEnd) return;
 
@@ -205,6 +218,26 @@ export default function AdminCalendar() {
         ))}
       </div>
 
+      <nav aria-label="Calendar months" className="space-y-2">
+        <p className="text-xs text-muted-foreground">Jump to a month. Soft background colors separate months; reservation colors still identify booking channels.</p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {monthSegments.map(segment => (
+            <button
+              key={segment.key}
+              type="button"
+              aria-label={`Jump to ${segment.label}`}
+              aria-current={activeMonthKey === segment.key ? "true" : undefined}
+              data-month-key={segment.key}
+              disabled={isLoading}
+              onClick={() => jumpToMonth(segment.key)}
+              className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 ${getCalendarMonthTone(segment.key).chip} ${activeMonthKey === segment.key ? "ring-2 ring-primary ring-offset-1" : "hover:shadow-sm"}`}
+            >
+              {segment.shortLabel}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       {isLoading ? (
         <div className="flex items-center justify-center h-64 text-muted-foreground">
           <RefreshCw className="w-5 h-5 animate-spin mr-2" />
@@ -217,28 +250,48 @@ export default function AdminCalendar() {
           className="overflow-x-auto rounded-lg border border-border bg-card"
         >
           <div style={{ minWidth: ROW_LABEL_W + numDays * CELL_W }}>
+            <div className="flex border-b border-border" aria-label="Month headings">
+              <div style={{ width: ROW_LABEL_W, minWidth: ROW_LABEL_W }} className="sticky left-0 z-30 shrink-0 border-r border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground">Month</div>
+              {monthSegments.map(segment => (
+                <div
+                  key={segment.key}
+                  data-month-band={segment.key}
+                  style={{ width: segment.dayCount * CELL_W, minWidth: segment.dayCount * CELL_W }}
+                  className={`shrink-0 border-l-2 px-3 py-2 text-sm font-semibold ${getCalendarMonthTone(segment.key).header} ${getCalendarMonthTone(segment.key).boundary}`}
+                >
+                  {segment.label}
+                </div>
+              ))}
+            </div>
             <div className="flex border-b border-border sticky top-0 bg-muted z-10">
               <div
                 style={{ width: ROW_LABEL_W, minWidth: ROW_LABEL_W }}
-                className="px-3 py-2 text-xs font-semibold text-muted-foreground border-r border-border shrink-0"
+                className="sticky left-0 z-30 bg-card px-3 py-2 text-xs font-semibold text-muted-foreground border-r border-border shrink-0"
               >
                 Property
               </div>
-              {days.map((day) => (
+              {days.map((day) => {
+                const tone = getCalendarMonthTone(day.date.slice(0, 7));
+                const weekend = day.dayOfWeek === 0 || day.dayOfWeek === 6;
+                return (
                 <div
                   key={day.date}
+                  data-calendar-date={day.date}
+                  data-month-key={day.date.slice(0, 7)}
+                  aria-current={day.date === todayStr ? "date" : undefined}
                   style={{ width: CELL_W, minWidth: CELL_W }}
                   className={`text-center py-1.5 text-xs border-r border-border last:border-r-0 shrink-0
-                    ${day.date === todayStr ? "bg-primary/10 font-bold text-primary" : ""}
-                    ${day.dayOfWeek === 0 || day.dayOfWeek === 6 ? "bg-muted/60" : ""}`}
+                    ${weekend ? tone.weekend : tone.day}
+                    ${day.dayNum === 1 ? `border-l-2 ${tone.boundary}` : ""}
+                    ${day.date === todayStr ? "font-bold ring-2 ring-inset ring-primary" : ""}`}
                   title={day.date}
                 >
                   <div className="font-medium">{day.dayNum}</div>
-                  <div className="text-[9px] text-muted-foreground">
-                    {day.dayNum === 1 ? abbreviatedMonth(day.date) : ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][day.dayOfWeek]}
+                  <div className="text-[9px] opacity-75">
+                    {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][day.dayOfWeek]}
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
 
             {PROPERTY_ORDER.map((slug, rowIndex) => {
@@ -251,21 +304,24 @@ export default function AdminCalendar() {
                 >
                   <div
                     style={{ width: ROW_LABEL_W, minWidth: ROW_LABEL_W }}
-                    className="px-3 flex items-center border-r border-border shrink-0 z-10 bg-inherit"
+                    className={`sticky left-0 px-3 flex items-center border-r border-border shrink-0 z-30 ${rowIndex % 2 === 0 ? "bg-background" : "bg-card"}`}
                   >
                     <span className="text-xs font-medium text-foreground truncate">{PROPERTY_NAMES[slug] ?? slug}</span>
                   </div>
 
                   <div className="flex absolute left-[160px] top-0 bottom-0">
-                    {days.map((day) => (
+                    {days.map((day) => {
+                      const tone = getCalendarMonthTone(day.date.slice(0, 7));
+                      return (
                       <div
                         key={day.date}
+                        data-month-boundary={day.dayNum === 1 ? day.date : undefined}
                         style={{ width: CELL_W, minWidth: CELL_W }}
-                        className={`border-r border-border/40 last:border-r-0 h-full shrink-0
-                          ${day.date === todayStr ? "bg-primary/5" : ""}
-                          ${day.dayOfWeek === 0 || day.dayOfWeek === 6 ? "bg-muted/30" : ""}`}
+                        className={`border-r border-border/40 last:border-r-0 h-full shrink-0 ${tone.grid}
+                          ${day.dayNum === 1 ? `border-l-2 ${tone.boundary}` : ""}
+                          ${day.date === todayStr ? "ring-1 ring-inset ring-primary/40" : ""}`}
                       />
-                    ))}
+                    );})}
                   </div>
 
                   {bars.map((bar: any, index: number) => {

@@ -1,5 +1,12 @@
 # Rose City Stays — Project TODO
 
+## Master Calendar Month Differentiation (Nov 23, 2026)
+
+- [x] Give adjacent months stable soft background colors and full month/year heading bands sized to the actual days in each month.
+- [x] Add strong month boundary lines, month jump buttons with active-month indication, and sticky property labels while scrolling.
+- [x] Preserve channel-colored reservation bars, cancellation filtering, today markers, and continuous future-month loading.
+- [x] Complete 18 calendar-specific tests and the full 35-file / 289-test suite, TypeScript, production build and diff checks. Browser verified month bands and December jump; mobile navigation screenshot verified. Reservation bars/tooltips covered with synthetic data, not authenticated live guest records. Tested update ready for the publishing checkpoint.
+
 ## Previous Guest Search & Autofill Repair (Nov 23, 2026)
 
 - [x] Diagnose the actual private directory: only 100 source reservations imported, no historical-import timestamp, and case-sensitive binary name/email collation.
