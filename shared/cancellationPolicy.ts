@@ -1,0 +1,3 @@
+/** Owner-selected policy for future direct bookings. Never backfill existing bookings. */
+export const FUTURE_DIRECT_CANCELLATION_POLICY_ID = "direct-14-7-nightly-v1";
+export const FUTURE_DIRECT_CANCELLATION_POLICY_TEXT = "Cancellations made 14 or more days before check-in receive a 100% refund of the nightly rate. Cancellations made 7–13 days before check-in receive a 50% refund of the nightly rate. Cancellations made fewer than 7 days before check-in receive no refund. Cleaning fees and taxes are non-refundable. No-shows and early departures are non-refundable. The cancellation policy agreed to when the reservation was booked governs that reservation. A cancellation request does not cancel the reservation or guarantee a refund; the host must review and confirm it.";

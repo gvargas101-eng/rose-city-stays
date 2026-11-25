@@ -1,4 +1,4 @@
-import { bigint, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { bigint, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -451,7 +451,7 @@ export const discountCodes = mysqlTable("discount_codes", {
   // Max total uses across all guests (null = unlimited)
   maxTotalUses: int("maxTotalUses"),
 
-  // Default max uses per unique guest email (null = unlimited per guest)
+  // Default absolute lifetime successful-use cap per normalized guest email.
   maxUsesPerGuest: int("maxUsesPerGuest").notNull().default(3),
 
   // Optional expiration date (Unix ms, null = never expires)
@@ -483,9 +483,33 @@ export const discountCodeUses = mysqlTable("discount_code_uses", {
   guestEmail: varchar("guestEmail", { length: 320 }).notNull(),
   discountAmount: decimal("discountAmount", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [uniqueIndex("discount_code_uses_code_booking_unique").on(table.discountCodeId, table.bookingId)]);
 export type DiscountCodeUse = typeof discountCodeUses.$inferSelect;
 export type InsertDiscountCodeUse = typeof discountCodeUses.$inferInsert;
+
+/** Absolute lifetime cap, not additional uses. Zero blocks new coupon checkouts. */
+export const discountCodeGuestOverrides = mysqlTable("discount_code_guest_overrides", {
+  id: int("id").autoincrement().primaryKey(),
+  discountCodeId: int("discountCodeId").notNull(),
+  guestEmail: varchar("guestEmail", { length: 320 }).notNull(),
+  maxUses: int("maxUses").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [uniqueIndex("discount_guest_override_unique").on(table.discountCodeId, table.guestEmail)]);
+
+/** Temporary capacity claims, separate from retained successful-use history. */
+export const discountCodeClaims = mysqlTable("discount_code_claims", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  checkoutKey: varchar("checkoutKey", { length: 128 }).notNull().unique(),
+  discountCodeId: int("discountCodeId").notNull(),
+  guestEmail: varchar("guestEmail", { length: 320 }).notNull(),
+  discountAmount: decimal("discountAmount", { precision: 10, scale: 2 }).notNull(),
+  status: mysqlEnum("status", ["pending", "succeeded", "released"]).notNull().default("pending"),
+  bookingId: int("bookingId"),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 256 }).unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  settledAt: timestamp("settledAt"),
+}, table => [index("discount_claim_capacity_idx").on(table.discountCodeId, table.status), index("discount_claim_booking_idx").on(table.bookingId)]);
 
 /**
  * Guest profiles — contact directory built from Hostaway reservations and direct bookings.
@@ -554,3 +578,5 @@ export const guestSyncState = mysqlTable("guest_sync_state", {
   lastImportedReservations: int("lastImportedReservations").notNull().default(0),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
+
+export { cancellationRequests, bookingCancellationPolicies, cancellationRequestLimits } from "./cancellation-schema";

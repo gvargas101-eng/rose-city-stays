@@ -113,6 +113,7 @@ function database() {
         };
         return {
           $returningId: async () => save(),
+          onDuplicateKeyUpdate: async () => save(),
           then: (resolve: any) => resolve(save()),
         };
       },
@@ -257,6 +258,8 @@ beforeEach(() => {
     ],
     site_settings: [],
     discount_code_uses: [],
+    booking_cancellation_policies: [],
+    properties: [{ slug: "the-briar", cancellationPolicy: "Original property cancellation terms" }],
   };
   inserts = [];
   updates = [];

@@ -56,6 +56,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/properties", label: "Properties", icon: Building2 },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+  { href: "/admin/cancellation-requests", label: "Cancellation Requests", icon: CalendarCheck },
   { href: "/admin/calendar", label: "Master Calendar", icon: CalendarDays },
   { href: "/admin/guests", label: "Guest Directory", icon: UsersRound },
   { href: "/admin/deposits", label: "Deposits", icon: Shield },

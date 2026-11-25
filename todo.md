@@ -7,7 +7,7 @@
 - [x] Clear only resolved optional-link warnings after successful new/reused balance-link generation; preserve unrelated receipt warnings and failed retry state.
 - [x] Validate 37 files / 385 tests, TypeScript, production build and diff checks; owner form interactions covered with mocks, authenticated preview unavailable.
 - [x] Make no real reservation, charge, refund or deposit-hold mutations during diagnosis/testing. Existing Hostaway native charges were initially awaiting; later one failed and the other remained awaiting, without changes by this task.
-- [ ] Complete the owner's selected switch to website payment links for #840001 and #840002 only after stopping competing native collection safely; preserve both reservations and separate $500 deposit holds.
+- [x] Complete the owner's selected switch to website payment links for #840001 and #840002: owner canceled native stay-payment charges in Chrome, read-only API confirmed both canceled and reservations active, separate $500 entries still awaitingHold; generated two $2,002 existing-reservation balance links using the guarded production service, expiring December 1, 2026. No guest messages sent, no card charged, no new reservation or hold created.
 
 ## Create Reservations From Master Calendar (Nov 23, 2026)
 
@@ -633,3 +633,11 @@
 - [x] Add authorized saved-card charging with guest payment-link fallback for extension balances
 - [x] Build the Admin Bookings extension interface and synchronize the website booking record
 - [x] Test and publish the full extension workflow — TypeScript clean; 33 regression tests pass
+
+## Reservation Controls — Nov 24, 2026
+- [x] Open full original reservation details from Master Calendar clicks/taps/keyboard without changing booking selection.
+- [x] Align future direct property policy with owner-selected Terms14/7nightly refund policy; preserve immutable new-booking/manual checkout snapshots and leave legacy agreements unchanged.
+- [x] Add guest request-only cancellation form and admin-only review queue with original-contact verification guidance, duplicate protection and durable rate limits; no automatic provider cancellation/refund/deposit release.
+- [x] Repair genuine per-email lifetime discount caps/overrides without deleting usage; enforce server checkout amounts, campaign restrictions, pending capacity and paid replay-safe usage across direct/manual/owner paths.
+- [x] Apply reviewed additive migrations0030/0031; verify all5 historical uses retained and new workflow tables empty; keep Alamo Crossing hidden.
+- [x] Validate499tests/45files,TypeScript,productionbuild,diffchecks and syntheticdesktop/mobile UI. Publishing is required to activate the new code on the live domain.

@@ -1,5 +1,6 @@
 // Rose City Stays — Property Data
 // All 11 properties in Tyler, TX
+import { FUTURE_DIRECT_CANCELLATION_POLICY_TEXT } from "@shared/cancellationPolicy";
 
 export interface Property {
   id: string | number;
@@ -57,7 +58,7 @@ export const properties: Property[] = [
     highlights: ["Vaulted ceilings", "Stone fireplace", "Gourmet kitchen", "Peaceful neighborhood"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "East Tyler",
     image: "https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6NTM3NDIzMDc=/original/24dc11ef-797a-46c1-8e72-1a9375844706.jpeg",
     images: [
@@ -105,7 +106,7 @@ export const properties: Property[] = [
     highlights: ["Hospital District location", "Extended stay friendly", "Dedicated workspace", "Modern open-plan"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "Hospital District",
     image: "https://a0.muscache.com/im/pictures/miso/Hosting-52309431/original/069b8bd2-246c-4580-bee6-1ed2d362a6a8.jpeg",
     images: [
@@ -151,7 +152,7 @@ export const properties: Property[] = [
     highlights: ["Golf course adjacent", "Best dining nearby", "Elegant interiors", "Serene backyard"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "Hollytree",
     image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/hollytree-golf-photo-02_98ddddde.jpg",
     images: [
@@ -210,7 +211,7 @@ export const properties: Property[] = [
     highlights: ["4 bedrooms", "King master suite", "Blazing fast internet", "Corporate-ready"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "South Tyler",
     image: "https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6NDY4MzU5Mzk%3D/original/e2dcbd80-ec41-4446-9ab2-fdaf5e070237.jpeg",
     images: [
@@ -272,7 +273,7 @@ export const properties: Property[] = [
     highlights: ["King & queen beds", "Charming neighborhood", "Sleeps 8 comfortably", "Close to parks"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "Green Acres District",
     image: "https://a0.muscache.com/im/pictures/miso/Hosting-745820395277456750/original/1f4c25eb-a475-4759-a548-42e30f9db36c.jpeg",
     images: [
@@ -320,7 +321,7 @@ export const properties: Property[] = [
     highlights: ["King master suite", "Ultra-fast internet", "4 bedrooms", "Modern + warm aesthetic"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "South Tyler",
     image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-4_973e13fa.jpg",
     images: [
@@ -377,7 +378,7 @@ export const properties: Property[] = [
     highlights: ["Azalea District", "Cottage charm", "Near Azalea Trails", "Romantic setting"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "Azalea District",
     image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-5-ac_683b981d.jpg",
     images: [
@@ -432,7 +433,7 @@ export const properties: Property[] = [
     highlights: ["Dark aesthetic design", "Curated art collection", "Hollytree Dr. location", "Boutique hotel feel"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "Hollytree",
     image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/noir-hollytree-photo-02_fbd119e9.jpg",
     images: [
@@ -489,7 +490,7 @@ export const properties: Property[] = [
     highlights: ["Golf course adjacent", "King master bed", "Light-filled interiors", "Hollytree location"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "Hollytree",
     image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-5_9fc4e513.jpg",
     images: [
@@ -542,7 +543,7 @@ export const properties: Property[] = [
     highlights: ["Refined elegance", "King master suite", "Hollytree & Grande Blvd", "Meticulously designed"],
     checkIn: "3:00 PM",
     checkOut: "11:00 AM",
-    cancellationPolicy: "100% refund up to 30 days before arrival. 50% refund up to 14 days before arrival.",
+    cancellationPolicy: FUTURE_DIRECT_CANCELLATION_POLICY_TEXT,
     neighborhood: "Hollytree",
     image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663501101810/bn23yPpAqDW8FGGWUFqWsM/Photo-7_41f87239.jpg",
     images: [

@@ -75,6 +75,8 @@ export default function MyBookings() {
             <p className="text-muted-foreground text-sm" style={{ fontFamily: "var(--font-body)" }}>
               Enter the email address you used when booking to view your reservation history.
             </p>
+            <Link href="/request-cancellation" className="inline-block mt-5 text-sm text-primary underline underline-offset-4">Request cancellation</Link>
+            <p className="text-xs text-muted-foreground mt-2">A request does not cancel your reservation or refund a payment. The host must verify and confirm it. OTA bookings must be canceled through the original platform.</p>
           </div>
 
           {/* Email lookup form */}
@@ -183,7 +185,7 @@ export default function MyBookings() {
                         </div>
                         <div className="text-right">
                           <div className="text-base font-semibold text-foreground">${Number(booking.totalAmount).toFixed(2)}</div>
-                          <div className="text-xs text-muted-foreground">total paid</div>
+                          <div className="text-xs text-muted-foreground">reservation total · not a payment receipt</div>
                         </div>
                       </div>
                     </div>

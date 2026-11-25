@@ -17,6 +17,7 @@ import { validateManualBookingAmounts } from "../../shared/manualBookingAmounts"
 import { getGuestSyncStatus, refreshLinkedHostawayBookingStatuses, syncAllHostawayGuests } from "../hostaway-guests";
 import { getManualBookingStatus, HOSTAWAY_CANCELLATION_KEY_PREFIX } from "../../shared/bookingCancellation";
 import { searchGuestProfiles } from "../guest-search";
+import { getCalendarReservationDetails } from "../calendar-reservation-details";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia",
 });
@@ -682,6 +683,9 @@ export const adminRouter = router({
     }),
 
   // ── Master Calendar ───────────────────────────────────────────────────────
+
+  /** Full stay and exact website booking match; read-only and admin-only. */
+  getCalendarReservationDetails,
 
   /** Fetch all Hostaway reservations for all properties in a date range */
   getReservationsForCalendar: adminProcedure

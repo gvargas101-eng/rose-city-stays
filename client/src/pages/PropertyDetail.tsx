@@ -780,6 +780,7 @@ export default function PropertyDetail() {
           <CheckoutModal
             propertyId={propertySlug}
             propertyName={property.name}
+            cancellationPolicy={property.cancellationPolicy}
             checkIn={checkoutBooking.checkIn}
             checkOut={checkoutBooking.checkOut}
             nights={checkoutBooking.nights}

@@ -5,6 +5,8 @@ import { TRPCError } from "@trpc/server";
 import { and, eq, gt, inArray, lt } from "drizzle-orm";
 import {
   bookings,
+  bookingCancellationPolicies,
+  discountCodeClaims,
   manualBookingLinks,
   ownerBookingPayments,
   properties,
@@ -19,6 +21,8 @@ import {
 } from "./hostaway-booking";
 import { validateManualBookingAmounts } from "../shared/manualBookingAmounts";
 import { syncOwnerReceiptToHostaway } from "./owner-booking-payments";
+import { buildCancellationPolicySnapshot } from "./booking-cancellation-policy";
+import { reconcileDiscountClaims, releaseDiscountClaim, reserveDiscount, settleOwnerDiscountClaim } from "./discount-claims";
 
 const money = z.number().finite().min(0).max(9999999.99);
 export const ownerBookingInput = z.object({
@@ -533,6 +537,16 @@ export async function createOwnerBooking(
       price: item.amount,
     })),
   ];
+  // A real campaign coupon consumes capacity; bespoke owner credits do not.
+  if (input.discountCodeId) {
+    const couponStripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-04-22.dahlia" });
+    await reconcileDiscountClaims(couponStripe, { codeId: input.discountCodeId });
+  }
+  const discount = input.discountCodeId ? await reserveDiscount({
+    codeId: input.discountCodeId, guestEmail: input.guestEmail,
+    propertyId: input.propertySlug, nightlySubtotal: amounts.subtotal,
+    checkoutKey: `owner:${input.requestKey}`, expectedAmount: input.discountAmount,
+  }) : null;
   let bookingId: number;
   let initialPaymentId: number | undefined;
   try {
@@ -580,6 +594,13 @@ export async function createOwnerBooking(
         }),
       });
       const id = Number(insert.insertId);
+      // Assigned terms only: owner creation/bypasses are not guest acceptance.
+      await tx.insert(bookingCancellationPolicies).values(buildCancellationPolicySnapshot({
+        bookingId: id, policyText: property.cancellationPolicy,
+        recordedAt: Date.now(), accepted: false,
+      }));
+      if (discount) await tx.update(discountCodeClaims).set({ bookingId: id })
+        .where(eq(discountCodeClaims.id, discount.claim.id));
       if (input.amountReceived > 0) {
         const [payment] = await tx.insert(ownerBookingPayments).values({
           bookingId: id,
@@ -600,6 +621,8 @@ export async function createOwnerBooking(
       .limit(1);
     if (duplicate && duplicate.ownerRequestHash === hash)
       return ownerResult(duplicate, true);
+    // No canonical booking was committed and no Hostaway POST occurred.
+    if (!duplicate && discount) await releaseDiscountClaim(discount.claim.id);
     throw error;
   }
   let hostawayReservationId: string;
@@ -673,5 +696,12 @@ export async function createOwnerBooking(
     .from(bookings)
     .where(eq(bookings.id, bookingId))
     .limit(1);
+  if (discount && booking.status === "confirmed" && Number(booking.paidAmount ?? 0) >= Number(booking.totalAmount)) {
+    try { await settleOwnerDiscountClaim(bookingId); }
+    catch {
+      warning = [warning, "Reservation created. Coupon usage reconciliation needs review; do not recreate the reservation."].filter(Boolean).join(" ");
+      await db.update(bookings).set({ ownerCreateError: warning }).where(eq(bookings.id, bookingId));
+    }
+  }
   return ownerResult(booking, false, token, warning);
 }

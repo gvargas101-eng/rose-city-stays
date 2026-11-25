@@ -9,6 +9,7 @@ import {
   type ManualBookingLink,
 } from "../drizzle/schema";
 import { getDb } from "./db";
+import { settleOwnerDiscountClaim } from "./discount-claims";
 import {
   getHostawayOwnerPaymentState,
   recordHostawayOwnerReceipt,
@@ -352,6 +353,15 @@ export async function settleOwnerBookingCheckout(
       fullyPaid: cents(paidAmount) >= cents(booking.totalAmount),
     };
   });
+  // Financial receipt is committed first. Coupon ledger failures must not roll
+  // back money received; the confirmation replay/helper safely retries counting.
+  if (result.booking.discountCodeId) {
+    try { await settleOwnerDiscountClaim(result.booking.id); }
+    catch (error) {
+      console.error("[Discount] Owner paid coupon settlement requires reconciliation:", String(error));
+      try { await notifyOwner({ title: `Owner coupon usage reconciliation — Booking #${result.booking.id}`, content: `Payment is recorded and must NOT be collected again. Coupon usage could not be finalized; retry confirmation or reconcile the discount claim.\n\n${String(error)}` }); } catch { /* Coupon notification cannot erase money received. */ }
+    }
+  }
   // Receipt is durable before this retryable PMS operation. Failure never rolls back payment.
   try {
     await syncOwnerReceiptToHostaway(result.paymentId);

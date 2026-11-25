@@ -37,6 +37,7 @@ import { Tag, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AGREEMENT_ACKNOWLEDGMENT_TEXT } from "@/lib/rentalAgreement";
 import { trackGoogleAnalyticsEvent } from "@/lib/googleAnalytics";
+import { FUTURE_DIRECT_CANCELLATION_POLICY_TEXT } from "@shared/cancellationPolicy";
 
 interface CustomFee {
   id: number;
@@ -56,6 +57,7 @@ interface UpsellAddon {
 interface CheckoutModalProps {
   propertyId: string;
   propertyName: string;
+  cancellationPolicy?: string;
   checkIn: Date;
   checkOut: Date;
   nights: number;
@@ -262,6 +264,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
         agreementAcceptedAt: Date.now(),
         selectedAddonIds: selectedAddonIds.length > 0 ? selectedAddonIds : undefined,
         discountCodeId: appliedDiscount?.id ?? undefined,
+        discountCode: appliedDiscount?.code ?? undefined,
         discountCodeLabel: appliedDiscount?.label ?? undefined,
         discountCodeAmount: appliedDiscount?.discountAmount ?? undefined,
       });
@@ -286,7 +289,7 @@ export default function CheckoutModal(props: CheckoutModalProps) {
       toast.info("Redirecting to secure checkout…");
       window.location.href = result.checkoutUrl;
     } catch (err) {
-      setInitError("Unable to start checkout. Please try again.");
+      setInitError(err instanceof Error ? err.message : "Unable to start checkout. Please try again.");
       console.error("[CheckoutModal] Checkout session error:", err);
     }
   };
@@ -720,6 +723,12 @@ export default function CheckoutModal(props: CheckoutModalProps) {
                 By booking this property, you are entering into a legally binding short-term rental
                 agreement under Texas law. Please review the documents below before proceeding.
               </p>
+
+              <div className="mb-4 rounded-lg border border-amber-200 bg-white/70 p-3 text-xs leading-relaxed text-amber-900" data-cancellation-policy>
+                <strong>Direct-booking cancellation policy</strong>
+                <p className="mt-1">{props.cancellationPolicy || FUTURE_DIRECT_CANCELLATION_POLICY_TEXT}</p>
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-medium underline underline-offset-2">Read the Terms &amp; Conditions</a>
+              </div>
 
               {/* Document links */}
               <div className="flex flex-col gap-2 mb-4">

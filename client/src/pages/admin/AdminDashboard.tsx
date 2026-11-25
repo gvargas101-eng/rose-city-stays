@@ -21,6 +21,8 @@ export default function AdminDashboard() {
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-1">Welcome back. Here's an overview of Rose City Stays.</p>
+          <Link href="/admin/cancellation-requests" className="inline-block mt-4 text-sm text-primary underline underline-offset-4">Review cancellation requests</Link>
+          <p className="text-xs text-muted-foreground mt-1">Unverified intake only. Review records do not cancel stays or refund payments.</p>
         </div>
 
         {/* Stats grid */}

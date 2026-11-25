@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import {
   bookings,
+  bookingCancellationPolicies,
+  discountCodeClaims,
   manualBookingLinks,
   ownerBookingPayments,
   properties,
@@ -15,6 +17,10 @@ const mocks = vi.hoisted(() => ({
   state: vi.fn(),
   sync: vi.fn(),
   stripeSession: vi.fn(),
+  discountReserve: vi.fn(),
+  discountReconcile: vi.fn(),
+  discountRelease: vi.fn(),
+  discountSettle: vi.fn(),
 }));
 vi.mock("./db", () => ({ getDb: mocks.getDb }));
 vi.mock("stripe", () => ({
@@ -35,6 +41,10 @@ vi.mock("./hostaway-booking", () => ({
 }));
 vi.mock("./owner-booking-payments", () => ({
   syncOwnerReceiptToHostaway: mocks.sync,
+}));
+vi.mock("./discount-claims", () => ({
+  reserveDiscount: mocks.discountReserve, reconcileDiscountClaims: mocks.discountReconcile,
+  releaseDiscountClaim: mocks.discountRelease, settleOwnerDiscountClaim: mocks.discountSettle,
 }));
 import {
   createOwnerBooking,
@@ -63,6 +73,8 @@ function mockDb(existing?: any) {
   const rows: any[] = existing ? [existing] : [];
   const receipts: any[] = [];
   const links: any[] = [];
+  const policies: any[] = [];
+  const claimBindings: any[] = [];
   let propertyActive = 0;
   let reservationSelected = 0;
   const db: any = {
@@ -105,6 +117,7 @@ function mockDb(existing?: any) {
         if (table === ownerBookingPayments)
           receipts.push({ id, ...value, hostawaySyncStatus: "pending" });
         if (table === manualBookingLinks) links.push({ id, ...value });
+        if (table === bookingCancellationPolicies) policies.push({ id, ...value });
         return [{ insertId: id }];
       },
     }),
@@ -112,13 +125,14 @@ function mockDb(existing?: any) {
       set: (value: any) => ({
         where: async () => {
           if (table === bookings) Object.assign(rows[0], value);
+          if (table === discountCodeClaims) claimBindings.push(value);
         },
       }),
     }),
     transaction: async (f: any) => f(db),
   };
   mocks.getDb.mockResolvedValue(db);
-  return { db, rows, receipts, links };
+  return { db, rows, receipts, links, policies, claimBindings };
 }
 describe("owner payment state and validation", () => {
   it("separates unpaid, partially paid, paid, and complimentary stays", () => {
@@ -525,5 +539,63 @@ describe("owner reservation balance-link repair", () => {
     expect(rows[0].ownerCreateError).toContain("Original warning");
     expect(links).toHaveLength(0);
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("owner campaign coupon capacity and new policy snapshots", () => {
+  const couponInput = () => ({ ...input(), discountCodeId: 11, discountAmount: 40, totalAmount: 460 });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.calendar.mockResolvedValue(["2027-01-10", "2027-01-11"].map(date => ({ date, isAvailable: true, status: "available" })));
+    mocks.create.mockResolvedValue({ id: "123", status: "new" });
+    mocks.sync.mockResolvedValue(undefined);
+    mocks.discountReconcile.mockResolvedValue(undefined);
+    mocks.discountReserve.mockResolvedValue({ claim: { id: "owner-claim" }, discountAmount: 40 });
+    mocks.discountRelease.mockResolvedValue(undefined);
+    mocks.discountSettle.mockResolvedValue(undefined);
+  });
+  it("rejects an exhausted coupon before creating a booking or provider reservation", async () => {
+    const { rows } = mockDb();
+    mocks.discountReserve.mockRejectedValue(new Error("Guest lifetime limit reached"));
+    await expect(createOwnerBooking(couponInput(), "owner")).rejects.toThrow("lifetime limit");
+    expect(rows).toHaveLength(0);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  it("reserves unpaid owner coupon capacity, binds it atomically, and does not count a successful payment", async () => {
+    const { policies, claimBindings } = mockDb();
+    expect(await createOwnerBooking(couponInput(), "owner")).toMatchObject({ status: "confirmed", paymentStatus: "unpaid", balanceDue: 460 });
+    expect(mocks.discountReserve).toHaveBeenCalledWith(expect.objectContaining({ codeId: 11, guestEmail: "guest@example.com", propertyId: "private", nightlySubtotal: 400, expectedAmount: 40, checkoutKey: expect.stringMatching(/^owner:/) }));
+    expect(claimBindings).toEqual([{ bookingId: 7 }]);
+    expect(policies[0]).toMatchObject({ bookingId: 7, acceptedAt: null });
+    expect(mocks.discountSettle).not.toHaveBeenCalled();
+  });
+  it("counts an actually fully paid confirmed owner coupon through the dedicated settlement helper", async () => {
+    mockDb();
+    expect(await createOwnerBooking({ ...couponInput(), amountReceived: 460, paymentReference: "Bank receipt" }, "owner")).toMatchObject({ paymentStatus: "paid" });
+    expect(mocks.discountSettle).toHaveBeenCalledTimes(1);
+    expect(mocks.discountSettle).toHaveBeenCalledWith(7);
+  });
+  it("retains a claim and receipt when Hostaway creation is uncertain", async () => {
+    mockDb(); mocks.create.mockRejectedValue(new Error("timeout"));
+    expect(await createOwnerBooking(couponInput(), "owner")).toMatchObject({ status: "pending" });
+    expect(mocks.discountRelease).not.toHaveBeenCalled();
+    expect(mocks.discountSettle).not.toHaveBeenCalled();
+  });
+  it("releases capacity on definitive local transaction failure before any provider POST", async () => {
+    const { db } = mockDb(); db.transaction = vi.fn().mockRejectedValue(new Error("local failure"));
+    await expect(createOwnerBooking(couponInput(), "owner")).rejects.toThrow("local failure");
+    expect(mocks.discountRelease).toHaveBeenCalledWith("owner-claim");
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  it("does not represent coupon reconciliation failure as failed reservation creation", async () => {
+    mockDb(); mocks.discountSettle.mockRejectedValue(new Error("ledger unavailable"));
+    const result = await createOwnerBooking({ ...couponInput(), amountReceived: 460, paymentReference: "Bank receipt" }, "owner");
+    expect(result).toMatchObject({ status: "confirmed", paymentStatus: "paid" });
+    expect(result.error).toContain("do not recreate");
+  });
+  it("leaves bespoke owner credits separate from campaign coupon caps", async () => {
+    mockDb(); await createOwnerBooking({ ...input(), discountAmount: 40, totalAmount: 460 }, "owner");
+    expect(mocks.discountReserve).not.toHaveBeenCalled();
+    expect(mocks.discountReconcile).not.toHaveBeenCalled();
   });
 });

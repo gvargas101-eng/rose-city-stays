@@ -11,6 +11,8 @@ import BlogDetail from "./pages/BlogDetail";
 import PropertyDetail from "./pages/PropertyDetail";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import MyBookings from "./pages/MyBookings";
+import RequestCancellation from "./pages/RequestCancellation";
+import AdminCancellationRequests from "./pages/admin/AdminCancellationRequests";
 import CorporateStays from "./pages/CorporateStays";
 import RentalAgreement from "./pages/RentalAgreement";
 import HouseRulesPage from "./pages/HouseRulesPage";
@@ -58,6 +60,8 @@ function Router() {
       <Route path={"/property/:id"} component={PropertyDetail} />
       <Route path={"/booking/confirmation"} component={BookingConfirmation} />
       <Route path={"/my-bookings"} component={MyBookings} />
+      <Route path={"/request-cancellation"} component={RequestCancellation} />
+      <Route path={"/admin/cancellation-requests"} component={AdminCancellationRequests} />
       <Route path={"/tyler-guide"} component={TylerGuide} />
       <Route path={"/corporate-stays"} component={CorporateStays} />
       <Route path={"/rental-agreement"} component={RentalAgreement} />

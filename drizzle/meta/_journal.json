@@ -211,6 +211,20 @@
       "when": 1795450138546,
       "tag": "0029_third_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "5",
+      "when": 1795572111673,
+      "tag": "0030_public_king_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1795572371504,
+      "tag": "0031_eager_absorbing_man",
+      "breakpoints": true
     }
   ]
 }

@@ -6,7 +6,7 @@ import { ArrowLeft, Scale, FileText } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-const LAST_UPDATED = "August 1, 2026";
+const LAST_UPDATED = "November 24, 2026";
 
 const sections = [
   {
@@ -48,7 +48,9 @@ These Terms and Conditions apply to all visitors, guests, and users of the Rose 
 
 **Force majeure:** In the event of natural disasters, government-mandated evacuations, or other extraordinary circumstances beyond our control, we will work with you in good faith to reschedule or provide a credit. Refunds in such cases are at our discretion.
 
-To request a cancellation, contact us at gustavo@rosecitystays.com or (903) 714-4305.`,
+**Existing reservations:** The cancellation policy agreed to when your reservation was booked continues to govern that reservation. This policy is not applied retroactively to change existing agreements.
+
+**Requesting cancellation:** For a direct booking, use the cancellation request form at /request-cancellation, or contact us at gustavo@rosecitystays.com or (903) 714-4305. Submitting a request does not cancel your reservation or guarantee a refund. We will verify the reservation, review the applicable policy, and confirm the outcome. Until we confirm cancellation, your reservation remains active. For Airbnb, Vrbo, or other third-party bookings, request cancellation through the platform where you booked.`,
   },
   {
     title: "5. Guest Verification",

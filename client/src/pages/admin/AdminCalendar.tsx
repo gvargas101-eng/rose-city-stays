@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { isHostawayReservationCancelled } from "@shared/bookingCancellation";
+import { CalendarReservationDetails, type SelectedCalendarReservation } from "@/components/CalendarReservationDetails";
 
 const PROPERTY_NAMES: Record<string, string> = {
   "the-briar": "The Briar",
@@ -83,6 +84,8 @@ export default function AdminCalendar() {
   const [activeMonthKey, setActiveMonthKey] = useState(() => toYMD(timelineStart).slice(0, 7));
   const [selection, setSelection] = useState<CalendarBookingSelection | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [selectedReservation, setSelectedReservation] = useState<SelectedCalendarReservation | null>(null);
+  const reservationTriggerRef = useRef<HTMLButtonElement | null>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLockRef = useRef(false);
 
@@ -419,10 +422,20 @@ export default function AdminCalendar() {
                     const left = bar.startCol * CELL_W;
                     const width = bar.span * CELL_W - 2;
                     return (
-                      <div
+                      <button
                         key={`${bar.id}-${index}`}
-                        className={`absolute top-2 bottom-2 rounded cursor-pointer border ${colors.bg} ${colors.border} ${colors.text} flex items-center px-1.5 overflow-hidden z-20`}
+                        type="button"
+                        data-reservation-id={bar.id}
+                        aria-haspopup="dialog"
+                        aria-label={`View reservation for ${bar.guestName} at ${PROPERTY_NAMES[slug] ?? slug}, check-in ${bar.arrivalDate}, check-out ${bar.departureDate}`}
+                        className={`absolute top-2 bottom-2 rounded cursor-pointer border ${colors.bg} ${colors.border} ${colors.text} flex items-center px-1.5 overflow-hidden z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
                         style={{ left: left + ROW_LABEL_W, width }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          reservationTriggerRef.current = event.currentTarget;
+                          setTooltip(null);
+                          setSelectedReservation({ ...bar, propertySlug: slug, propertyName: PROPERTY_NAMES[slug] ?? slug });
+                        }}
                         onMouseEnter={(event) => setTooltip({
                           guestName: bar.guestName,
                           channelName: bar.channelName,
@@ -436,7 +449,7 @@ export default function AdminCalendar() {
                         onMouseLeave={() => setTooltip(null)}
                       >
                         <span className="text-[10px] font-medium truncate whitespace-nowrap">{bar.guestName}</span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -467,6 +480,15 @@ export default function AdminCalendar() {
             {tooltip.totalPrice > 0 && <div><span className="font-medium text-foreground">Total:</span> ${tooltip.totalPrice.toFixed(2)}</div>}
           </div>
         </div>
+      )}
+
+      {selectedReservation && (
+        <CalendarReservationDetails
+          key={`${selectedReservation.propertySlug}-${selectedReservation.id}`}
+          selected={selectedReservation}
+          onClose={() => setSelectedReservation(null)}
+          restoreFocus={() => reservationTriggerRef.current?.focus()}
+        />
       )}
 
       {data && (

@@ -61,7 +61,12 @@ vi.mock("./hostaway", () => ({
 // ── Mock DB ──────────────────────────────────────────────────────────────────
 const mockInsertReturningId = vi.fn().mockResolvedValue([{ id: 42 }]);
 const mockInsertValues = vi.fn().mockReturnValue({ $returningId: mockInsertReturningId });
-const mockInsert = vi.fn().mockReturnValue({ values: mockInsertValues });
+let mockPolicyRows: any[] = [];
+const mockPolicyWrite = vi.fn();
+const mockInsert = vi.fn().mockImplementation((table: any) => table?.policyText ? {
+  values: (values: any) => ({ onDuplicateKeyUpdate: async () => { mockPolicyWrite(values); mockPolicyRows.push({ id: 1, ...values }); } }),
+} : { values: mockInsertValues });
+beforeEach(() => { mockPolicyRows = []; });
 
 const mockUpdateSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) });
 const mockUpdate = vi.fn().mockReturnValue({ set: mockUpdateSet });
@@ -78,6 +83,7 @@ const mockSelectWhere = vi.fn().mockReturnValue({ limit: mockSelectLimit, orderB
 // from() is called with different tables; return a chainable object that works for each
 const mockSelectFrom = vi.fn().mockImplementation((table: unknown) => {
   const tableAny = table as any;
+  if (tableAny?.policyText) return { where: () => ({ limit: async () => mockPolicyRows }) };
   // bookings table — has BOTH cleaningFee AND stripePaymentIntentId
   if (tableAny?.stripePaymentIntentId) {
     return {
@@ -253,7 +259,7 @@ describe("bookingRouter.createCheckoutSession", () => {
       { req: { headers: { origin: "https://rosecitystays.com" } } }
     );
 
-    expect(mockInsert).toHaveBeenCalledOnce();
+    expect(mockInsert.mock.calls.filter(([table]) => table?.stripePaymentIntentId)).toHaveLength(1);
     expect(mockInsertValues).toHaveBeenCalledWith(
       expect.objectContaining({
         propertyId: "the-briar",

@@ -732,6 +732,12 @@ export default function ManualBookingPay() {
             </div>
           )}
 
+          <section className="rounded-xl border border-border bg-muted/30 p-4 text-sm leading-relaxed" data-cancellation-policy>
+            <h2 className="font-semibold text-foreground">Cancellation policy</h2>
+            <p className="mt-2 text-muted-foreground">{link.cancellationPolicyText || "This existing reservation keeps the cancellation policy agreed to when it was booked. The host must review the original agreement; current website terms do not replace it."}</p>
+            <p className="mt-2 text-xs text-muted-foreground">A request does not cancel a reservation or guarantee a refund. The host reviews the original terms and payment record before confirming the outcome.</p>
+          </section>
+
           {/* ── Submit Error ── */}
           {submitError && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">

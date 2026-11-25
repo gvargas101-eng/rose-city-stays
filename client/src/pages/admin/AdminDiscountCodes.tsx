@@ -7,7 +7,7 @@
  *  - Edit existing codes
  *  - Toggle active/inactive
  *  - Delete codes with 0 uses
- *  - Reset a specific guest's use count (so they can use the code again)
+ *  - Set a specific guest's absolute lifetime allowance without resetting history
  */
 
 import { useState } from "react";
@@ -39,6 +39,7 @@ type FormState = {
   maxUsesPerGuest: string;
   expiresAt: string; // date string yyyy-MM-dd or ""
   adminNotes: string;
+  propertyRestrictions: string[];
 };
 
 const INITIAL_FORM: FormState = {
@@ -50,6 +51,7 @@ const INITIAL_FORM: FormState = {
   maxUsesPerGuest: "3",
   expiresAt: "",
   adminNotes: "",
+  propertyRestrictions: [],
 };
 
 export default function AdminDiscountCodes() {
@@ -72,8 +74,8 @@ export default function AdminDiscountCodes() {
     onSuccess: () => { utils.discountCodes.list.invalidate(); toast.success("Code deleted."); },
     onError: (e) => toast.error(e.message),
   });
-  const resetGuestMutation = trpc.discountCodes.setGuestLimit.useMutation({
-    onSuccess: (data) => { toast.success(data.message); setResetEmail(""); setResetCodeId(null); },
+  const setGuestLimitMutation = trpc.discountCodes.setGuestLimit.useMutation({
+    onSuccess: (data) => { toast.success(data.message); utils.discountCodes.getGuestUses.invalidate(); utils.discountCodes.list.invalidate(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -81,10 +83,13 @@ export default function AdminDiscountCodes() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [expanded, setExpanded] = useState<number | null>(null);
-  const [resetCodeId, setResetCodeId] = useState<number | null>(null);
-  const [resetEmail, setResetEmail] = useState("");
+  const [guestCodeId, setGuestCodeId] = useState<number | null>(null);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestLimit, setGuestLimit] = useState("");
+  const [guestLookup, setGuestLookup] = useState<{ codeId: number; guestEmail: string } | null>(null);
+  const guestUsage = trpc.discountCodes.getGuestUses.useQuery(guestLookup ?? { codeId: 1, guestEmail: "unused@example.com" }, { enabled: !!guestLookup, retry: false });
 
-  const set = (k: keyof FormState, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: Exclude<keyof FormState, "propertyRestrictions">, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const startEdit = (code: any) => {
     setEditId(code.id);
@@ -98,6 +103,7 @@ export default function AdminDiscountCodes() {
       maxUsesPerGuest: String(code.maxUsesPerGuest),
       expiresAt: code.expiresAt ? new Date(code.expiresAt).toISOString().split("T")[0] : "",
       adminNotes: code.adminNotes ?? "",
+      propertyRestrictions: code.propertyRestrictions ? JSON.parse(code.propertyRestrictions) : [],
     });
   };
 
@@ -108,14 +114,18 @@ export default function AdminDiscountCodes() {
       label: form.label.trim(),
       discountType: form.discountType,
       discountValue: parseFloat(form.discountValue),
-      maxTotalUses: form.maxTotalUses ? parseInt(form.maxTotalUses) : null,
-      maxUsesPerGuest: parseInt(form.maxUsesPerGuest) || 3,
+      maxTotalUses: form.maxTotalUses === "" ? null : Number(form.maxTotalUses),
+      maxUsesPerGuest: Number(form.maxUsesPerGuest),
       expiresAt: form.expiresAt ? new Date(form.expiresAt + "T23:59:59").getTime() : null,
-      propertyRestrictions: [],
+      propertyRestrictions: form.propertyRestrictions,
       adminNotes: form.adminNotes || undefined,
     };
     if (!payload.code || !payload.label || isNaN(payload.discountValue)) {
       toast.error("Code, label, and discount value are required.");
+      return;
+    }
+    if (form.maxUsesPerGuest === "" || !Number.isInteger(payload.maxUsesPerGuest) || payload.maxUsesPerGuest < 0 || (payload.maxTotalUses !== null && (!Number.isInteger(payload.maxTotalUses) || payload.maxTotalUses < 0))) {
+      toast.error("Usage caps must be whole numbers of 0 or more.");
       return;
     }
     if (editId !== null) {
@@ -132,7 +142,7 @@ export default function AdminDiscountCodes() {
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Discount Codes</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Manage loyalty and promo codes for returning guests.
+              Nightly-subtotal discounts with lifetime successful-use caps. Fees and taxes are not discounted.
             </p>
           </div>
           <Button
@@ -202,21 +212,23 @@ export default function AdminDiscountCodes() {
                 </p>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Max Uses Per Guest Email</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Default Lifetime Cap Per Guest Email</label>
                 <Input
                   type="number"
-                  min="1"
+                  min="0"
+                  step="1"
                   value={form.maxUsesPerGuest}
                   onChange={e => set("maxUsesPerGuest", e.target.value)}
                   placeholder="3"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Default 3. Use the "Reset Guest" tool below to give a specific guest more uses.</p>
+                <p className="text-xs text-muted-foreground mt-1">Default 3 successful uses. Zero blocks new uses. Guest allowances below override this cap, not campaign limits.</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Max Total Uses (all guests)</label>
                 <Input
                   type="number"
-                  min="1"
+                  min="0"
+                  step="1"
                   value={form.maxTotalUses}
                   onChange={e => set("maxTotalUses", e.target.value)}
                   placeholder="Unlimited"
@@ -275,9 +287,10 @@ export default function AdminDiscountCodes() {
                       <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                         {code.discountType === "percent" ? `${code.discountValue}% off` : `$${code.discountValue} off`}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {code.totalUses} use{code.totalUses !== 1 ? "s" : ""}
-                        {code.maxTotalUses ? ` / ${code.maxTotalUses} max` : ""}
+                  <span className="text-xs text-muted-foreground">
+                        {code.totalUses} successful use{code.totalUses !== 1 ? "s" : ""}
+                        {code.maxTotalUses !== null ? ` / ${code.maxTotalUses} max` : ""}
+                        {code.pendingUses > 0 ? ` · ${code.pendingUses} pending checkout${code.pendingUses === 1 ? "" : "s"}` : ""}
                       </span>
                       {code.expiresAt && (
                         <span className={`text-xs ${Date.now() > code.expiresAt ? "text-red-500" : "text-muted-foreground"}`}>
@@ -314,21 +327,22 @@ export default function AdminDiscountCodes() {
                   </div>
                 </div>
 
-                {/* Expanded: reset guest uses */}
+                {/* Expanded: retained-history guest lifetime allowance */}
                 {expanded === code.id && (
                   <div className="px-5 pb-4 border-t border-border bg-muted/20 pt-4">
                     <div className="flex items-start gap-3">
                       <Users className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
                       <div className="flex-1">
-                        <p className="text-xs font-semibold text-foreground mb-2">Reset Uses for a Specific Guest</p>
+                        <p className="text-xs font-semibold text-foreground mb-2">Guest Lifetime Allowance</p>
                         <p className="text-xs text-muted-foreground mb-3">
-                          Enter a guest's email to reset their use count for this code back to 0, allowing them to use it again (up to the per-guest limit).
+                          Set an absolute total cap, not additional uses. If a guest has used this code 3 times, a cap of 5 allows 2 more. Zero blocks new checkouts. History is always retained; campaign caps, expiry and property restrictions still apply. Issued checkouts keep their reserved use.
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <Input
                             type="email"
-                            value={resetCodeId === code.id ? resetEmail : ""}
-                            onChange={e => { setResetCodeId(code.id); setResetEmail(e.target.value); }}
+                            aria-label="Guest allowance email"
+                            value={guestCodeId === code.id ? guestEmail : ""}
+                            onChange={e => { setGuestCodeId(code.id); setGuestEmail(e.target.value); setGuestLookup(null); setGuestLimit(""); }}
                             placeholder="guest@example.com"
                             className="text-sm"
                           />
@@ -336,14 +350,23 @@ export default function AdminDiscountCodes() {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              if (!resetEmail.trim()) return;
-                              resetGuestMutation.mutate({ codeId: code.id, guestEmail: resetEmail.trim(), newLimit: code.maxUsesPerGuest });
+                              if (guestCodeId !== code.id || !guestEmail.trim()) return;
+                              setGuestLookup({ codeId: code.id, guestEmail: guestEmail.trim().toLowerCase() });
                             }}
-                            disabled={resetGuestMutation.isPending}
+                            disabled={guestUsage.isFetching || guestCodeId !== code.id || !guestEmail.trim()}
                           >
-                            <RefreshCw className="w-3.5 h-3.5 mr-1" /> Reset
+                            <RefreshCw className="w-3.5 h-3.5 mr-1" /> Look up usage
                           </Button>
                         </div>
+                        {guestLookup?.codeId === code.id && guestUsage.error && <p className="text-xs text-red-600 mt-2">{guestUsage.error.message}</p>}
+                        {guestLookup?.codeId === code.id && guestUsage.data && !guestUsage.isFetching && <div className="mt-3 space-y-2">
+                          <p className="text-xs text-foreground">{guestUsage.data.guestEmail}: {guestUsage.data.uses} successful uses · {guestUsage.data.pending} pending · effective cap {guestUsage.data.effectiveLimit} ({guestUsage.data.overrideLimit === null ? "campaign default" : "guest override"}) · {guestUsage.data.remaining} available before campaign rules.</p>
+                          <div className="flex gap-2 flex-wrap">
+                            <Input type="number" min="0" step="1" aria-label="Absolute lifetime use cap" placeholder={String(guestUsage.data.effectiveLimit)} value={guestLimit} onChange={e => setGuestLimit(e.target.value)} className="w-40" />
+                            <Button size="sm" disabled={setGuestLimitMutation.isPending || guestLimit === "" || !Number.isInteger(Number(guestLimit)) || Number(guestLimit) < 0} onClick={() => setGuestLimitMutation.mutate({ ...guestLookup, newLimit: Number(guestLimit) })}>Save lifetime cap</Button>
+                            <Button size="sm" variant="outline" disabled={setGuestLimitMutation.isPending || guestUsage.data.overrideLimit === null} onClick={() => setGuestLimitMutation.mutate({ ...guestLookup, newLimit: null })}>Restore default</Button>
+                          </div>
+                        </div>}
                         {code.adminNotes && (
                           <p className="text-xs text-muted-foreground mt-3 italic">Note: {code.adminNotes}</p>
                         )}

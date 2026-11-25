@@ -5,6 +5,7 @@
  */
 
 import Stripe from "stripe";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -17,8 +18,7 @@ import {
   siteSettings,
   manualBookingLinks,
   upsellAddons,
-  discountCodeUses,
-  discountCodes,
+  discountCodeClaims,
 } from "../../drizzle/schema";
 import { PROPERTY_TO_HOSTAWAY_ID, getPropertyCalendar } from "../hostaway";
 import { createHostawayReservation, recordHostawayStripePayment } from "../hostaway-booking";
@@ -26,6 +26,9 @@ import { notifyOwner } from "../_core/notification";
 import { validateManualBookingAmounts, type ManualAdjustmentItem } from "../../shared/manualBookingAmounts";
 import { getManualBookingStatus, hostawayCancellationKey } from "../../shared/bookingCancellation";
 import { createOwnerBalanceCheckout, getOwnerBookingBalance, settleOwnerBookingCheckout, validateOwnerBalanceLink } from "../owner-booking-payments";
+import { attachDiscountBooking, issueDiscountCheckout, normalizeDiscountEmail, reconcileDiscountClaims, recordLegacyDiscountSuccess, releaseDiscountClaim, reserveDiscount, settleDiscountClaim } from "../discount-claims";
+import { attachManualCancellationPolicy, captureNewCancellationPolicy, getStoredCancellationPolicy, markStoredCancellationPolicyAccepted } from "../booking-cancellation-policy";
+import { FUTURE_DIRECT_CANCELLATION_POLICY_TEXT } from "../../shared/cancellationPolicy";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia",
 });
@@ -283,6 +286,14 @@ async function confirmStoredBooking(params: {
     throw new TRPCError({ code: "BAD_REQUEST", message: "This reservation has been canceled. Contact the host before making a new booking." });
   }
 
+  // This helper is called only after provider-paid verification. A campaign lock
+  // and booking uniqueness preserve history across webhook/return-page races.
+  if (booking.discountCodeId && booking.discountCodeAmount) {
+    const [claim] = await db.select().from(discountCodeClaims).where(eq(discountCodeClaims.bookingId, booking.id)).limit(1);
+    if (claim) await settleDiscountClaim({ claimId: claim.id, sessionId: params.stripeCheckoutSessionId || claim.stripeCheckoutSessionId || params.stripePaymentIntentId!, bookingId: booking.id, guestEmail: booking.guestEmail });
+    else await recordLegacyDiscountSuccess({ codeId: booking.discountCodeId, bookingId: booking.id, guestEmail: booking.guestEmail, discountAmount: booking.discountCodeAmount });
+  }
+
   if (booking.status === "confirmed") {
     return {
       success: true,
@@ -348,21 +359,6 @@ async function confirmStoredBooking(params: {
     throw new TRPCError({ code: "BAD_REQUEST", message: "This reservation has been canceled. Contact the host before making a new booking." });
   }
 
-  // Record discount code use (enforces per-guest and total use limits)
-  if (booking.discountCodeId && booking.guestEmail && booking.discountCodeAmount) {
-    try {
-      await db.insert(discountCodeUses).values({
-        discountCodeId: booking.discountCodeId,
-        bookingId: booking.id,
-        guestEmail: booking.guestEmail.toLowerCase(),
-        discountAmount: booking.discountCodeAmount,
-      });
-    } catch (discountErr) {
-      console.error("[Booking] Failed to record discount code use:", discountErr);
-    }
-  }
-
-
   await notifyOwner({
     title: `🎉 New Direct Booking — ${booking.guestName}`,
     content: [
@@ -425,6 +421,10 @@ export async function confirmStripeCheckoutSession(session: Stripe.Checkout.Sess
   // or place a new deposit hold. Acknowledge it without financial side effects.
   const db = await getDb();
   const [existing] = db ? await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1) : [];
+  if (session.metadata?.discount_claim_id) {
+    if (!existing || session.amount_total !== dollarsToCents(Number(existing.totalAmount)) || session.currency !== "usd") throw new Error("Paid Checkout amount does not match discounted booking");
+    await settleDiscountClaim({ claimId: session.metadata.discount_claim_id, sessionId: session.id, bookingId, guestEmail: existing.guestEmail });
+  }
   if (existing?.bookingSource === "owner") {
     if (session.metadata?.owner_booking_id === String(bookingId) && session.metadata?.manual_booking_token) {
       await confirmManualCheckoutSession(session);
@@ -573,6 +573,11 @@ export async function confirmManualCheckoutSession(session: Stripe.Checkout.Sess
   if (link.status !== "paid" && link.bookingId && link.hostawayReservationId) {
     throw new Error("Existing-reservation payment link does not match an owner booking; no new reservation will be created");
   }
+  if (link.discountCodeId) {
+    if (!session.metadata?.discount_claim_id) throw new Error("Coupon payment link is missing its discount reservation; owner reconciliation required");
+    if (session.amount_total !== dollarsToCents(Number(link.totalAmount)) || session.currency !== "usd") throw new Error("Paid Checkout amount does not match discounted payment link");
+    await settleDiscountClaim({ claimId: session.metadata.discount_claim_id, sessionId: session.id, guestEmail: session.metadata?.guest_email || link.guestEmail || "" });
+  }
   if (link.status === "paid") {
     return {
       alreadyConfirmed: true,
@@ -605,7 +610,7 @@ export async function confirmManualCheckoutSession(session: Stripe.Checkout.Sess
       propertyId: link.propertySlug,
       hostawayListingId,
       guestName,
-      guestEmail: guestEmail.toLowerCase().trim(),
+      guestEmail: normalizeDiscountEmail(guestEmail),
       guestPhone,
       guestCount: link.guestCount,
       checkIn: link.checkIn,
@@ -624,7 +629,7 @@ export async function confirmManualCheckoutSession(session: Stripe.Checkout.Sess
       agreementAcceptedAt: link.bypassTermsAcceptance ? null : Date.now(),
       discountCodeId: link.discountCodeId ?? null,
       discountCodeLabel: link.discountLabel ?? null,
-      discountCodeAmount: Number(link.discountAmount) > 0 ? String(link.discountAmount) : null,
+      discountCodeAmount: link.discountCodeId && Number(link.discountAmount) > 0 ? String(link.discountAmount) : null,
       addonsSnapshot: JSON.stringify([
         ...(Number(link.extraGuestFee) > 0 ? [{ name: "Extra guest fee", price: Number(link.extraGuestFee) }] : []),
         ...(link.customLineItems ? (JSON.parse(link.customLineItems) as ManualAdjustmentItem[]).map(item => ({ name: item.label, price: item.amount })) : []),
@@ -632,6 +637,9 @@ export async function confirmManualCheckoutSession(session: Stripe.Checkout.Sess
     })
     .$returningId();
   const bookingId = inserted.id;
+  if (session.metadata?.discount_claim_id) await attachDiscountBooking(session.metadata.discount_claim_id, bookingId);
+  // Only attach the snapshot captured before checkout; legacy paid links remain unknown.
+  await attachManualCancellationPolicy(db, link.id, bookingId);
 
   await db.update(manualBookingLinks)
     .set({ bookingId })
@@ -692,13 +700,14 @@ export const bookingRouter = router({
         nightlyRate: z.number().positive(),
         guestCount: z.number().int().min(1),
         guestName: z.string().min(1),
-        guestEmail: z.string().email(),
+        guestEmail: z.string().trim().email().max(320).transform(normalizeDiscountEmail),
         guestPhone: z.string().trim().regex(/^\+?[0-9().\-\s]{7,25}$/, "Enter a valid phone number"),
         smsConsentAt: z.number().int().positive().optional(),
         message: z.string().optional(),
         guestIdUrl: z.string().url().optional(),
         agreementAcceptedAt: z.number().int().optional(),
         selectedAddonIds: z.array(z.number().int()).optional(),
+        discountCode: z.string().trim().min(1).max(64).optional(),
         discountCodeId: z.number().int().optional(),
         discountCodeLabel: z.string().optional(),
         discountCodeAmount: z.number().nonnegative().optional(),
@@ -775,12 +784,19 @@ export const bookingRouter = router({
         upsellAddonLines.reduce((sum, a) => sum + a.price, 0)
       );
       const taxAmount = roundCurrency(subtotal * taxRate);
-      const discountAmount = roundCurrency(input.discountCodeAmount ?? 0);
+      if (!input.discountCode && (input.discountCodeId !== undefined || input.discountCodeAmount !== undefined || input.discountCodeLabel !== undefined)) throw new TRPCError({ code: "BAD_REQUEST", message: "Enter the actual discount code; ID-only discounts and custom discounts are owner-only." });
+      const selection = { code: input.discountCode, codeId: input.discountCodeId, guestEmail: input.guestEmail, propertyId: input.propertyId, nightlySubtotal: subtotal };
+      if (input.discountCode) await reconcileDiscountClaims(stripe, selection);
+      const discount = input.discountCode ? await reserveDiscount({ ...selection, checkoutKey: `website:${randomUUID()}` }) : null;
+      // ID is only a selector. Amount, label, rules and remaining uses are all server-authoritative.
+      const discountAmount = discount?.discountAmount ?? 0;
       const totalAmount = roundCurrency(subtotal + cleaningFee + taxAmount + customFeesTotal + overageFee + upsellAddonsTotal - discountAmount);
 
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
+      let bookingId: number;
+      try {
       const [inserted] = await db
         .insert(bookings)
         .values({
@@ -807,21 +823,31 @@ export const bookingRouter = router({
           addonsSnapshot: upsellAddonLines.length > 0
             ? JSON.stringify(upsellAddonLines.map(a => ({ name: a.name, price: a.price })))
             : null,
-          discountCodeId: input.discountCodeId ?? null,
-          discountCodeLabel: input.discountCodeLabel ?? null,
+          discountCodeId: discount?.id ?? null,
+          discountCodeLabel: discount?.label ?? null,
           discountCodeAmount: discountAmount > 0 ? String(discountAmount) : null,
         })
         .$returningId();
 
-      const bookingId = inserted.id;
+      bookingId = inserted.id;
+      if (discount) await attachDiscountBooking(discount.claim.id, bookingId);
+      await captureNewCancellationPolicy(db, {
+        bookingId, propertySlug: input.propertyId,
+        accepted: Boolean(input.agreementAcceptedAt && input.agreementAcceptedAt > 0),
+      });
+      } catch (error) {
+        if (discount) await releaseDiscountClaim(discount.claim.id);
+        throw error;
+      }
       const baseUrl = getBaseUrl(ctx.req as any);
 
       // The $500 security deposit hold is created AFTER the guest completes
       // checkout, inside confirmStripeCheckoutSession, using the payment method
       // from the completed Checkout Session. See that function for details.
 
-      const session = await stripe.checkout.sessions.create({
+      const sessionParams: Stripe.Checkout.SessionCreateParams = {
         mode: "payment",
+        payment_method_types: ["card"],
         // A customer record is required to attach and reuse the payment method
         // for the separately authorized security-deposit hold after checkout.
         customer_creation: "always",
@@ -832,19 +858,7 @@ export const bookingRouter = router({
         payment_intent_data: {
           setup_future_usage: "off_session",
         },
-        ...(discountAmount > 0 && input.discountCodeLabel ? {
-          discounts: [{
-            coupon: await (async () => {
-              const coupon = await stripe.coupons.create({
-                amount_off: dollarsToCents(discountAmount),
-                currency: "usd",
-                name: `Discount — ${input.discountCodeLabel}`,
-                duration: "once",
-              });
-              return coupon.id;
-            })(),
-          }],
-        } : { allow_promotion_codes: true as const }),
+        // Do not enable Stripe-native codes: they bypass guest lifetime caps.
         success_url: `${baseUrl}/booking/confirmation?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/property/${input.propertyId}`,
         metadata: {
@@ -865,12 +879,12 @@ export const bookingRouter = router({
             price_data: {
               currency: "usd",
               product_data: {
-                name: `${input.propertyName} — Lodging`,
+                name: `${input.propertyName} — Lodging${discount ? ` (${discount.label})` : ""}`,
                 description: `${input.checkIn} to ${input.checkOut} · ${input.nights} night${input.nights === 1 ? "" : "s"}`,
               },
-              unit_amount: dollarsToCents(roundCurrency(input.nightlyRate)),
+              unit_amount: dollarsToCents(subtotal - discountAmount),
             },
-            quantity: input.nights,
+            quantity: 1,
           },
           {
             price_data: {
@@ -925,7 +939,9 @@ export const bookingRouter = router({
             quantity: 1,
           })),
         ],
-      });
+      };
+      const session = discount ? await issueDiscountCheckout(stripe, discount.claim.id, sessionParams) : await stripe.checkout.sessions.create(sessionParams);
+      await db.update(bookings).set({ stripeCheckoutSessionId: session.id }).where(eq(bookings.id, bookingId));
 
       return {
         checkoutUrl: session.url,
@@ -1166,6 +1182,10 @@ export const bookingRouter = router({
       const securityDepositAmount = await getSecurityDepositAmount(
         ownerBalance ? Number(linkedBooking!.depositHoldAmount ?? 0) : (link.securityDepositOverride === null ? null : Number(link.securityDepositOverride))
       );
+      const storedPolicy = await getStoredCancellationPolicy(db, link.bookingId, link.id);
+      const [policyProperty] = !storedPolicy && !ownerBalance
+        ? await db.select({ cancellationPolicy: properties.cancellationPolicy }).from(properties).where(eq(properties.slug, link.propertySlug)).limit(1)
+        : [];
       // Return safe fields only (no internal IDs)
       return {
         id: link.id,
@@ -1194,6 +1214,7 @@ export const bookingRouter = router({
         securityDepositAmount,
         guestNote: link.guestNote ?? null,
         existingReservation: Boolean(ownerBalance),
+        cancellationPolicyText: storedPolicy?.policyText ?? (ownerBalance ? null : (policyProperty?.cancellationPolicy || FUTURE_DIRECT_CANCELLATION_POLICY_TEXT)),
         originalReservationTotal: ownerBalance?.originalReservationTotal,
         amountPaid: ownerBalance?.amountPaid,
         balanceDue: ownerBalance?.balanceDue,
@@ -1209,7 +1230,7 @@ export const bookingRouter = router({
       z.object({
         token: z.string(),
         guestName: z.string().min(1),
-        guestEmail: z.string().email(),
+        guestEmail: z.string().trim().email().max(320).transform(normalizeDiscountEmail),
         guestIdUrl: z.string().url().optional(),
         origin: z.string(),
         guestPhone: z.string().optional(),
@@ -1244,6 +1265,9 @@ export const bookingRouter = router({
         if (input.termsAccepted && !linkedBooking.agreementAcceptedAt) {
           await db.update(bookings).set({ agreementAcceptedAt: Date.now() })
             .where(and(eq(bookings.id, linkedBooking.id), eq(bookings.status, "confirmed")));
+        }
+        if (input.termsAccepted && !link.bypassTermsAcceptance) {
+          await markStoredCancellationPolicyAccepted(db, linkedBooking.id);
         }
         return createOwnerBalanceCheckout({ stripe, link, ...input });
       }
@@ -1305,12 +1329,26 @@ export const bookingRouter = router({
         }
       }
 
+      if (!link.bookingId) await captureNewCancellationPolicy(db, {
+        manualLinkId: link.id, propertySlug: link.propertySlug,
+        accepted: Boolean(input.termsAccepted && !link.bypassTermsAcceptance),
+      });
+
+      // Owner-entered credits/discounts without an ID are explicit concessions.
+      // An attached coupon ID must follow the same guest/campaign rules as public checkout.
+      const couponSelection = { codeId: link.discountCodeId ?? undefined, guestEmail: input.guestEmail, propertyId: link.propertySlug, nightlySubtotal: amounts.subtotal };
+      if (link.discountCodeId) {
+        if (!link.guestEmail || normalizeDiscountEmail(link.guestEmail) !== normalizeDiscountEmail(input.guestEmail)) throw new TRPCError({ code: "BAD_REQUEST", message: "This coupon payment link is restricted to the guest email set by the host." });
+        await reconcileDiscountClaims(stripe, couponSelection);
+      }
+      const discount = link.discountCodeId ? await reserveDiscount({ ...couponSelection, checkoutKey: `manual:${link.token}`, expectedAmount: Number(link.discountAmount) }) : null;
+
       const lineItems: any[] = [
         {
           price_data: {
             currency: "usd",
-            product_data: { name: `${link.propertyName} \u2014 ${link.nights} night${link.nights !== 1 ? "s" : ""}` },
-            unit_amount: dollarsToCents(Number(link.nightlyRate) * link.nights),
+            product_data: { name: `${link.propertyName} \u2014 ${link.nights} night${link.nights !== 1 ? "s" : ""}${discount ? ` (${discount.label})` : ""}` },
+            unit_amount: dollarsToCents(amounts.subtotal - (discount?.discountAmount ?? 0)),
           },
           quantity: 1,
         },
@@ -1358,7 +1396,7 @@ export const bookingRouter = router({
         }
       }
 
-      const session = await stripe.checkout.sessions.create({
+      const sessionParams: Stripe.Checkout.SessionCreateParams = {
         payment_method_types: ["card"],
         line_items: lineItems,
         mode: "payment",
@@ -1380,12 +1418,12 @@ export const bookingRouter = router({
           property_name: link.propertyName,
           guest_phone: input.guestPhone ?? "",
         },
-        ...(amounts.stripeDiscountAmount > 0 ? {
+        ...((amounts.stripeDiscountAmount - (discount?.discountAmount ?? 0)) > 0 ? {
           discounts: [{
             coupon: await (async () => {
               const label = amounts.credits > 0 ? "Owner credits & discounts" : (link.discountLabel || "Discount");
               const coupon = await stripe.coupons.create({
-                amount_off: dollarsToCents(amounts.stripeDiscountAmount),
+                amount_off: dollarsToCents(amounts.stripeDiscountAmount - (discount?.discountAmount ?? 0)),
                 currency: "usd",
                 name: label,
                 duration: "once",
@@ -1394,7 +1432,8 @@ export const bookingRouter = router({
             })(),
           }],
         } : {}),
-      });
+      };
+      const session = discount ? await issueDiscountCheckout(stripe, discount.claim.id, sessionParams) : await stripe.checkout.sessions.create(sessionParams);
 
       // Store the checkout session ID on the link
       await db
